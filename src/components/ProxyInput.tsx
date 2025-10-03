@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const ProxyInput = () => {
   const [url, setUrl] = useState("");
@@ -33,7 +34,7 @@ const ProxyInput = () => {
       const proxyWindow = window.open("about:blank", "_blank");
       
       if (proxyWindow) {
-        // Create iframe content
+        // Create iframe content with error handling
         const iframeContent = `
           <!DOCTYPE html>
           <html>
@@ -41,12 +42,100 @@ const ProxyInput = () => {
               <title>Proxied Site</title>
               <style>
                 * { margin: 0; padding: 0; }
-                body, html { width: 100%; height: 100%; overflow: hidden; }
-                iframe { width: 100%; height: 100%; border: none; }
+                body, html { 
+                  width: 100%; 
+                  height: 100%; 
+                  overflow: hidden;
+                  background: #1a1a2e;
+                  color: white;
+                  font-family: system-ui, -apple-system, sans-serif;
+                }
+                iframe { 
+                  width: 100%; 
+                  height: 100%; 
+                  border: none; 
+                }
+                .error-container {
+                  display: none;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  padding: 2rem;
+                  text-align: center;
+                }
+                .error-container.show {
+                  display: flex;
+                }
+                .error-icon {
+                  font-size: 4rem;
+                  margin-bottom: 1rem;
+                }
+                .error-title {
+                  font-size: 1.5rem;
+                  margin-bottom: 0.5rem;
+                  color: #ef4444;
+                }
+                .error-message {
+                  color: #9ca3af;
+                  max-width: 600px;
+                  margin-bottom: 1rem;
+                }
+                .direct-link {
+                  display: inline-block;
+                  margin-top: 1rem;
+                  padding: 0.75rem 1.5rem;
+                  background: linear-gradient(135deg, #a855f7, #3b82f6);
+                  color: white;
+                  text-decoration: none;
+                  border-radius: 0.5rem;
+                  transition: transform 0.2s;
+                }
+                .direct-link:hover {
+                  transform: scale(1.05);
+                }
               </style>
             </head>
             <body>
-              <iframe src="${finalUrl}" allowfullscreen></iframe>
+              <iframe id="proxied-frame" src="${finalUrl}"></iframe>
+              <div class="error-container" id="error-container">
+                <div class="error-icon">⚠️</div>
+                <div class="error-title">This site cannot be proxied</div>
+                <div class="error-message">
+                  This website blocks iframe embedding for security reasons. 
+                  Major sites like Google, Facebook, YouTube, and banking sites use this protection.
+                  <br><br>
+                  <strong>Try visiting the site directly instead:</strong>
+                </div>
+                <a href="${finalUrl}" class="direct-link" target="_blank">
+                  Open ${new URL(finalUrl).hostname} directly
+                </a>
+              </div>
+              <script>
+                const iframe = document.getElementById('proxied-frame');
+                const errorContainer = document.getElementById('error-container');
+                
+                // Check if iframe loads successfully
+                let loaded = false;
+                
+                iframe.onload = function() {
+                  loaded = true;
+                };
+                
+                // If iframe doesn't load within 3 seconds, show error
+                setTimeout(function() {
+                  if (!loaded) {
+                    iframe.style.display = 'none';
+                    errorContainer.classList.add('show');
+                  }
+                }, 3000);
+                
+                // Detect iframe errors
+                iframe.onerror = function() {
+                  iframe.style.display = 'none';
+                  errorContainer.classList.add('show');
+                };
+              </script>
             </body>
           </html>
         `;
@@ -56,7 +145,7 @@ const ProxyInput = () => {
         
         toast({
           title: "Site opened",
-          description: "The website has been opened in a new tab with URL masking",
+          description: "The website has been opened with URL masking. If it doesn't load, the site blocks iframe embedding.",
         });
         
         setUrl("");
@@ -83,7 +172,7 @@ const ProxyInput = () => {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto space-y-4">
       <div className="flex gap-3">
         <Input
           type="text"
@@ -102,7 +191,17 @@ const ProxyInput = () => {
           Go
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground mt-3 text-center">
+      
+      <Alert className="bg-card border-border">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Compatibility Note</AlertTitle>
+        <AlertDescription>
+          Some major websites (Google, Facebook, YouTube, banking sites) block iframe embedding 
+          and won't work with this proxy. Try smaller websites or news sites for best results.
+        </AlertDescription>
+      </Alert>
+      
+      <p className="text-sm text-muted-foreground text-center">
         Opens websites in a new tab with URL masking for privacy
       </p>
     </div>
