@@ -117,23 +117,30 @@ const ProxyInput = () => {
                 
                 // Check if iframe loads successfully
                 let loaded = false;
+                let hasError = false;
                 
                 iframe.onload = function() {
-                  loaded = true;
+                  try {
+                    // Try to access iframe content to verify it loaded
+                    iframe.contentWindow.location.href;
+                    loaded = true;
+                  } catch (e) {
+                    // Cross-origin error means the site is blocking iframe
+                    hasError = true;
+                    window.location.href = '${finalUrl}';
+                  }
                 };
                 
-                // If iframe doesn't load within 3 seconds, show error
+                // If iframe doesn't load within 2 seconds, redirect to actual site
                 setTimeout(function() {
-                  if (!loaded) {
-                    iframe.style.display = 'none';
-                    errorContainer.classList.add('show');
+                  if (!loaded && !hasError) {
+                    window.location.href = '${finalUrl}';
                   }
-                }, 3000);
+                }, 2000);
                 
-                // Detect iframe errors
+                // Detect iframe errors and redirect
                 iframe.onerror = function() {
-                  iframe.style.display = 'none';
-                  errorContainer.classList.add('show');
+                  window.location.href = '${finalUrl}';
                 };
               </script>
             </body>
