@@ -8,6 +8,47 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 263 70% 50%;
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 263 70% 65%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 263 70% 50%;
+
+    --radius: 0.75rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(263 70% 50%), hsl(217 91% 60%));
+    --gradient-glow: linear-gradient(180deg, hsl(263 70% 50% / 0.1), transparent);
+    
+    --shadow-glow: 0 0 40px hsl(263 70% 50% / 0.2);
+    --shadow-card: 0 8px 32px hsl(220 26% 8% / 0.1);
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
     --background: 220 26% 14%;
     --foreground: 210 40% 98%;
 
@@ -37,15 +78,11 @@ All colors MUST be HSL.
     --input: 220 26% 25%;
     --ring: 263 70% 65%;
 
-    --radius: 0.75rem;
-
     --gradient-primary: linear-gradient(135deg, hsl(263 70% 65%), hsl(217 91% 60%));
     --gradient-glow: linear-gradient(180deg, hsl(263 70% 65% / 0.1), transparent);
     
     --shadow-glow: 0 0 40px hsl(263 70% 65% / 0.3);
     --shadow-card: 0 8px 32px hsl(220 26% 8% / 0.5);
-    
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -56,8 +93,15 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background: linear-gradient(135deg, hsl(220 26% 14%), hsl(220 26% 10%));
     min-height: 100vh;
+  }
+
+  body.dark {
+    background: linear-gradient(135deg, hsl(220 26% 14%), hsl(220 26% 10%));
+  }
+
+  body:not(.dark) {
+    background: linear-gradient(135deg, hsl(210 40% 98%), hsl(214 31.8% 91.4%));
   }
   
   .glow-text {

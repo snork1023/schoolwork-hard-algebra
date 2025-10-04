@@ -8,6 +8,14 @@ import { useState } from "react";
 const Settings = () => {
   const [autoOpen, setAutoOpen] = useState(true);
   const [searchEngine, setSearchEngine] = useState("google");
+  const [browserType, setBrowserType] = useState(
+    localStorage.getItem("browserType") || "chrome"
+  );
+
+  const handleBrowserTypeChange = (value: string) => {
+    setBrowserType(value);
+    localStorage.setItem("browserType", value);
+  };
 
   return (
     <div className="min-h-screen">
@@ -17,7 +25,7 @@ const Settings = () => {
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold mb-2 glow-text">Settings</h1>
           <p className="text-muted-foreground mb-8">
-            Customize your proxy experience
+            Customize your browsing experience
           </p>
 
           <div className="space-y-6">
@@ -29,6 +37,26 @@ const Settings = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="browser-type">Browser Type</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Choose which browser interface to display
+                    </p>
+                  </div>
+                  <Select value={browserType} onValueChange={handleBrowserTypeChange}>
+                    <SelectTrigger className="w-[180px] bg-background">
+                      <SelectValue placeholder="Select browser" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chrome">Chrome</SelectItem>
+                      <SelectItem value="firefox">Firefox</SelectItem>
+                      <SelectItem value="safari">Safari</SelectItem>
+                      <SelectItem value="edge">Edge</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="auto-open">Auto-open in new tab</Label>
@@ -97,7 +125,7 @@ const Settings = () => {
               <CardHeader>
                 <CardTitle>About</CardTitle>
                 <CardDescription>
-                  ProxyGate information
+                  Totally Schoolwork and Not Games information
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -106,10 +134,10 @@ const Settings = () => {
                     <span className="font-semibold text-foreground">Version:</span> 1.0.0
                   </p>
                   <p className="text-muted-foreground">
-                    <span className="font-semibold text-foreground">Purpose:</span> Privacy-focused web proxy
+                    <span className="font-semibold text-foreground">Purpose:</span> Educational resource gateway
                   </p>
                   <p className="text-muted-foreground">
-                    ProxyGate masks your browsing activity by opening websites with a blank URL.
+                    A secure browser for accessing educational content with privacy features.
                   </p>
                 </div>
               </CardContent>

@@ -6,18 +6,18 @@ const Index = () => {
   const features = [
     {
       icon: Shield,
-      title: "URL Masking",
-      description: "Browse with complete privacy - URLs are masked as about:blank",
+      title: "Browser Privacy",
+      description: "Access educational content with customizable browser interfaces",
     },
     {
       icon: Lock,
-      title: "Secure Browsing",
+      title: "Secure Access",
       description: "Your browsing activity stays private and protected",
     },
     {
       icon: Zap,
       title: "Fast & Simple",
-      description: "Instant access to any website with just one click",
+      description: "Instant access to educational resources with just one click",
     },
   ];
 
@@ -27,11 +27,11 @@ const Index = () => {
       
       <main className="container mx-auto px-4 pt-32 pb-12">
         <div className="text-center mb-16 animate-fade-in">
-          <h1 className="text-6xl font-bold mb-4 glow-text">
-            ProxyGate
+          <h1 className="text-5xl font-bold mb-4 glow-text">
+            Totally Schoolwork and Not Games
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Browse the web privately with advanced URL masking technology
+            Browse educational resources privately with our secure gateway
           </p>
         </div>
 

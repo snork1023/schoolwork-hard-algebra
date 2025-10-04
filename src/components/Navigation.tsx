@@ -1,9 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Settings, MessageSquare } from "lucide-react";
+import { Home, Settings, MessageSquare, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 
 const Navigation = () => {
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
   
   const links = [
     { to: "/", icon: Home, label: "Home" },
@@ -17,12 +20,26 @@ const Navigation = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <span className="text-white font-bold text-sm">P</span>
+              <span className="text-white font-bold text-sm">T</span>
             </div>
-            <span className="text-xl font-bold glow-text">ProxyGate</span>
+            <span className="text-lg sm:text-xl font-bold glow-text hidden sm:inline">
+              Totally Schoolwork and Not Games
+            </span>
+            <span className="text-lg font-bold glow-text sm:hidden">TSWNG</span>
           </div>
           
-          <div className="flex gap-1">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="h-9 w-9"
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </Button>
+            
+            <div className="flex gap-1">
             {links.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.to;
@@ -43,6 +60,7 @@ const Navigation = () => {
                 </Link>
               );
             })}
+            </div>
           </div>
         </div>
       </div>
