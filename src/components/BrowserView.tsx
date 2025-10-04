@@ -9,10 +9,17 @@ const BrowserView = () => {
   const url = searchParams.get("url") || "";
   const browserType = localStorage.getItem("browserType") || "chrome";
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
+    setError(false);
+    setLoading(true);
+    const loadTimer = setTimeout(() => setLoading(false), 1500);
+    const fallbackTimer = setTimeout(() => setError(true), 3000);
+    return () => {
+      clearTimeout(loadTimer);
+      clearTimeout(fallbackTimer);
+    };
   }, [url]);
 
   const getBrowserStyles = () => {
@@ -41,6 +48,7 @@ const BrowserView = () => {
   };
 
   const styles = getBrowserStyles();
+  const hostname = (() => { try { return new URL(url).hostname; } catch { return url; } })();
 
   return (
     <div className="h-screen flex flex-col">
@@ -50,7 +58,7 @@ const BrowserView = () => {
         <div className="flex items-center gap-1">
           <div className={`${styles.urlBar} rounded-t-lg px-4 py-2 flex items-center gap-2 max-w-[200px]`}>
             <Lock className="w-3 h-3 text-muted-foreground" />
-            <span className="text-sm truncate">{new URL(url).hostname}</span>
+            <span className="text-sm truncate">{hostname}</span>
           </div>
           <Button
             variant="ghost"
@@ -107,11 +115,28 @@ const BrowserView = () => {
             </div>
           </div>
         )}
+        {!loading && error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+            <div className="text-center space-y-3 max-w-md px-6">
+              <p className="text-sm text-muted-foreground">
+                This site refused to connect inside an embedded browser. Many sites block embedding for security reasons.
+              </p>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-md px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 transition"
+              >
+                Open directly
+              </a>
+            </div>
+          </div>
+        )}
         <iframe
           src={url}
           className="w-full h-full border-0"
           title="Browser Content"
-          onLoad={() => setLoading(false)}
+          onLoad={() => { setLoading(false); setError(false); }}
           sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
         />
       </div>

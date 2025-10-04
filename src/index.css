@@ -49,7 +49,7 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 220 26% 14%;
+    --background: 0 0% 0%;
     --foreground: 210 40% 98%;
 
     --card: 220 26% 18%;
@@ -97,7 +97,7 @@ All colors MUST be HSL.
   }
 
   body.dark {
-    background: linear-gradient(135deg, hsl(220 26% 14%), hsl(220 26% 10%));
+    background: linear-gradient(135deg, hsl(0 0% 0%), hsl(0 0% 7%));
   }
 
   body:not(.dark) {

@@ -139,6 +139,9 @@ const Settings = () => {
                   <p className="text-muted-foreground">
                     A secure browser for accessing educational content with privacy features.
                   </p>
+                  <p className="text-muted-foreground">
+                    Created by <span className="font-medium text-foreground">snorkthedork</span>.
+                  </p>
                 </div>
               </CardContent>
             </Card>
