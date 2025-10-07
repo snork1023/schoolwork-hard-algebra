@@ -8,8 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 0%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -97,11 +97,11 @@ All colors MUST be HSL.
   }
 
   body.dark {
-    background: hsl(0 0% 0%);
+    background: hsl(0 0% 0%) !important;
   }
 
   body:not(.dark) {
-    background: hsl(0 0% 0%);
+    background: linear-gradient(135deg, hsl(210 40% 98%), hsl(214 31.8% 91.4%));
   }
   
   .glow-text {
