@@ -10,14 +10,16 @@ const BrowserView = () => {
   const browserType = localStorage.getItem("browserType") || "chrome";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [useWayback, setUseWayback] = useState(false);
   
-  const proxyUrl = url 
-    ? `https://fsblsudfvtlwwzipheow.supabase.co/functions/v1/proxy?url=${encodeURIComponent(url)}`
-    : '';
+  const displayUrl = useWayback && url
+    ? `https://web.archive.org/web/${url}`
+    : url;
 
   useEffect(() => {
     setError(false);
     setLoading(true);
+    setUseWayback(false);
   }, [url]);
 
   const getBrowserStyles = () => {
@@ -117,21 +119,30 @@ const BrowserView = () => {
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
             <div className="text-center space-y-3 max-w-md px-6">
               <p className="text-sm text-muted-foreground">
-                This site refused to connect inside an embedded browser. Many sites block embedding for security reasons.
+                This site blocks embedding. Try loading an archived version or open directly.
               </p>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-md px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 transition"
-              >
-                Open directly
-              </a>
+              <div className="flex gap-2 justify-center">
+                <Button
+                  onClick={() => { setUseWayback(true); setError(false); setLoading(true); }}
+                  variant="default"
+                >
+                  Load via Wayback Machine
+                </Button>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="outline">
+                    Open directly
+                  </Button>
+                </a>
+              </div>
             </div>
           </div>
         )}
         <iframe
-          src={proxyUrl}
+          src={displayUrl}
           className="w-full h-full border-0"
           title="Browser Content"
           onLoad={() => { setLoading(false); setError(false); }}
