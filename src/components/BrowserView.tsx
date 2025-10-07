@@ -10,16 +10,14 @@ const BrowserView = () => {
   const browserType = localStorage.getItem("browserType") || "chrome";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  
+  const proxyUrl = url 
+    ? `https://fsblsudfvtlwwzipheow.supabase.co/functions/v1/proxy?url=${encodeURIComponent(url)}`
+    : '';
 
   useEffect(() => {
     setError(false);
     setLoading(true);
-    const loadTimer = setTimeout(() => setLoading(false), 1500);
-    const fallbackTimer = setTimeout(() => setError(true), 3000);
-    return () => {
-      clearTimeout(loadTimer);
-      clearTimeout(fallbackTimer);
-    };
   }, [url]);
 
   const getBrowserStyles = () => {
@@ -133,11 +131,12 @@ const BrowserView = () => {
           </div>
         )}
         <iframe
-          src={url}
+          src={proxyUrl}
           className="w-full h-full border-0"
           title="Browser Content"
           onLoad={() => { setLoading(false); setError(false); }}
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+          onError={() => { setLoading(false); setError(true); }}
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads"
         />
       </div>
     </div>
