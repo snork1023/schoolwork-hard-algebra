@@ -33,26 +33,15 @@ serve(async (req) => {
 
     console.log('Fetching website:', url);
 
-    // Use BrowserQL to capture website screenshot
-    const browserlessResponse = await fetch(`https://production-sfo.browserless.io/chromium/bql?token=${browserlessApiKey}`, {
+    // Use Browserless to fetch rendered HTML content
+    const browserlessResponse = await fetch(`https://production-sfo.browserless.io/content?token=${browserlessApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query: `
-          mutation Screenshot($url: String!) {
-            goto(url: $url, waitUntil: load) {
-              status
-            }
-            screenshot(type: jpeg, fullPage: true) {
-              base64
-            }
-          }
-        `,
-        variables: {
-          url: url
-        }
+        url: url,
+        waitFor: 2000,
       }),
     });
 
@@ -65,23 +54,11 @@ serve(async (req) => {
       );
     }
 
-    const result = await browserlessResponse.json();
-    console.log('Successfully fetched website screenshot');
-
-    if (!result.data?.screenshot?.base64) {
-      console.error('No screenshot data received');
-      return new Response(
-        JSON.stringify({ error: 'Failed to capture website screenshot' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const htmlContent = await browserlessResponse.text();
+    console.log('Successfully fetched website content');
 
     return new Response(
-      JSON.stringify({ 
-        image: result.data.screenshot.base64, 
-        url: url,
-        status: result.data.goto.status 
-      }),
+      JSON.stringify({ html: htmlContent, url: url }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
