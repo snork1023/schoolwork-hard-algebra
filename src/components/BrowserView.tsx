@@ -2,25 +2,57 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const BrowserView = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const url = searchParams.get("url") || "";
   const browserType = localStorage.getItem("browserType") || "chrome";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [htmlContent, setHtmlContent] = useState<string>("");
   const [useWayback, setUseWayback] = useState(false);
-  
-  const displayUrl = useWayback && url
-    ? `https://web.archive.org/web/${url}`
-    : url;
 
   useEffect(() => {
-    setError(false);
-    setLoading(true);
-    setUseWayback(false);
-  }, [url]);
+    const fetchWebsite = async () => {
+      if (!url) return;
+      
+      setError(false);
+      setLoading(true);
+      setUseWayback(false);
+      setHtmlContent("");
+
+      try {
+        const { data, error: fetchError } = await supabase.functions.invoke('fetch-website', {
+          body: { url: useWayback ? `https://web.archive.org/web/${url}` : url }
+        });
+
+        if (fetchError) throw fetchError;
+
+        if (data?.html) {
+          setHtmlContent(data.html);
+          setError(false);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        console.error('Error fetching website:', err);
+        setError(true);
+        toast({
+          title: "Failed to load website",
+          description: "The website couldn't be loaded through the browser service.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWebsite();
+  }, [url, useWayback, toast]);
 
   const getBrowserStyles = () => {
     switch (browserType) {
@@ -119,11 +151,11 @@ const BrowserView = () => {
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
             <div className="text-center space-y-3 max-w-md px-6">
               <p className="text-sm text-muted-foreground">
-                This site blocks embedding. Try loading an archived version or open directly.
+                Failed to load website. Try loading an archived version or open directly.
               </p>
               <div className="flex gap-2 justify-center">
                 <Button
-                  onClick={() => { setUseWayback(true); setError(false); setLoading(true); }}
+                  onClick={() => setUseWayback(true)}
                   variant="default"
                 >
                   Load via Wayback Machine
@@ -141,14 +173,14 @@ const BrowserView = () => {
             </div>
           </div>
         )}
-        <iframe
-          src={displayUrl}
-          className="w-full h-full border-0"
-          title="Browser Content"
-          onLoad={() => { setLoading(false); setError(false); }}
-          onError={() => { setLoading(false); setError(true); }}
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads"
-        />
+        {!loading && !error && htmlContent && (
+          <iframe
+            srcDoc={htmlContent}
+            className="w-full h-full border-0"
+            title="Browser Content"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+          />
+        )}
       </div>
     </div>
   );
