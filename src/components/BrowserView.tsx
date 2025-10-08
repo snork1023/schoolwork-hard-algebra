@@ -13,7 +13,7 @@ const BrowserView = () => {
   const browserType = localStorage.getItem("browserType") || "chrome";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [htmlContent, setHtmlContent] = useState<string>("");
+  const [imageData, setImageData] = useState<string>("");
   const [useWayback, setUseWayback] = useState(false);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const BrowserView = () => {
       setError(false);
       setLoading(true);
       setUseWayback(false);
-      setHtmlContent("");
+      setImageData("");
 
       try {
         const { data, error: fetchError } = await supabase.functions.invoke('fetch-website', {
@@ -32,8 +32,8 @@ const BrowserView = () => {
 
         if (fetchError) throw fetchError;
 
-        if (data?.html) {
-          setHtmlContent(data.html);
+        if (data?.image) {
+          setImageData(data.image);
           setError(false);
         } else {
           setError(true);
@@ -173,13 +173,14 @@ const BrowserView = () => {
             </div>
           </div>
         )}
-        {!loading && !error && htmlContent && (
-          <iframe
-            srcDoc={htmlContent}
-            className="w-full h-full border-0"
-            title="Browser Content"
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
-          />
+        {!loading && !error && imageData && (
+          <div className="w-full h-full overflow-auto bg-background">
+            <img
+              src={`data:image/jpeg;base64,${imageData}`}
+              alt="Website Screenshot"
+              className="w-full"
+            />
+          </div>
         )}
       </div>
     </div>
