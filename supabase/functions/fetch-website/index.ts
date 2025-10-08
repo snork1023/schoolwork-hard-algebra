@@ -34,7 +34,7 @@ serve(async (req) => {
     console.log('Fetching website:', url);
 
     // Use Browserless.io to fetch the website content
-    const browserlessResponse = await fetch(`https://chrome.browserless.io/content?token=${browserlessApiKey}`, {
+    const browserlessResponse = await fetch(`https://production-sfo.browserless.io/content?token=${browserlessApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
