@@ -94,7 +94,7 @@ serve(async (req) => {
     const contentResponse = await fetch(`https://production-sfo.browserless.io/content?token=${browserlessApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, waitFor: 2000 }),
+      body: JSON.stringify({ url }),
     });
 
     if (!contentResponse.ok) {

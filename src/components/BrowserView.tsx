@@ -16,17 +16,15 @@ const BrowserView = () => {
   const [liveURL, setLiveURL] = useState<string>("");
   const [htmlContent, setHtmlContent] = useState<string>("");
   const [useWayback, setUseWayback] = useState(false);
-
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     const fetchWebsite = async () => {
       if (!url) return;
       
       setError(false);
       setLoading(true);
-      setUseWayback(false);
       setLiveURL("");
       setHtmlContent("");
-
       try {
         const { data, error: fetchError } = await supabase.functions.invoke('fetch-website', {
           body: { url: useWayback ? `https://web.archive.org/web/${url}` : url }
@@ -57,7 +55,7 @@ const BrowserView = () => {
     };
 
     fetchWebsite();
-  }, [url, useWayback, toast]);
+  }, [url, useWayback, toast, reloadKey]);
 
   const getBrowserStyles = () => {
     switch (browserType) {
@@ -120,7 +118,7 @@ const BrowserView = () => {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => setLoading(true)}
+              onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
             >
               <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
