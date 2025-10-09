@@ -13,7 +13,7 @@ const BrowserView = () => {
   const browserType = localStorage.getItem("browserType") || "chrome";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [htmlContent, setHtmlContent] = useState<string>("");
+  const [liveURL, setLiveURL] = useState<string>("");
   const [useWayback, setUseWayback] = useState(false);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const BrowserView = () => {
       setError(false);
       setLoading(true);
       setUseWayback(false);
-      setHtmlContent("");
+      setLiveURL("");
 
       try {
         const { data, error: fetchError } = await supabase.functions.invoke('fetch-website', {
@@ -32,8 +32,8 @@ const BrowserView = () => {
 
         if (fetchError) throw fetchError;
 
-        if (data?.html) {
-          setHtmlContent(data.html);
+        if (data?.liveURL) {
+          setLiveURL(data.liveURL);
           setError(false);
         } else {
           setError(true);
@@ -173,12 +173,12 @@ const BrowserView = () => {
             </div>
           </div>
         )}
-        {!loading && !error && htmlContent && (
+        {!loading && !error && liveURL && (
           <iframe
-            srcDoc={htmlContent}
+            src={liveURL}
             className="w-full h-full border-0"
-            title="Browser Content"
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+            title="Interactive Browser"
+            allow="clipboard-read; clipboard-write"
           />
         )}
       </div>

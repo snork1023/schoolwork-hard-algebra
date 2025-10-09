@@ -33,15 +33,26 @@ serve(async (req) => {
 
     console.log('Fetching website:', url);
 
-    // Use Browserless to fetch rendered HTML content
-    const browserlessResponse = await fetch(`https://production-sfo.browserless.io/content?token=${browserlessApiKey}`, {
+    // Use BrowserQL to get an interactive liveURL
+    const browserlessResponse = await fetch(`https://production-sfo.browserless.io/chromium/bql?token=${browserlessApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url: url,
-        waitFor: 2000,
+        query: `
+          mutation LiveURL($url: String!) {
+            goto(url: $url, waitUntil: load) {
+              status
+            }
+            liveURL {
+              liveURL
+            }
+          }
+        `,
+        variables: {
+          url: url
+        }
       }),
     });
 
@@ -49,16 +60,28 @@ serve(async (req) => {
       const errorText = await browserlessResponse.text();
       console.error('Browserless API error:', errorText);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch website content' }),
+        JSON.stringify({ error: 'Failed to create interactive browser session' }),
         { status: browserlessResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const htmlContent = await browserlessResponse.text();
-    console.log('Successfully fetched website content');
+    const result = await browserlessResponse.json();
+    console.log('Successfully created interactive browser session');
+
+    if (!result.data?.liveURL?.liveURL) {
+      console.error('No liveURL received');
+      return new Response(
+        JSON.stringify({ error: 'Failed to get interactive browser URL' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
-      JSON.stringify({ html: htmlContent, url: url }),
+      JSON.stringify({ 
+        liveURL: result.data.liveURL.liveURL, 
+        url: url,
+        status: result.data.goto.status 
+      }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
