@@ -68,26 +68,50 @@ serve(async (req) => {
     const result = await browserlessResponse.json();
     console.log('BrowserQL response:', JSON.stringify(result));
 
-    if (!result.data?.liveURL?.liveURL) {
-      console.error('No liveURL received. Full response:', JSON.stringify(result));
+    // If LiveURL is available, return it
+    if (result.data?.liveURL?.liveURL) {
+      const live = result.data.liveURL.liveURL;
+      console.log('Successfully created interactive browser session with liveURL:', live);
       return new Response(
-        JSON.stringify({ error: 'Failed to get interactive browser URL', details: result }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          liveURL: live, 
+          url: url,
+          status: result.data.goto?.status 
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
 
-    console.log('Successfully created interactive browser session with liveURL:', result.data.liveURL.liveURL);
+    // Fallback: If plan doesn't support LiveURL or it's unavailable, return rendered HTML snapshot
+    console.warn('LiveURL unavailable, attempting HTML fallback');
+    if (result?.errors) {
+      console.warn('BrowserQL errors:', JSON.stringify(result.errors));
+    }
+
+    const contentResponse = await fetch(`https://production-sfo.browserless.io/content?token=${browserlessApiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, waitFor: 2000 }),
+    });
+
+    if (!contentResponse.ok) {
+      const errorText = await contentResponse.text();
+      console.error('Browserless content API error:', errorText);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch website content' }),
+        { status: contentResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const htmlContent = await contentResponse.text();
+    console.log('HTML fallback successful');
 
     return new Response(
-      JSON.stringify({ 
-        liveURL: result.data.liveURL.liveURL, 
-        url: url,
-        status: result.data.goto.status 
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ html: htmlContent, url }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {

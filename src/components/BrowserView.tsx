@@ -14,6 +14,7 @@ const BrowserView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [liveURL, setLiveURL] = useState<string>("");
+  const [htmlContent, setHtmlContent] = useState<string>("");
   const [useWayback, setUseWayback] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,7 @@ const BrowserView = () => {
       setLoading(true);
       setUseWayback(false);
       setLiveURL("");
+      setHtmlContent("");
 
       try {
         const { data, error: fetchError } = await supabase.functions.invoke('fetch-website', {
@@ -34,6 +36,9 @@ const BrowserView = () => {
 
         if (data?.liveURL) {
           setLiveURL(data.liveURL);
+          setError(false);
+        } else if (data?.html) {
+          setHtmlContent(data.html);
           setError(false);
         } else {
           setError(true);
@@ -173,13 +178,22 @@ const BrowserView = () => {
             </div>
           </div>
         )}
-        {!loading && !error && liveURL && (
-          <iframe
-            src={liveURL}
-            className="w-full h-full border-0"
-            title="Interactive Browser"
-            allow="clipboard-read; clipboard-write"
-          />
+        {!loading && !error && (
+          liveURL ? (
+            <iframe
+              src={liveURL}
+              className="w-full h-full border-0"
+              title="Interactive Browser"
+              allow="clipboard-read; clipboard-write"
+            />
+          ) : htmlContent ? (
+            <iframe
+              srcDoc={htmlContent}
+              className="w-full h-full border-0"
+              title="Browser Content"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+            />
+          ) : null
         )}
       </div>
     </div>
