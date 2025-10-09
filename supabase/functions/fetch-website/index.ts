@@ -66,15 +66,17 @@ serve(async (req) => {
     }
 
     const result = await browserlessResponse.json();
-    console.log('Successfully created interactive browser session');
+    console.log('BrowserQL response:', JSON.stringify(result));
 
     if (!result.data?.liveURL?.liveURL) {
-      console.error('No liveURL received');
+      console.error('No liveURL received. Full response:', JSON.stringify(result));
       return new Response(
-        JSON.stringify({ error: 'Failed to get interactive browser URL' }),
+        JSON.stringify({ error: 'Failed to get interactive browser URL', details: result }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Successfully created interactive browser session with liveURL:', result.data.liveURL.liveURL);
 
     return new Response(
       JSON.stringify({ 
