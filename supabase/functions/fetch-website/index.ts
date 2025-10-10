@@ -21,97 +21,95 @@ serve(async (req) => {
       );
     }
 
-    const browserlessApiKey = Deno.env.get('BROWSERLESS_API_KEY');
+    const browserbaseApiKey = Deno.env.get('BROWSERBASE_API_KEY');
     
-    if (!browserlessApiKey) {
-      console.error('BROWSERLESS_API_KEY not found');
+    if (!browserbaseApiKey) {
+      console.error('BROWSERBASE_API_KEY not found');
       return new Response(
-        JSON.stringify({ error: 'Browserless API key not configured' }),
+        JSON.stringify({ error: 'Browserbase API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Fetching website:', url);
 
-    // Use BrowserQL to get an interactive liveURL
-    const browserlessResponse = await fetch(`https://production-sfo.browserless.io/chromium/bql?token=${browserlessApiKey}`, {
+    // Create a Browserbase session
+    const createSessionResponse = await fetch('https://www.browserbase.com/v1/sessions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-BB-API-Key': browserbaseApiKey,
       },
       body: JSON.stringify({
-        query: `
-          mutation LiveURL($url: String!) {
-            goto(url: $url, waitUntil: load) {
-              status
-            }
-            liveURL {
-              liveURL
-            }
+        browserSettings: {
+          viewport: {
+            width: 1920,
+            height: 1080
           }
-        `,
-        variables: {
-          url: url
         }
       }),
     });
 
-    if (!browserlessResponse.ok) {
-      const errorText = await browserlessResponse.text();
-      console.error('Browserless API error:', errorText);
+    if (!createSessionResponse.ok) {
+      const errorText = await createSessionResponse.text();
+      console.error('Browserbase session creation error:', errorText);
       return new Response(
-        JSON.stringify({ error: 'Failed to create interactive browser session' }),
-        { status: browserlessResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to create browser session' }),
+        { status: createSessionResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const result = await browserlessResponse.json();
-    console.log('BrowserQL response:', JSON.stringify(result));
+    const sessionData = await createSessionResponse.json();
+    console.log('Browserbase session created:', sessionData.id);
 
-    // If LiveURL is available, return it
-    if (result.data?.liveURL?.liveURL) {
-      const live = result.data.liveURL.liveURL;
-      console.log('Successfully created interactive browser session with liveURL:', live);
-      return new Response(
-        JSON.stringify({ 
-          liveURL: live, 
-          url: url,
-          status: result.data.goto?.status 
+    // Use Puppeteer-like approach to navigate and get live URL
+    const sessionId = sessionData.id;
+    const liveURL = `https://connect.browserbase.com?apiKey=${browserbaseApiKey}&sessionId=${sessionId}`;
+
+    // Navigate to the URL using Browserbase's debug endpoint
+    try {
+      const navigateResponse = await fetch(`https://www.browserbase.com/v1/sessions/${sessionId}/debug`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-BB-API-Key': browserbaseApiKey,
+        },
+        body: JSON.stringify({
+          method: 'Page.navigate',
+          params: { url }
         }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      });
+
+      if (navigateResponse.ok) {
+        console.log('Successfully created interactive browser session with liveURL:', liveURL);
+        return new Response(
+          JSON.stringify({ 
+            liveURL: liveURL, 
+            url: url,
+            sessionId: sessionId
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } catch (navError) {
+      console.warn('Navigation error, but returning liveURL anyway:', navError);
     }
 
-    // Fallback: If plan doesn't support LiveURL or it's unavailable, return rendered HTML snapshot
-    console.warn('LiveURL unavailable, attempting HTML fallback');
-    if (result?.errors) {
-      console.warn('BrowserQL errors:', JSON.stringify(result.errors));
-    }
-
-    const contentResponse = await fetch(`https://production-sfo.browserless.io/content?token=${browserlessApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
-
-    if (!contentResponse.ok) {
-      const errorText = await contentResponse.text();
-      console.error('Browserless content API error:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch website content' }),
-        { status: contentResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const htmlContent = await contentResponse.text();
-    console.log('HTML fallback successful');
-
+    // Return the liveURL regardless
+    console.log('Returning liveURL for interactive browsing');
     return new Response(
-      JSON.stringify({ html: htmlContent, url }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        liveURL: liveURL, 
+        url: url,
+        sessionId: sessionId
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
 
   } catch (error) {
