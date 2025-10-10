@@ -2,9 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, AlertCircle } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const ProxyInput = () => {
   const [url, setUrl] = useState("");
@@ -76,15 +75,6 @@ const ProxyInput = () => {
           Go
         </Button>
       </div>
-      
-      <Alert className="bg-card border-border">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Compatibility Note</AlertTitle>
-        <AlertDescription>
-          Some major websites (Google, Facebook, YouTube, banking sites) block iframe embedding 
-          and won't work with this proxy. Try smaller websites or news sites for best results.
-        </AlertDescription>
-      </Alert>
       
       <p className="text-sm text-muted-foreground text-center">
         Opens websites in a new tab with URL masking for privacy
