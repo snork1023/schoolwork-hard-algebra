@@ -63,6 +63,17 @@ serve(async (req) => {
     if (!createSessionResponse.ok) {
       const errorText = await createSessionResponse.text();
       console.error('Browserbase session creation error:', errorText);
+      
+      // If rate limited, provide helpful error message
+      if (createSessionResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Browser session limit reached. Your Browserbase account allows 1 concurrent session. Please wait a moment and try again, or contact Browserbase support to increase your limit.' 
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Failed to create browser session' }),
         { status: createSessionResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
