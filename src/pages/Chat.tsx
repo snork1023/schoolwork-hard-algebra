@@ -18,6 +18,17 @@ const Chat = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  const formatMessage = (text: string) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        const boldText = part.slice(2, -2);
+        return <strong key={index} className="font-bold">{boldText}</strong>;
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -173,17 +184,30 @@ const Chat = () => {
                         message.role === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div
+                       <div
                         className={`max-w-[80%] rounded-lg p-4 ${
                           message.role === "user"
                             ? "bg-primary text-primary-foreground"
                             : "bg-secondary text-secondary-foreground"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                        <p className="whitespace-pre-wrap break-words">
+                          {formatMessage(message.content)}
+                        </p>
                       </div>
                     </div>
                   ))}
+                  {isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && !messages[messages.length - 1].content && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[80%] rounded-lg p-4 bg-secondary text-secondary-foreground">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                          <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                          <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </ScrollArea>
