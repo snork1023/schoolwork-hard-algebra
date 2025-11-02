@@ -22,11 +22,20 @@ serve(async (req) => {
     }
 
     const browserbaseApiKey = Deno.env.get('BROWSERBASE_API_KEY');
+    const browserbaseProjectId = Deno.env.get('BROWSERBASE_PROJECT_ID');
     
     if (!browserbaseApiKey) {
       console.error('BROWSERBASE_API_KEY not found');
       return new Response(
         JSON.stringify({ error: 'Browserbase API key not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!browserbaseProjectId) {
+      console.error('BROWSERBASE_PROJECT_ID not found');
+      return new Response(
+        JSON.stringify({ error: 'Browserbase project ID not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -41,6 +50,7 @@ serve(async (req) => {
         'X-BB-API-Key': browserbaseApiKey,
       },
       body: JSON.stringify({
+        projectId: browserbaseProjectId,
         browserSettings: {
           viewport: {
             width: 1920,
