@@ -182,6 +182,7 @@ const BrowserView = () => {
               src={liveURL}
               className="w-full h-full border-0"
               title="Interactive Browser"
+              sandbox="allow-same-origin allow-scripts"
               allow="clipboard-read; clipboard-write"
             />
           ) : htmlContent ? (

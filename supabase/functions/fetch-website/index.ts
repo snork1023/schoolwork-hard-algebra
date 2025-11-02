@@ -34,7 +34,7 @@ serve(async (req) => {
     console.log('Fetching website:', url);
 
     // Create a Browserbase session
-    const createSessionResponse = await fetch('https://www.browserbase.com/v1/sessions', {
+    const createSessionResponse = await fetch('https://api.browserbase.com/v1/sessions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -62,54 +62,69 @@ serve(async (req) => {
     const sessionData = await createSessionResponse.json();
     console.log('Browserbase session created:', sessionData.id);
 
-    // Use Puppeteer-like approach to navigate and get live URL
     const sessionId = sessionData.id;
-    const liveURL = `https://connect.browserbase.com?apiKey=${browserbaseApiKey}&sessionId=${sessionId}`;
 
-    // Navigate to the URL using Browserbase's debug endpoint
-    try {
-      const navigateResponse = await fetch(`https://www.browserbase.com/v1/sessions/${sessionId}/debug`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-BB-API-Key': browserbaseApiKey,
-        },
-        body: JSON.stringify({
-          method: 'Page.navigate',
-          params: { url }
+    // Fetch Live View URLs (debugger links)
+    const liveViewResp = await fetch(`https://api.browserbase.com/v1/sessions/${sessionId}/debug`, {
+      method: 'GET',
+      headers: {
+        'X-BB-API-Key': browserbaseApiKey,
+      },
+    });
+
+    if (!liveViewResp.ok) {
+      console.error('Failed to get live view URLs:', await liveViewResp.text());
+      // Fallback to connectUrl if available
+      const fallbackUrl = sessionData.connectUrl || null;
+      return new Response(
+        JSON.stringify({
+          liveURL: fallbackUrl,
+          url,
+          sessionId,
         }),
-      });
-
-      if (navigateResponse.ok) {
-        console.log('Successfully created interactive browser session with liveURL:', liveURL);
-        return new Response(
-          JSON.stringify({ 
-            liveURL: liveURL, 
-            url: url,
-            sessionId: sessionId
-          }),
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-    } catch (navError) {
-      console.warn('Navigation error, but returning liveURL anyway:', navError);
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Return the liveURL regardless
-    console.log('Returning liveURL for interactive browsing');
-    return new Response(
-      JSON.stringify({ 
-        liveURL: liveURL, 
-        url: url,
-        sessionId: sessionId
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    const liveViewData = await liveViewResp.json();
+    const liveURL = liveViewData.debuggerFullscreenUrl || liveViewData.debuggerUrl || sessionData.connectUrl || '';
+
+    // Try to auto-navigate the session to the requested URL via CDP WebSocket (best-effort)
+    try {
+      const wsUrl = liveViewData.wsUrl as string | undefined;
+      if (wsUrl && url) {
+        console.log('Connecting to CDP WebSocket to navigate:', wsUrl);
+        const ws = new WebSocket(wsUrl);
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('WS open timeout')), 3000);
+          ws.onopen = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          ws.onerror = (e) => {
+            clearTimeout(timeout);
+            reject(e);
+          };
+        });
+        // Enable the Page domain then navigate
+        ws.send(JSON.stringify({ id: 1, method: 'Page.enable' }));
+        ws.send(JSON.stringify({ id: 2, method: 'Page.navigate', params: { url } }));
+        // Give the browser a moment, then close
+        await new Promise((r) => setTimeout(r, 500));
+        ws.close();
       }
+    } catch (navErr) {
+      console.warn('CDP navigation failed; continuing with live view URL:', navErr);
+    }
+
+    console.log('Returning live view URL for interactive browsing:', liveURL);
+    return new Response(
+      JSON.stringify({
+        liveURL,
+        url,
+        sessionId,
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
