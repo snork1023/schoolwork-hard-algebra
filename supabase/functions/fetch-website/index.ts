@@ -42,6 +42,40 @@ serve(async (req) => {
 
     console.log('Fetching website:', url);
 
+    // First, close any existing sessions to avoid hitting the concurrent limit
+    try {
+      const listSessionsResponse = await fetch('https://api.browserbase.com/v1/sessions', {
+        method: 'GET',
+        headers: {
+          'X-BB-API-Key': browserbaseApiKey,
+        },
+      });
+
+      if (listSessionsResponse.ok) {
+        const sessions = await listSessionsResponse.json();
+        console.log(`Found ${sessions.length} existing sessions`);
+        
+        // Close all running sessions
+        for (const session of sessions) {
+          if (session.status === 'RUNNING' || session.status === 'NEW') {
+            console.log(`Closing session ${session.id}`);
+            await fetch(`https://api.browserbase.com/v1/sessions/${session.id}/stop`, {
+              method: 'POST',
+              headers: {
+                'X-BB-API-Key': browserbaseApiKey,
+              },
+            });
+          }
+        }
+        
+        // Wait a moment for sessions to fully close
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (cleanupErr) {
+      console.warn('Failed to cleanup old sessions:', cleanupErr);
+      // Continue anyway - the session creation might still work
+    }
+
     // Create a Browserbase session
     const createSessionResponse = await fetch('https://api.browserbase.com/v1/sessions', {
       method: 'POST',
