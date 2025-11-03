@@ -150,22 +150,22 @@ const CommunityChat = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
+      <div className="flex-1 container mx-auto px-4 pt-24 pb-4 flex flex-col">
+        <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold">Community Chat</h1>
-              <p className="text-muted-foreground">Connect with others in real-time</p>
+              <h1 className="text-2xl font-bold">Community Chat</h1>
+              <p className="text-sm text-muted-foreground">Connect with others in real-time</p>
             </div>
-            <Button onClick={handleSignOut} variant="outline">
+            <Button onClick={handleSignOut} variant="outline" size="sm">
               Sign Out
             </Button>
           </div>
 
-          <div className="bg-card rounded-lg border shadow-sm">
-            <ScrollArea className="h-[500px] p-4" ref={scrollRef}>
+          <div className="flex-1 bg-card rounded-lg border shadow-sm flex flex-col overflow-hidden">
+            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
               <div className="space-y-4">
                 {messages.map((message) => (
                   <div
@@ -183,7 +183,7 @@ const CommunityChat = () => {
                       </span>
                     </div>
                     <div
-                      className={`rounded-lg px-4 py-2 max-w-[70%] ${
+                      className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
                         message.user_id === user?.id
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted"

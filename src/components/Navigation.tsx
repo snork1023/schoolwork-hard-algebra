@@ -11,9 +11,8 @@ const Navigation = () => {
   const links = [
     { to: "/", icon: Home, label: "Home" },
     { to: "/chat", icon: MessageSquare, label: "AI Chat" },
-    { to: "/community-chat", icon: Users, label: "Community" },
+    { to: "/community-chat", icon: Users, label: "Chat" },
     { to: "/browser", icon: Globe, label: "Browser" },
-    { to: "/about", icon: Info, label: "About" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -25,10 +24,9 @@ const Navigation = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
               <span className="text-white font-bold text-sm">T</span>
             </div>
-            <span className="text-lg sm:text-xl font-bold glow-text hidden sm:inline">
-              Totally Schoolwork and Not Games
+            <span className="text-lg sm:text-xl font-bold glow-text">
+              TSNG
             </span>
-            <span className="text-lg font-bold glow-text sm:hidden">TSWNG</span>
           </div>
           
           <div className="flex items-center gap-2">
