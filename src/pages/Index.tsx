@@ -1,8 +1,12 @@
 import Navigation from "@/components/Navigation";
 import ProxyInput from "@/components/ProxyInput";
 import { Shield, Lock, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
+  
   const features = [
     {
       icon: Shield,
@@ -30,9 +34,16 @@ const Index = () => {
           <h1 className="text-5xl font-bold mb-4 glow-text">
             Totally Schoolwork and Not Games
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
             Browse educational resources privately with our secure gateway
           </p>
+          <Button 
+            onClick={() => navigate("/auth")} 
+            size="lg"
+            className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+          >
+            Join Community Chat
+          </Button>
         </div>
 
         <div className="mb-20 animate-fade-in">
