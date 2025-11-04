@@ -9,6 +9,7 @@ import Settings from "./pages/Settings";
 import Chat from "./pages/Chat";
 import Auth from "./pages/Auth";
 import CommunityChat from "./pages/CommunityChat";
+import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/community-chat" element={<CommunityChat />} />
+            <Route path="/account" element={<Account />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/auth" element={<Auth />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
