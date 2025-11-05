@@ -1,0 +1,94 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, MessageSquare, Users, Edit2 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+type Conversation = {
+  id: string;
+  name: string | null;
+  type: 'dm' | 'group';
+  created_at: string;
+  participants?: Array<{ username: string }>;
+};
+
+type ChatSidebarProps = {
+  conversations: Conversation[];
+  selectedConversationId: string | null;
+  onSelectConversation: (id: string) => void;
+  onCreateNew: () => void;
+  onRename: (conversation: Conversation) => void;
+  currentUserId: string;
+};
+
+const ChatSidebar = ({
+  conversations,
+  selectedConversationId,
+  onSelectConversation,
+  onCreateNew,
+  onRename,
+}: ChatSidebarProps) => {
+  const getConversationDisplay = (conv: Conversation) => {
+    if (conv.name) return conv.name;
+    if (conv.type === 'dm' && conv.participants) {
+      return conv.participants.map(p => p.username).join(', ');
+    }
+    return 'Unnamed';
+  };
+
+  return (
+    <div className="w-64 border-r bg-card flex flex-col h-full">
+      <div className="p-4 border-b">
+        <Button onClick={onCreateNew} className="w-full" size="sm">
+          <Plus className="mr-2 h-4 w-4" />
+          New Chat
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="p-2 space-y-1">
+          {conversations.map((conv) => (
+            <div
+              key={conv.id}
+              className={`flex items-center gap-2 p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors ${
+                selectedConversationId === conv.id ? 'bg-accent' : ''
+              }`}
+              onClick={() => onSelectConversation(conv.id)}
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
+                  {conv.type === 'group' ? (
+                    <Users className="h-4 w-4" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4" />
+                  )}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {getConversationDisplay(conv)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {conv.type === 'dm' ? 'Direct Message' : 'Group Chat'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRename(conv);
+                }}
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
+
+export default ChatSidebar;

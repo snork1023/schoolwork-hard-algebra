@@ -7,22 +7,39 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import { User } from "@supabase/supabase-js";
+import ChatSidebar from "@/components/chat/ChatSidebar";
+import CreateConversationDialog from "@/components/chat/CreateConversationDialog";
+import RenameConversationDialog from "@/components/chat/RenameConversationDialog";
 
 type Message = {
   id: string;
   user_id: string;
   content: string;
   created_at: string;
+  conversation_id: string;
   profiles?: {
     username: string;
   };
 };
 
+type Conversation = {
+  id: string;
+  name: string | null;
+  type: 'dm' | 'group';
+  created_at: string;
+  participants?: Array<{ username: string }>;
+};
+
 const CommunityChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,39 +69,44 @@ const CommunityChat = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Fetch initial messages
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from("chat_messages")
-        .select(`
-          *,
-          profiles(username)
-        `)
-        .order("created_at", { ascending: true })
-        .limit(100);
+    fetchConversations();
 
-      if (error) {
-        toast({
-          title: "Error loading messages",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        setMessages(data || []);
-      }
+    // Subscribe to conversation changes
+    const conversationsChannel = supabase
+      .channel("conversations_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversations",
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(conversationsChannel);
     };
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (!user || !selectedConversationId) return;
 
     fetchMessages();
 
     // Subscribe to new messages
     const channel = supabase
-      .channel("chat_messages")
+      .channel(`chat_messages_${selectedConversationId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "chat_messages",
+          filter: `conversation_id=eq.${selectedConversationId}`,
         },
         async (payload) => {
           // Fetch the profile for the new message
@@ -105,7 +127,68 @@ const CommunityChat = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, toast]);
+  }, [user, selectedConversationId, toast]);
+
+  const fetchConversations = async () => {
+    const { data, error } = await supabase
+      .from("conversations")
+      .select(`
+        *,
+        conversation_participants!inner(
+          user_id,
+          profiles(username)
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({
+        title: "Error loading conversations",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      const formattedConversations = (data || []).map((conv: any) => ({
+        id: conv.id,
+        name: conv.name,
+        type: conv.type,
+        created_at: conv.created_at,
+        participants: conv.conversation_participants
+          .filter((p: any) => p.user_id !== user?.id)
+          .map((p: any) => ({ username: p.profiles.username })),
+      }));
+      setConversations(formattedConversations);
+
+      // Auto-select first conversation if none selected
+      if (!selectedConversationId && formattedConversations.length > 0) {
+        setSelectedConversationId(formattedConversations[0].id);
+      }
+    }
+  };
+
+  const fetchMessages = async () => {
+    if (!selectedConversationId) return;
+
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select(`
+        *,
+        profiles(username)
+      `)
+      .eq("conversation_id", selectedConversationId)
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    if (error) {
+      toast({
+        title: "Error loading messages",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setMessages(data || []);
+    }
+  };
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -116,12 +199,13 @@ const CommunityChat = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !selectedConversationId) return;
 
     try {
       const { error } = await supabase.from("chat_messages").insert({
         user_id: user.id,
         content: newMessage.trim(),
+        conversation_id: selectedConversationId,
       });
 
       if (error) throw error;
@@ -134,6 +218,11 @@ const CommunityChat = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleRenameClick = (conversation: Conversation) => {
+    setConversationToRename(conversation);
+    setRenameDialogOpen(true);
   };
 
   const handleSignOut = async () => {
@@ -152,66 +241,87 @@ const CommunityChat = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      <div className="flex-1 container mx-auto px-4 pt-24 pb-4 flex flex-col">
-        <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold">Community Chat</h1>
-              <p className="text-sm text-muted-foreground">Connect with others in real-time</p>
-            </div>
-            <Button onClick={handleSignOut} variant="outline" size="sm">
-              Sign Out
-            </Button>
-          </div>
+      <div className="flex-1 pt-16 flex overflow-hidden">
+        <ChatSidebar
+          conversations={conversations}
+          selectedConversationId={selectedConversationId}
+          onSelectConversation={setSelectedConversationId}
+          onCreateNew={() => setCreateDialogOpen(true)}
+          onRename={handleRenameClick}
+          currentUserId={user?.id || ""}
+        />
 
-          <div className="flex-1 bg-card rounded-lg border shadow-sm flex flex-col overflow-hidden">
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex flex-col ${
-                      message.user_id === user?.id ? "items-end" : "items-start"
-                    }`}
-                  >
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-sm font-medium">
-                        {message.profiles?.username || "Anonymous"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(message.created_at).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div
-                      className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
-                        message.user_id === user?.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                      }`}
-                    >
-                      {message.content}
-                    </div>
+        <div className="flex-1 flex flex-col">
+          {selectedConversationId ? (
+            <>
+              <div className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full p-4" ref={scrollRef}>
+                  <div className="space-y-4 max-w-4xl mx-auto">
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex flex-col ${
+                          message.user_id === user?.id ? "items-end" : "items-start"
+                        }`}
+                      >
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-sm font-medium">
+                            {message.profiles?.username || "Anonymous"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(message.created_at).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div
+                          className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
+                            message.user_id === user?.id
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }`}
+                        >
+                          {message.content}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </ScrollArea>
               </div>
-            </ScrollArea>
 
-            <form onSubmit={handleSendMessage} className="p-4 border-t">
-              <div className="flex gap-2">
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1"
-                />
-                <Button type="submit" disabled={!newMessage.trim()}>
-                  Send
-                </Button>
-              </div>
-            </form>
-          </div>
+              <form onSubmit={handleSendMessage} className="p-4 border-t max-w-4xl mx-auto w-full">
+                <div className="flex gap-2">
+                  <Input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    className="flex-1"
+                  />
+                  <Button type="submit" disabled={!newMessage.trim()}>
+                    Send
+                  </Button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              <p>Select a conversation or create a new one to start chatting</p>
+            </div>
+          )}
         </div>
       </div>
+
+      <CreateConversationDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        currentUserId={user?.id || ""}
+        onConversationCreated={fetchConversations}
+      />
+
+      <RenameConversationDialog
+        conversation={conversationToRename}
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        onRenamed={fetchConversations}
+      />
     </div>
   );
 };
