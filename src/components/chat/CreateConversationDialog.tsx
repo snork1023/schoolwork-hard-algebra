@@ -4,9 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { X } from "lucide-react";
+import { z } from "zod";
+
+const usernameSchema = z.string().trim().min(1, "Username cannot be empty").max(50);
+const groupNameSchema = z.string().trim().min(1, "Group name cannot be empty").max(100);
 
 type Profile = {
   id: string;
@@ -27,7 +32,8 @@ const CreateConversationDialog = ({
   onConversationCreated,
 }: CreateConversationDialogProps) => {
   const [users, setUsers] = useState<Profile[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<Profile[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -35,6 +41,9 @@ const CreateConversationDialog = ({
   useEffect(() => {
     if (open) {
       fetchUsers();
+      setSelectedUsers([]);
+      setSearchQuery("");
+      setGroupName("");
     }
   }, [open]);
 
@@ -53,6 +62,29 @@ const CreateConversationDialog = ({
     } else {
       setUsers(data || []);
     }
+  };
+
+  const filteredUsers = users.filter(
+    (user) =>
+      user.username.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !selectedUsers.some((selected) => selected.id === user.id)
+  );
+
+  const addUser = (user: Profile) => {
+    const validation = usernameSchema.safeParse(user.username);
+    if (!validation.success) {
+      toast({
+        title: "Invalid username",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedUsers((prev) => [...prev, user]);
+    setSearchQuery("");
+  };
+
+  const removeUser = (userId: string) => {
+    setSelectedUsers((prev) => prev.filter((user) => user.id !== userId));
   };
 
   const handleCreateDM = async () => {
@@ -84,7 +116,7 @@ const CreateConversationDialog = ({
         .from("conversation_participants")
         .insert([
           { conversation_id: conversation.id, user_id: currentUserId },
-          { conversation_id: conversation.id, user_id: selectedUsers[0] },
+          { conversation_id: conversation.id, user_id: selectedUsers[0].id },
         ]);
 
       if (partError) throw partError;
@@ -92,7 +124,6 @@ const CreateConversationDialog = ({
       toast({ title: "DM created successfully" });
       onConversationCreated();
       onOpenChange(false);
-      setSelectedUsers([]);
     } catch (error: any) {
       toast({
         title: "Error creating DM",
@@ -114,10 +145,11 @@ const CreateConversationDialog = ({
       return;
     }
 
-    if (!groupName.trim()) {
+    const groupNameValidation = groupNameSchema.safeParse(groupName);
+    if (!groupNameValidation.success) {
       toast({
-        title: "Group name required",
-        description: "Please enter a name for the group",
+        title: "Invalid group name",
+        description: groupNameValidation.error.errors[0].message,
         variant: "destructive",
       });
       return;
@@ -130,7 +162,7 @@ const CreateConversationDialog = ({
         .from("conversations")
         .insert({
           type: "group",
-          name: groupName.trim(),
+          name: groupNameValidation.data,
           created_by: currentUserId,
         })
         .select()
@@ -141,9 +173,9 @@ const CreateConversationDialog = ({
       // Add participants (current user + selected users)
       const participants = [
         { conversation_id: conversation.id, user_id: currentUserId },
-        ...selectedUsers.map((userId) => ({
+        ...selectedUsers.map((user) => ({
           conversation_id: conversation.id,
-          user_id: userId,
+          user_id: user.id,
         })),
       ];
 
@@ -156,8 +188,6 @@ const CreateConversationDialog = ({
       toast({ title: "Group created successfully" });
       onConversationCreated();
       onOpenChange(false);
-      setSelectedUsers([]);
-      setGroupName("");
     } catch (error: any) {
       toast({
         title: "Error creating group",
@@ -167,14 +197,6 @@ const CreateConversationDialog = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleUser = (userId: string) => {
-    setSelectedUsers((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
-    );
   };
 
   return (
@@ -191,24 +213,53 @@ const CreateConversationDialog = ({
           </TabsList>
 
           <TabsContent value="dm" className="space-y-4">
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {users.map((user) => (
-                <div key={user.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`dm-${user.id}`}
-                    checked={selectedUsers.includes(user.id)}
-                    onCheckedChange={() => toggleUser(user.id)}
-                  />
-                  <label
-                    htmlFor={`dm-${user.id}`}
-                    className="text-sm cursor-pointer"
+            <div className="space-y-2">
+              <Label htmlFor="dmSearch">Search User</Label>
+              <Input
+                id="dmSearch"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Type username to search..."
+                maxLength={50}
+              />
+            </div>
+
+            {selectedUsers.length > 0 && (
+              <div className="space-y-2">
+                <Label>Selected User</Label>
+                <div className="flex flex-wrap gap-2">
+                  {selectedUsers.map((user) => (
+                    <Badge key={user.id} variant="secondary" className="pr-1">
+                      {user.username}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 ml-1 hover:bg-transparent"
+                        onClick={() => removeUser(user.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {searchQuery && filteredUsers.length > 0 && (
+              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md">
+                {filteredUsers.slice(0, 10).map((user) => (
+                  <div
+                    key={user.id}
+                    className="p-2 hover:bg-accent cursor-pointer transition-colors"
+                    onClick={() => addUser(user)}
                   >
                     {user.username}
-                  </label>
-                </div>
-              ))}
-            </div>
-            <Button onClick={handleCreateDM} disabled={loading} className="w-full">
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button onClick={handleCreateDM} disabled={loading || selectedUsers.length !== 1} className="w-full">
               Create DM
             </Button>
           </TabsContent>
@@ -221,29 +272,57 @@ const CreateConversationDialog = ({
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Enter group name"
+                maxLength={100}
               />
             </div>
 
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              <Label>Select Members</Label>
-              {users.map((user) => (
-                <div key={user.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`group-${user.id}`}
-                    checked={selectedUsers.includes(user.id)}
-                    onCheckedChange={() => toggleUser(user.id)}
-                  />
-                  <label
-                    htmlFor={`group-${user.id}`}
-                    className="text-sm cursor-pointer"
-                  >
-                    {user.username}
-                  </label>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <Label htmlFor="groupSearch">Search Members</Label>
+              <Input
+                id="groupSearch"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Type username to search..."
+                maxLength={50}
+              />
             </div>
 
-            <Button onClick={handleCreateGroup} disabled={loading} className="w-full">
+            {selectedUsers.length > 0 && (
+              <div className="space-y-2">
+                <Label>Selected Members ({selectedUsers.length})</Label>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                  {selectedUsers.map((user) => (
+                    <Badge key={user.id} variant="secondary" className="pr-1">
+                      {user.username}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 ml-1 hover:bg-transparent"
+                        onClick={() => removeUser(user.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {searchQuery && filteredUsers.length > 0 && (
+              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md">
+                {filteredUsers.slice(0, 10).map((user) => (
+                  <div
+                    key={user.id}
+                    className="p-2 hover:bg-accent cursor-pointer transition-colors"
+                    onClick={() => addUser(user)}
+                  >
+                    {user.username}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button onClick={handleCreateGroup} disabled={loading || selectedUsers.length < 1} className="w-full">
               Create Group
             </Button>
           </TabsContent>
