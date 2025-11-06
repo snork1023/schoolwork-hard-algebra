@@ -92,21 +92,21 @@ export type Database = {
       conversations: {
         Row: {
           created_at: string | null
-          created_by: string | null
+          created_by: string
           id: string
           name: string | null
           type: Database["public"]["Enums"]["conversation_type"]
         }
         Insert: {
           created_at?: string | null
-          created_by?: string | null
+          created_by: string
           id?: string
           name?: string | null
           type: Database["public"]["Enums"]["conversation_type"]
         }
         Update: {
           created_at?: string | null
-          created_by?: string | null
+          created_by?: string
           id?: string
           name?: string | null
           type?: Database["public"]["Enums"]["conversation_type"]
