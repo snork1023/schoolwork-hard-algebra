@@ -27,6 +27,7 @@ type Conversation = {
   name: string | null;
   type: 'dm' | 'group';
   created_at: string;
+  created_by: string;
   participants?: Array<{ username: string }>;
 };
 
@@ -197,6 +198,7 @@ const CommunityChat = () => {
         name: conv.name,
         type: conv.type,
         created_at: conv.created_at,
+        created_by: conv.created_by,
         participants: (conv.conversation_participants || [])
           .filter((p: any) => p.user_id !== user?.id)
           .map((p: any) => ({ username: p.profiles?.username || "Unknown" })),
@@ -269,6 +271,38 @@ const CommunityChat = () => {
     setRenameDialogOpen(true);
   };
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!window.confirm("Are you sure you want to delete this conversation? This will delete all messages.")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("conversations")
+        .delete()
+        .eq("id", conversationId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Conversation deleted",
+      });
+
+      // Clear selection if deleted conversation was selected
+      if (selectedConversationId === conversationId) {
+        setSelectedConversationId(null);
+      }
+
+      fetchConversations();
+    } catch (error: any) {
+      toast({
+        title: "Error deleting conversation",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -292,6 +326,7 @@ const CommunityChat = () => {
           onSelectConversation={setSelectedConversationId}
           onCreateNew={() => setCreateDialogOpen(true)}
           onRename={handleRenameClick}
+          onDelete={handleDeleteConversation}
           currentUserId={user?.id || ""}
         />
 
