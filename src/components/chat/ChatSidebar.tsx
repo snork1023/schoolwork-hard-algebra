@@ -50,7 +50,7 @@ const ChatSidebar = ({
           {conversations.map((conv) => (
             <div
               key={conv.id}
-              className={`flex items-center gap-2 p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors ${
+              className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors ${
                 selectedConversationId === conv.id ? 'bg-accent' : ''
               }`}
               onClick={() => onSelectConversation(conv.id)}

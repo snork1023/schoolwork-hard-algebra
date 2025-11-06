@@ -87,8 +87,26 @@ const CommunityChat = () => {
       )
       .subscribe();
 
+    // Subscribe to participant changes (for when new DMs/groups are created)
+    const participantsChannel = supabase
+      .channel("participants_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversation_participants",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(conversationsChannel);
+      supabase.removeChannel(participantsChannel);
     };
   }, [user, toast]);
 
@@ -130,15 +148,41 @@ const CommunityChat = () => {
   }, [user, selectedConversationId, toast]);
 
   const fetchConversations = async () => {
+    if (!user) return;
+
+    // First get conversation IDs where user is a participant
+    const { data: participantData, error: participantError } = await supabase
+      .from("conversation_participants")
+      .select("conversation_id")
+      .eq("user_id", user.id);
+
+    if (participantError) {
+      toast({
+        title: "Error loading conversations",
+        description: participantError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!participantData || participantData.length === 0) {
+      setConversations([]);
+      return;
+    }
+
+    const conversationIds = participantData.map((p) => p.conversation_id);
+
+    // Then get full conversation details with all participants
     const { data, error } = await supabase
       .from("conversations")
       .select(`
         *,
-        conversation_participants!inner(
+        conversation_participants(
           user_id,
           profiles(username)
         )
       `)
+      .in("id", conversationIds)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -153,9 +197,9 @@ const CommunityChat = () => {
         name: conv.name,
         type: conv.type,
         created_at: conv.created_at,
-        participants: conv.conversation_participants
+        participants: (conv.conversation_participants || [])
           .filter((p: any) => p.user_id !== user?.id)
-          .map((p: any) => ({ username: p.profiles.username })),
+          .map((p: any) => ({ username: p.profiles?.username || "Unknown" })),
       }));
       setConversations(formattedConversations);
 
