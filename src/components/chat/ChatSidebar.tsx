@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, MessageSquare, Users, Edit2, Trash2 } from "lucide-react";
+import { Plus, MessageSquare, Users, Edit2, Trash2, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 type Conversation = {
@@ -20,6 +20,7 @@ type ChatSidebarProps = {
   onCreateNew: () => void;
   onRename: (conversation: Conversation) => void;
   onDelete: (conversationId: string) => void;
+  onLeave: (conversationId: string) => void;
   currentUserId: string;
 };
 
@@ -30,6 +31,7 @@ const ChatSidebar = ({
   onCreateNew,
   onRename,
   onDelete,
+  onLeave,
   currentUserId,
 }: ChatSidebarProps) => {
   const getConversationDisplay = (conv: Conversation) => {
@@ -77,18 +79,20 @@ const ChatSidebar = ({
                 </p>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRename(conv);
-                  }}
-                >
-                  <Edit2 className="h-3 w-3" />
-                </Button>
-                {conv.created_by === currentUserId && (
+                {conv.type === 'group' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRename(conv);
+                    }}
+                  >
+                    <Edit2 className="h-3 w-3" />
+                  </Button>
+                )}
+                {conv.created_by === currentUserId ? (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -99,6 +103,18 @@ const ChatSidebar = ({
                     }}
                   >
                     <Trash2 className="h-3 w-3" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLeave(conv.id);
+                    }}
+                  >
+                    <LogOut className="h-3 w-3" />
                   </Button>
                 )}
               </div>

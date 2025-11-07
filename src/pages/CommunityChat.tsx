@@ -10,6 +10,8 @@ import { User } from "@supabase/supabase-js";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import CreateConversationDialog from "@/components/chat/CreateConversationDialog";
 import RenameConversationDialog from "@/components/chat/RenameConversationDialog";
+import TypingIndicator from "@/components/chat/TypingIndicator";
+import ReadReceipts from "@/components/chat/ReadReceipts";
 
 type Message = {
   id: string;
@@ -20,6 +22,13 @@ type Message = {
   profiles?: {
     username: string;
   };
+  message_read_receipts?: Array<{
+    user_id: string;
+    read_at: string;
+    profiles?: {
+      username: string;
+    };
+  }>;
 };
 
 type Conversation = {
@@ -41,7 +50,10 @@ const CommunityChat = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [participantCount, setParticipantCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -115,9 +127,10 @@ const CommunityChat = () => {
     if (!user || !selectedConversationId) return;
 
     fetchMessages();
+    fetchParticipantCount();
 
     // Subscribe to new messages
-    const channel = supabase
+    const messagesChannel = supabase
       .channel(`chat_messages_${selectedConversationId}`)
       .on(
         "postgres_changes",
@@ -137,16 +150,45 @@ const CommunityChat = () => {
 
           setMessages((current) => [
             ...current,
-            { ...payload.new, profiles: profile } as Message,
+            { ...payload.new, profiles: profile, message_read_receipts: [] } as Message,
           ]);
         }
       )
       .subscribe();
 
+    // Subscribe to presence for typing indicators
+    const presenceChannel = supabase
+      .channel(`presence_${selectedConversationId}`, {
+        config: { presence: { key: user.id } },
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const typing = Object.values(state)
+          .flat()
+          .filter((presence: any) => presence.typing && presence.user_id !== user.id)
+          .map((presence: any) => presence.username);
+        setTypingUsers(typing);
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(presenceChannel);
     };
   }, [user, selectedConversationId, toast]);
+
+  const fetchParticipantCount = async () => {
+    if (!selectedConversationId) return;
+
+    const { count, error } = await supabase
+      .from("conversation_participants")
+      .select("*", { count: 'exact', head: true })
+      .eq("conversation_id", selectedConversationId);
+
+    if (!error && count !== null) {
+      setParticipantCount(count);
+    }
+  };
 
   const fetchConversations = async () => {
     if (!user) return;
@@ -213,13 +255,18 @@ const CommunityChat = () => {
   };
 
   const fetchMessages = async () => {
-    if (!selectedConversationId) return;
+    if (!selectedConversationId || !user) return;
 
     const { data, error } = await supabase
       .from("chat_messages")
       .select(`
         *,
-        profiles(username)
+        profiles(username),
+        message_read_receipts(
+          user_id,
+          read_at,
+          profiles(username)
+        )
       `)
       .eq("conversation_id", selectedConversationId)
       .order("created_at", { ascending: true })
@@ -233,6 +280,21 @@ const CommunityChat = () => {
       });
     } else {
       setMessages(data || []);
+      
+      // Mark messages as read
+      const unreadMessages = (data || []).filter(
+        (msg) => msg.user_id !== user.id && 
+        !msg.message_read_receipts?.some((r) => r.user_id === user.id)
+      );
+
+      if (unreadMessages.length > 0) {
+        const receipts = unreadMessages.map((msg) => ({
+          message_id: msg.id,
+          user_id: user.id,
+        }));
+
+        await supabase.from("message_read_receipts").insert(receipts);
+      }
     }
   };
 
@@ -242,6 +304,29 @@ const CommunityChat = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const handleTyping = async () => {
+    if (!user || !selectedConversationId) return;
+
+    const channel = supabase.channel(`presence_${selectedConversationId}`);
+    
+    await channel.track({
+      user_id: user.id,
+      username: (await supabase.from("profiles").select("username").eq("id", user.id).single()).data?.username,
+      typing: true,
+    });
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(async () => {
+      await channel.track({
+        user_id: user.id,
+        typing: false,
+      });
+    }, 2000);
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,6 +342,13 @@ const CommunityChat = () => {
       if (error) throw error;
 
       setNewMessage("");
+      
+      // Stop typing indicator
+      const channel = supabase.channel(`presence_${selectedConversationId}`);
+      await channel.track({
+        user_id: user.id,
+        typing: false,
+      });
     } catch (error: any) {
       toast({
         title: "Error sending message",
@@ -303,6 +395,39 @@ const CommunityChat = () => {
     }
   };
 
+  const handleLeaveConversation = async (conversationId: string) => {
+    if (!window.confirm("Are you sure you want to leave this conversation?")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("conversation_participants")
+        .delete()
+        .eq("conversation_id", conversationId)
+        .eq("user_id", user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Left conversation",
+      });
+
+      // Clear selection if left conversation was selected
+      if (selectedConversationId === conversationId) {
+        setSelectedConversationId(null);
+      }
+
+      fetchConversations();
+    } catch (error: any) {
+      toast({
+        title: "Error leaving conversation",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -327,6 +452,7 @@ const CommunityChat = () => {
           onCreateNew={() => setCreateDialogOpen(true)}
           onRename={handleRenameClick}
           onDelete={handleDeleteConversation}
+          onLeave={handleLeaveConversation}
           currentUserId={user?.id || ""}
         />
 
@@ -351,14 +477,26 @@ const CommunityChat = () => {
                             {new Date(message.created_at).toLocaleTimeString()}
                           </span>
                         </div>
-                        <div
-                          className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
-                            message.user_id === user?.id
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
-                          }`}
-                        >
-                          {message.content}
+                        <div>
+                          <div
+                            className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
+                              message.user_id === user?.id
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted"
+                            }`}
+                          >
+                            {message.content}
+                          </div>
+                          <ReadReceipts
+                            messageId={message.id}
+                            readBy={message.message_read_receipts?.map(r => ({
+                              user_id: r.user_id,
+                              username: r.profiles?.username || "Unknown",
+                              read_at: r.read_at,
+                            })) || []}
+                            totalParticipants={participantCount}
+                            isSender={message.user_id === user?.id}
+                          />
                         </div>
                       </div>
                     ))}
@@ -366,11 +504,16 @@ const CommunityChat = () => {
                 </ScrollArea>
               </div>
 
+              <TypingIndicator typingUsers={typingUsers} />
+
               <form onSubmit={handleSendMessage} className="p-4 border-t max-w-4xl mx-auto w-full">
                 <div className="flex gap-2">
                   <Input
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      handleTyping();
+                    }}
                     placeholder="Type your message..."
                     className="flex-1"
                   />
