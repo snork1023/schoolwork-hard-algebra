@@ -12,6 +12,7 @@ import CreateConversationDialog from "@/components/chat/CreateConversationDialog
 import RenameConversationDialog from "@/components/chat/RenameConversationDialog";
 import TypingIndicator from "@/components/chat/TypingIndicator";
 import ReadReceipts from "@/components/chat/ReadReceipts";
+import MessageActions from "@/components/chat/MessageActions";
 
 type Message = {
   id: string;
@@ -19,6 +20,7 @@ type Message = {
   content: string;
   created_at: string;
   conversation_id: string;
+  edited_at: string | null;
   profiles?: {
     username: string;
   };
@@ -428,6 +430,63 @@ const CommunityChat = () => {
     }
   };
 
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    try {
+      const { error } = await supabase
+        .from("chat_messages")
+        .update({ 
+          content: newContent,
+          edited_at: new Date().toISOString(),
+        })
+        .eq("id", messageId);
+
+      if (error) throw error;
+
+      // Update local state
+      setMessages((current) =>
+        current.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, content: newContent, edited_at: new Date().toISOString() }
+            : msg
+        )
+      );
+
+      toast({
+        title: "Message updated",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error updating message",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from("chat_messages")
+        .delete()
+        .eq("id", messageId);
+
+      if (error) throw error;
+
+      // Update local state
+      setMessages((current) => current.filter((msg) => msg.id !== messageId));
+
+      toast({
+        title: "Message deleted",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error deleting message",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -465,7 +524,7 @@ const CommunityChat = () => {
                     {messages.map((message) => (
                       <div
                         key={message.id}
-                        className={`flex flex-col ${
+                        className={`group flex flex-col ${
                           message.user_id === user?.id ? "items-end" : "items-start"
                         }`}
                       >
@@ -475,28 +534,39 @@ const CommunityChat = () => {
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {new Date(message.created_at).toLocaleTimeString()}
+                            {message.edited_at && " (edited)"}
                           </span>
                         </div>
-                        <div>
-                          <div
-                            className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
-                              message.user_id === user?.id
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
-                            }`}
-                          >
-                            {message.content}
+                        <div className="flex items-start gap-2">
+                          <div>
+                            <div
+                              className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
+                                message.user_id === user?.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted"
+                              }`}
+                            >
+                              {message.content}
+                            </div>
+                            <ReadReceipts
+                              messageId={message.id}
+                              readBy={message.message_read_receipts?.map(r => ({
+                                user_id: r.user_id,
+                                username: r.profiles?.username || "Unknown",
+                                read_at: r.read_at,
+                              })) || []}
+                              totalParticipants={participantCount}
+                              isSender={message.user_id === user?.id}
+                            />
                           </div>
-                          <ReadReceipts
-                            messageId={message.id}
-                            readBy={message.message_read_receipts?.map(r => ({
-                              user_id: r.user_id,
-                              username: r.profiles?.username || "Unknown",
-                              read_at: r.read_at,
-                            })) || []}
-                            totalParticipants={participantCount}
-                            isSender={message.user_id === user?.id}
-                          />
+                          {message.user_id === user?.id && (
+                            <MessageActions
+                              messageId={message.id}
+                              content={message.content}
+                              onEdit={handleEditMessage}
+                              onDelete={handleDeleteMessage}
+                            />
+                          )}
                         </div>
                       </div>
                     ))}
