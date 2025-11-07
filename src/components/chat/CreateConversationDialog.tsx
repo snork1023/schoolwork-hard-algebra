@@ -88,6 +88,8 @@ const CreateConversationDialog = ({
   };
 
   const handleCreateDM = async () => {
+    if (loading) return;
+    
     if (selectedUsers.length !== 1) {
       toast({
         title: "Select one user",
@@ -136,6 +138,8 @@ const CreateConversationDialog = ({
   };
 
   const handleCreateGroup = async () => {
+    if (loading) return;
+    
     if (selectedUsers.length < 1) {
       toast({
         title: "Select users",
@@ -259,7 +263,7 @@ const CreateConversationDialog = ({
               </div>
             )}
 
-            <Button onClick={handleCreateDM} disabled={loading || selectedUsers.length !== 1} className="w-full">
+            <Button type="button" onClick={handleCreateDM} disabled={loading || selectedUsers.length !== 1} className="w-full">
               Create DM
             </Button>
           </TabsContent>
@@ -322,7 +326,7 @@ const CreateConversationDialog = ({
               </div>
             )}
 
-            <Button onClick={handleCreateGroup} disabled={loading || selectedUsers.length < 1} className="w-full">
+            <Button type="button" onClick={handleCreateGroup} disabled={loading || selectedUsers.length < 1} className="w-full">
               Create Group
             </Button>
           </TabsContent>
