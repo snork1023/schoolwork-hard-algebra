@@ -3,30 +3,22 @@ import ProxyInput from "@/components/ProxyInput";
 import { Shield, Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-
 const Index = () => {
   const navigate = useNavigate();
-  
-  const features = [
-    {
-      icon: Shield,
-      title: "Browser Privacy",
-      description: "Access educational content with customizable browser interfaces",
-    },
-    {
-      icon: Lock,
-      title: "Secure Access",
-      description: "Your browsing activity stays private and protected",
-    },
-    {
-      icon: Zap,
-      title: "Fast & Simple",
-      description: "Instant access to educational resources with just one click",
-    },
-  ];
-
-  return (
-    <div className="min-h-screen bg-background">
+  const features = [{
+    icon: Shield,
+    title: "Browser Privacy",
+    description: "Access educational content with customizable browser interfaces"
+  }, {
+    icon: Lock,
+    title: "Secure Access",
+    description: "Your browsing activity stays private and protected"
+  }, {
+    icon: Zap,
+    title: "Fast & Simple",
+    description: "Instant access to educational resources with just one click"
+  }];
+  return <div className="min-h-screen bg-background">
       <Navigation />
       
       <main className="container mx-auto px-4 pt-32 pb-12">
@@ -34,16 +26,8 @@ const Index = () => {
           <h1 className="text-5xl font-bold mb-4 glow-text">
             Totally Schoolwork and Not Games
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
-            Browse educational resources privately with our secure gateway
-          </p>
-          <Button 
-            onClick={() => navigate("/auth")} 
-            size="lg"
-            className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-          >
-            Join Community Chat
-          </Button>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">made by snorkthedork</p>
+          
         </div>
 
         <div className="mb-20 animate-fade-in">
@@ -52,24 +36,11 @@ const Index = () => {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto animate-fade-in">
           {features.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={index}
-                className="bg-card border border-border rounded-lg p-6 text-center hover-glow transition-all hover:scale-105"
-              >
-                <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </div>
-            );
-          })}
+          const Icon = feature.icon;
+          return;
+        })}
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
