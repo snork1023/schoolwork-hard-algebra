@@ -551,13 +551,13 @@ const CommunityChat = () => {
                         <div className="flex items-start gap-2">
                           <div className="flex-1">
                             <div
-                              className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
+                              className={`rounded-lg px-4 py-2 max-w-[70%] ${
                                 message.user_id === user?.id
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted"
                               }`}
                             >
-                              {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+                              {message.content && <p className="break-words">{message.content}</p>}
                               
                               {message.attachments && message.attachments.length > 0 && (
                                 <div className="mt-2 space-y-2">
@@ -567,8 +567,7 @@ const CommunityChat = () => {
                                         <img
                                           src={attachment.url}
                                           alt={attachment.name}
-                                          className="rounded-lg max-w-xs max-h-64 object-cover cursor-pointer"
-                                          onClick={() => window.open(attachment.url, "_blank")}
+                                          className="rounded-lg max-w-xs max-h-64 object-cover"
                                         />
                                       ) : attachment.type.startsWith("video/") ? (
                                         <video
@@ -579,8 +578,7 @@ const CommunityChat = () => {
                                       ) : (
                                         <a
                                           href={attachment.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
+                                          download
                                           className="flex items-center gap-2 p-2 bg-background/50 rounded hover:bg-background/80 transition-colors"
                                         >
                                           <FileText className="h-4 w-4" />
