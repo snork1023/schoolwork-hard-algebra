@@ -15,8 +15,6 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
-  const [recoveryPin, setRecoveryPin] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -98,11 +96,11 @@ const Auth = () => {
     }
   };
 
-  const handleRecovery = async () => {
-    if (!recoveryEmail || !recoveryPin || !newPassword) {
+  const handlePasswordReset = async () => {
+    if (!recoveryEmail) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please enter your email",
         variant: "destructive",
       });
       return;
@@ -111,48 +109,17 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Find user profile with matching backup PIN
-      const { data: profiles, error: lookupError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("backup_pin", recoveryPin);
-
-      if (lookupError || !profiles || profiles.length === 0) {
-        toast({
-          title: "Error",
-          description: "Invalid backup PIN",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Sign in first to update password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: recoveryEmail,
-        password: recoveryPin, // Temporarily use PIN to verify
+      const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
+        redirectTo: `${window.location.origin}/auth`,
       });
 
-      // If sign in with PIN fails, try admin update (requires proper RLS)
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
+      if (error) throw error;
 
-      if (updateError) {
-        toast({
-          title: "Error",
-          description: "Unable to reset password. Please contact support.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success!",
-          description: "Your password has been reset. You can now sign in.",
-        });
-        setRecoveryEmail("");
-        setRecoveryPin("");
-        setNewPassword("");
-      }
+      toast({
+        title: "Check your email",
+        description: "We've sent you a password reset link.",
+      });
+      setRecoveryEmail("");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -167,7 +134,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto px-4 py-12 flex items-center justify-center">
+      <div className="container mx-auto px-4 pt-24 pb-12 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Authentication</CardTitle>
@@ -214,9 +181,9 @@ const Auth = () => {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Reset Password with Backup PIN</AlertDialogTitle>
+                        <AlertDialogTitle>Reset Password</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Enter your email, backup PIN, and new password to reset your account.
+                          Enter your email and we'll send you a password reset link.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <div className="space-y-4 py-4">
@@ -230,31 +197,11 @@ const Auth = () => {
                             placeholder="Enter your email"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="recovery-pin">Backup PIN</Label>
-                          <Input
-                            id="recovery-pin"
-                            type="text"
-                            value={recoveryPin}
-                            onChange={(e) => setRecoveryPin(e.target.value)}
-                            placeholder="Enter your backup PIN"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="new-password-recovery">New Password</Label>
-                          <Input
-                            id="new-password-recovery"
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Enter new password"
-                          />
-                        </div>
                       </div>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleRecovery} disabled={loading}>
-                          Reset Password
+                        <AlertDialogAction onClick={handlePasswordReset} disabled={loading}>
+                          Send Reset Link
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

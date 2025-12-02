@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
@@ -13,6 +13,9 @@ import RenameConversationDialog from "@/components/chat/RenameConversationDialog
 import TypingIndicator from "@/components/chat/TypingIndicator";
 import ReadReceipts from "@/components/chat/ReadReceipts";
 import MessageActions from "@/components/chat/MessageActions";
+import { FileUpload } from "@/components/chat/FileUpload";
+import { MessageReactions } from "@/components/chat/MessageReactions";
+import { Send, Image as ImageIcon, FileText, Video } from "lucide-react";
 
 type Message = {
   id: string;
@@ -21,6 +24,7 @@ type Message = {
   created_at: string;
   conversation_id: string;
   edited_at: string | null;
+  attachments?: Array<{ url: string; type: string; name: string }>;
   profiles?: {
     username: string;
   };
@@ -47,6 +51,7 @@ const CommunityChat = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
+  const [attachments, setAttachments] = useState<Array<{ url: string; type: string; name: string }>>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -281,10 +286,14 @@ const CommunityChat = () => {
         variant: "destructive",
       });
     } else {
-      setMessages(data || []);
+      const formattedMessages = (data || []).map((msg: any) => ({
+        ...msg,
+        attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
+      }));
+      setMessages(formattedMessages);
       
       // Mark messages as read
-      const unreadMessages = (data || []).filter(
+      const unreadMessages = formattedMessages.filter(
         (msg) => msg.user_id !== user.id && 
         !msg.message_read_receipts?.some((r) => r.user_id === user.id)
       );
@@ -332,18 +341,20 @@ const CommunityChat = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || !selectedConversationId) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !user || !selectedConversationId) return;
 
     try {
       const { error } = await supabase.from("chat_messages").insert({
         user_id: user.id,
         content: newMessage.trim(),
         conversation_id: selectedConversationId,
+        attachments: attachments.length > 0 ? JSON.stringify(attachments) : null,
       });
 
       if (error) throw error;
 
       setNewMessage("");
+      setAttachments([]);
       
       // Stop typing indicator
       const channel = supabase.channel(`presence_${selectedConversationId}`);
@@ -538,7 +549,7 @@ const CommunityChat = () => {
                           </span>
                         </div>
                         <div className="flex items-start gap-2">
-                          <div>
+                          <div className="flex-1">
                             <div
                               className={`rounded-lg px-4 py-2 max-w-[70%] break-words ${
                                 message.user_id === user?.id
@@ -546,7 +557,40 @@ const CommunityChat = () => {
                                   : "bg-muted"
                               }`}
                             >
-                              {message.content}
+                              {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+                              
+                              {message.attachments && message.attachments.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                  {message.attachments.map((attachment, idx) => (
+                                    <div key={idx}>
+                                      {attachment.type.startsWith("image/") ? (
+                                        <img
+                                          src={attachment.url}
+                                          alt={attachment.name}
+                                          className="rounded-lg max-w-xs max-h-64 object-cover cursor-pointer"
+                                          onClick={() => window.open(attachment.url, "_blank")}
+                                        />
+                                      ) : attachment.type.startsWith("video/") ? (
+                                        <video
+                                          src={attachment.url}
+                                          controls
+                                          className="rounded-lg max-w-xs max-h-64"
+                                        />
+                                      ) : (
+                                        <a
+                                          href={attachment.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center gap-2 p-2 bg-background/50 rounded hover:bg-background/80 transition-colors"
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                          <span className="text-sm">{attachment.name}</span>
+                                        </a>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                             <ReadReceipts
                               messageId={message.id}
@@ -557,6 +601,10 @@ const CommunityChat = () => {
                               })) || []}
                               totalParticipants={participantCount}
                               isSender={message.user_id === user?.id}
+                            />
+                            <MessageReactions
+                              messageId={message.id}
+                              currentUserId={user?.id || ""}
                             />
                           </div>
                           {message.user_id === user?.id && (
@@ -577,18 +625,56 @@ const CommunityChat = () => {
               <TypingIndicator typingUsers={typingUsers} />
 
               <form onSubmit={handleSendMessage} className="p-4 border-t max-w-4xl mx-auto w-full">
-                <div className="flex gap-2">
-                  <Input
+                {attachments.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {attachments.map((attachment, idx) => (
+                      <div key={idx} className="relative inline-block">
+                        {attachment.type.startsWith("image/") ? (
+                          <img
+                            src={attachment.url}
+                            alt={attachment.name}
+                            className="h-20 w-20 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="h-20 w-20 bg-secondary rounded-lg flex items-center justify-center">
+                            <FileText className="h-8 w-8" />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2 items-end">
+                  <FileUpload
+                    onFilesSelected={(files) => {
+                      setAttachments([...attachments, ...files]);
+                    }}
+                  />
+                  <Textarea
                     value={newMessage}
                     onChange={(e) => {
                       setNewMessage(e.target.value);
                       handleTyping();
                     }}
-                    placeholder="Type your message..."
-                    className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                    placeholder="Type your message... (Shift+Enter for new line)"
+                    className="flex-1 min-h-[40px] max-h-[120px] resize-none"
+                    rows={1}
                   />
-                  <Button type="submit" disabled={!newMessage.trim()}>
-                    Send
+                  <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon">
+                    <Send className="h-4 w-4" />
                   </Button>
                 </div>
               </form>
