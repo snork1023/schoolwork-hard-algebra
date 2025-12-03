@@ -562,13 +562,13 @@ const CommunityChat = () => {
                         <div className="flex items-start gap-2">
                           <div className="flex-1">
                             <div
-                              className={`rounded-lg px-4 py-2 max-w-[70%] ${
+                              className={`rounded-lg px-4 py-2 max-w-[70%] w-fit ${
                                 message.user_id === user?.id
-                                  ? "bg-primary text-primary-foreground"
+                                  ? "bg-primary text-primary-foreground ml-auto"
                                   : "bg-muted"
                               }`}
                             >
-                              {message.content && <p className="break-words">{message.content}</p>}
+                              {message.content && <p className="break-words whitespace-pre-wrap">{message.content}</p>}
                               
                               {message.attachments && message.attachments.length > 0 && (
                                 <div className="mt-2 space-y-2">
