@@ -13,7 +13,6 @@ const Account = () => {
   const [username, setUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [backupPin, setBackupPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
@@ -35,13 +34,12 @@ const Account = () => {
       
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, backup_pin")
+        .select("username")
         .eq("id", user.id)
         .single();
       
       if (profile) {
         setUsername(profile.username || "");
-        setBackupPin(profile.backup_pin || "");
       }
     };
     
@@ -120,40 +118,6 @@ const Account = () => {
       });
       setNewPassword("");
       setConfirmPassword("");
-    }
-  };
-
-  const handleUpdateBackupPin = async () => {
-    if (!userId || !backupPin.trim()) return;
-    
-    if (backupPin.length < 4) {
-      toast({
-        title: "Error",
-        description: "Backup PIN must be at least 4 characters",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setLoading(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ backup_pin: backupPin.trim() })
-      .eq("id", userId);
-    
-    setLoading(false);
-    
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update backup PIN",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Backup PIN updated successfully",
-      });
     }
   };
 
@@ -238,56 +202,33 @@ const Account = () => {
               <CardHeader>
                 <CardTitle>Security</CardTitle>
                 <CardDescription>
-                  Update your password and backup PIN
+                  Update your password
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password">New Password</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirm Password</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm new password"
-                    />
-                  </div>
-                  <Button onClick={handleUpdatePassword} disabled={loading}>
-                    Update Password
-                  </Button>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                  />
                 </div>
-
-                <div className="space-y-4 pt-4 border-t">
-                  <div className="space-y-2">
-                    <Label htmlFor="backup-pin">Backup PIN</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Use this PIN to recover your account if you forget your password
-                    </p>
-                    <div className="flex gap-2">
-                      <Input
-                        id="backup-pin"
-                        type="text"
-                        value={backupPin}
-                        onChange={(e) => setBackupPin(e.target.value)}
-                        placeholder="Enter backup PIN (min 4 characters)"
-                      />
-                      <Button onClick={handleUpdateBackupPin} disabled={loading}>
-                        Update
-                      </Button>
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
                 </div>
+                <Button onClick={handleUpdatePassword} disabled={loading}>
+                  Update Password
+                </Button>
               </CardContent>
             </Card>
 

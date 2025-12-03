@@ -9,6 +9,18 @@ import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { z } from "zod";
+
+const signUpSchema = z.object({
+  email: z.string().trim().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters").max(72, "Password too long"),
+  username: z.string().trim().max(50, "Username too long").optional(),
+});
+
+const signInSchema = z.object({
+  email: z.string().trim().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -38,16 +50,27 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const validation = signUpSchema.safeParse({ email, password, username: username || undefined });
+    if (!validation.success) {
+      toast({
+        title: "Validation Error",
+        description: validation.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: validation.data.email,
+        password: validation.data.password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
-            username: username || email.split('@')[0]
+            username: validation.data.username || validation.data.email.split('@')[0]
           }
         },
       });
@@ -71,12 +94,23 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const validation = signInSchema.safeParse({ email, password });
+    if (!validation.success) {
+      toast({
+        title: "Validation Error",
+        description: validation.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: validation.data.email,
+        password: validation.data.password,
       });
 
       if (error) throw error;
@@ -97,10 +131,11 @@ const Auth = () => {
   };
 
   const handlePasswordReset = async () => {
-    if (!recoveryEmail) {
+    const emailValidation = z.string().trim().email("Invalid email address").safeParse(recoveryEmail);
+    if (!emailValidation.success) {
       toast({
         title: "Error",
-        description: "Please enter your email",
+        description: emailValidation.error.errors[0].message,
         variant: "destructive",
       });
       return;
@@ -109,7 +144,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailValidation.data, {
         redirectTo: `${window.location.origin}/auth`,
       });
 

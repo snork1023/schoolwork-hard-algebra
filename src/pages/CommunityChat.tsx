@@ -339,9 +339,20 @@ const CommunityChat = () => {
     }, 2000);
   };
 
+  const MAX_MESSAGE_LENGTH = 5000;
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!newMessage.trim() && attachments.length === 0) || !user || !selectedConversationId) return;
+
+    if (newMessage.length > MAX_MESSAGE_LENGTH) {
+      toast({
+        title: "Message too long",
+        description: `Maximum ${MAX_MESSAGE_LENGTH} characters allowed`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const { error } = await supabase.from("chat_messages").insert({
