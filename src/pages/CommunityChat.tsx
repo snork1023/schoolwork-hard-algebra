@@ -560,61 +560,45 @@ const CommunityChat = () => {
                           </span>
                         </div>
                         <div className="flex items-start gap-2">
-                          <div className="flex-1">
-                            <div
-                              className={`rounded-lg px-4 py-2 max-w-[70%] w-fit ${
-                                message.user_id === user?.id
-                                  ? "bg-primary text-primary-foreground ml-auto"
-                                  : "bg-muted"
-                              }`}
-                            >
-                              {message.content && <p className="break-words whitespace-pre-wrap">{message.content}</p>}
-                              
-                              {message.attachments && message.attachments.length > 0 && (
-                                <div className="mt-2 space-y-2">
-                                  {message.attachments.map((attachment, idx) => (
-                                    <div key={idx}>
-                                      {attachment.type.startsWith("image/") ? (
-                                        <img
-                                          src={attachment.url}
-                                          alt={attachment.name}
-                                          className="rounded-lg max-w-xs max-h-64 object-cover"
-                                        />
-                                      ) : attachment.type.startsWith("video/") ? (
-                                        <video
-                                          src={attachment.url}
-                                          controls
-                                          className="rounded-lg max-w-xs max-h-64"
-                                        />
-                                      ) : (
-                                        <a
-                                          href={attachment.url}
-                                          download
-                                          className="flex items-center gap-2 p-2 bg-background/50 rounded hover:bg-background/80 transition-colors"
-                                        >
-                                          <FileText className="h-4 w-4" />
-                                          <span className="text-sm">{attachment.name}</span>
-                                        </a>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <ReadReceipts
-                              messageId={message.id}
-                              readBy={message.message_read_receipts?.map(r => ({
-                                user_id: r.user_id,
-                                username: r.profiles?.username || "Unknown",
-                                read_at: r.read_at,
-                              })) || []}
-                              totalParticipants={participantCount}
-                              isSender={message.user_id === user?.id}
-                            />
-                            <MessageReactions
-                              messageId={message.id}
-                              currentUserId={user?.id || ""}
-                            />
+                          <div
+                            className={`inline-block rounded-lg px-4 py-2 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ${
+                              message.user_id === user?.id
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted"
+                            }`}
+                          >
+                            {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+                            
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mt-2 space-y-2">
+                                {message.attachments.map((attachment, idx) => (
+                                  <div key={idx}>
+                                    {attachment.type.startsWith("image/") ? (
+                                      <img
+                                        src={attachment.url}
+                                        alt={attachment.name}
+                                        className="rounded-lg max-w-xs max-h-64 object-cover"
+                                      />
+                                    ) : attachment.type.startsWith("video/") ? (
+                                      <video
+                                        src={attachment.url}
+                                        controls
+                                        className="rounded-lg max-w-xs max-h-64"
+                                      />
+                                    ) : (
+                                      <a
+                                        href={attachment.url}
+                                        download
+                                        className="flex items-center gap-2 p-2 bg-background/50 rounded hover:bg-background/80 transition-colors"
+                                      >
+                                        <FileText className="h-4 w-4" />
+                                        <span className="text-sm">{attachment.name}</span>
+                                      </a>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           {message.user_id === user?.id && (
                             <MessageActions
@@ -625,6 +609,20 @@ const CommunityChat = () => {
                             />
                           )}
                         </div>
+                        <ReadReceipts
+                          messageId={message.id}
+                          readBy={message.message_read_receipts?.map(r => ({
+                            user_id: r.user_id,
+                            username: r.profiles?.username || "Unknown",
+                            read_at: r.read_at,
+                          })) || []}
+                          totalParticipants={participantCount}
+                          isSender={message.user_id === user?.id}
+                        />
+                        <MessageReactions
+                          messageId={message.id}
+                          currentUserId={user?.id || ""}
+                        />
                       </div>
                     ))}
                   </div>
