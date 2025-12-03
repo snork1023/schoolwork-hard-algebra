@@ -146,7 +146,7 @@ const Chat = () => {
       <main className="flex-1 container mx-auto px-4 pt-24 pb-6 flex flex-col">
         <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
           <div className="mb-6">
-            <h1 className="text-4xl font-bold mb-2 glow-text">AI Assistant</h1>
+            
             
           </div>
 
