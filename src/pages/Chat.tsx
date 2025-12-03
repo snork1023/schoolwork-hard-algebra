@@ -154,9 +154,7 @@ const Chat = () => {
             <ScrollArea className="flex-1 p-6" ref={scrollRef}>
               {messages.length === 0 ? <div className="h-full flex items-center justify-center text-center">
                   <div className="space-y-2">
-                    <p className="text-xl text-muted-foreground">
-                      Start a conversation with the AI assistant
-                    </p>
+                    
                     
                   </div>
                 </div> : <div className="space-y-4">
