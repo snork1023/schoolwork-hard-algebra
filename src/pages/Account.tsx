@@ -8,7 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { z } from "zod";
 
+const usernameSchema = z.string().trim().min(1, "Username is required").max(50, "Username must be 50 characters or less");
 const Account = () => {
   const [username, setUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -55,12 +57,23 @@ const Account = () => {
   }, [navigate]);
 
   const handleUpdateUsername = async () => {
-    if (!userId || !username.trim()) return;
+    if (!userId) return;
+    
+    // Validate username with zod schema
+    const result = usernameSchema.safeParse(username);
+    if (!result.success) {
+      toast({
+        title: "Validation Error",
+        description: result.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
     
     setLoading(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ username: username.trim() })
+      .update({ username: result.data })
       .eq("id", userId);
     
     setLoading(false);
