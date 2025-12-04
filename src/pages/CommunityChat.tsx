@@ -14,9 +14,8 @@ import TypingIndicator from "@/components/chat/TypingIndicator";
 import ReadReceipts from "@/components/chat/ReadReceipts";
 import MessageActions from "@/components/chat/MessageActions";
 import { FileUpload } from "@/components/chat/FileUpload";
-import { MessageReactions } from "@/components/chat/MessageReactions";
 import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
-import { Send, Image as ImageIcon, FileText, Video } from "lucide-react";
+import { Send, FileText } from "lucide-react";
 
 type Message = {
   id: string;
@@ -607,6 +606,7 @@ const CommunityChat = () => {
                             <MessageActions
                               messageId={message.id}
                               content={message.content}
+                              currentUserId={user?.id || ""}
                               onEdit={handleEditMessage}
                               onDelete={handleDeleteMessage}
                               showEdit={!!message.content?.trim()}
@@ -622,10 +622,6 @@ const CommunityChat = () => {
                           })) || []}
                           totalParticipants={participantCount}
                           isSender={message.user_id === user?.id}
-                        />
-                        <MessageReactions
-                          messageId={message.id}
-                          currentUserId={user?.id || ""}
                         />
                       </div>
                     ))}
