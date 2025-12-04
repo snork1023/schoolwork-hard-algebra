@@ -1,27 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2, Trash2, Check, X } from "lucide-react";
+import { Edit2, Trash2, Check, X, Smile } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 type MessageActionsProps = {
   messageId: string;
   content: string;
+  currentUserId: string;
   onEdit: (messageId: string, newContent: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
   showEdit?: boolean;
 };
 
-const MessageActions = ({ messageId, content, onEdit, onDelete, showEdit = true }: MessageActionsProps) => {
+const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🎉", "🔥", "👏"];
+
+const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, showEdit = true }: MessageActionsProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSaveEdit = async () => {
     if (!editContent.trim() || editContent === content) {
@@ -53,6 +63,48 @@ const MessageActions = ({ messageId, content, onEdit, onDelete, showEdit = true 
       await onDelete(messageId);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReaction = async (emoji: string) => {
+    // Check if user already reacted with this emoji
+    const { data: existing } = await supabase
+      .from("message_reactions")
+      .select("id")
+      .eq("message_id", messageId)
+      .eq("user_id", currentUserId)
+      .eq("emoji", emoji)
+      .single();
+
+    if (existing) {
+      // Remove reaction
+      const { error } = await supabase
+        .from("message_reactions")
+        .delete()
+        .eq("id", existing.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to remove reaction",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Add reaction
+      const { error } = await supabase.from("message_reactions").insert({
+        message_id: messageId,
+        user_id: currentUserId,
+        emoji,
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add reaction",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -108,6 +160,28 @@ const MessageActions = ({ messageId, content, onEdit, onDelete, showEdit = true 
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="bg-popover z-50">
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Smile className="mr-2 h-4 w-4" />
+            React
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="bg-popover">
+              <div className="grid grid-cols-4 gap-1 p-2">
+                {COMMON_EMOJIS.map((emoji) => (
+                  <Button
+                    key={emoji}
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-lg hover:bg-secondary"
+                    onClick={() => handleReaction(emoji)}
+                  >
+                    {emoji}
+                  </Button>
+                ))}
+              </div>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
         {showEdit && (
           <DropdownMenuItem onClick={() => setIsEditing(true)}>
             <Edit2 className="mr-2 h-4 w-4" />
