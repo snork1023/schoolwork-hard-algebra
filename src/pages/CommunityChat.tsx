@@ -15,6 +15,7 @@ import ReadReceipts from "@/components/chat/ReadReceipts";
 import MessageActions from "@/components/chat/MessageActions";
 import { FileUpload } from "@/components/chat/FileUpload";
 import { MessageReactions } from "@/components/chat/MessageReactions";
+import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
 import { Send, Image as ImageIcon, FileText, Video } from "lucide-react";
 
 type Message = {
@@ -59,6 +60,7 @@ const CommunityChat = () => {
   const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
@@ -577,7 +579,8 @@ const CommunityChat = () => {
                                       <img
                                         src={attachment.url}
                                         alt={attachment.name}
-                                        className="rounded-lg max-w-xs max-h-64 object-cover"
+                                        className="rounded-lg max-w-xs max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => setPreviewImage({ url: attachment.url, name: attachment.name })}
                                       />
                                     ) : attachment.type.startsWith("video/") ? (
                                       <video
@@ -606,6 +609,7 @@ const CommunityChat = () => {
                               content={message.content}
                               onEdit={handleEditMessage}
                               onDelete={handleDeleteMessage}
+                              showEdit={!!message.content?.trim()}
                             />
                           )}
                         </div>
@@ -706,6 +710,12 @@ const CommunityChat = () => {
         open={renameDialogOpen}
         onOpenChange={setRenameDialogOpen}
         onRenamed={fetchConversations}
+      />
+
+      <ImagePreviewDialog
+        imageUrl={previewImage?.url || null}
+        imageName={previewImage?.name}
+        onClose={() => setPreviewImage(null)}
       />
     </div>
   );
