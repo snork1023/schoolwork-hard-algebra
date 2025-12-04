@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Settings, MessageSquare, Moon, Sun, User, Sparkles } from "lucide-react";
+import { Home, Settings, MessageSquare, Moon, Sun, User, Sparkles, Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ const Navigation = () => {
   
   const links = [
     { to: "/", icon: Home, label: "Home" },
+    { to: "/games", icon: Gamepad2, label: "Games" },
     { to: "/chat", icon: Sparkles, label: "AI" },
     { to: "/community-chat", icon: MessageSquare, label: "Chat" },
     { to: "/account", icon: User, label: "Account" },
