@@ -15,9 +15,10 @@ type MessageActionsProps = {
   content: string;
   onEdit: (messageId: string, newContent: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
+  showEdit?: boolean;
 };
 
-const MessageActions = ({ messageId, content, onEdit, onDelete }: MessageActionsProps) => {
+const MessageActions = ({ messageId, content, onEdit, onDelete, showEdit = true }: MessageActionsProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [loading, setLoading] = useState(false);
@@ -106,11 +107,13 @@ const MessageActions = ({ messageId, content, onEdit, onDelete }: MessageActions
           <MoreVertical className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setIsEditing(true)}>
-          <Edit2 className="mr-2 h-4 w-4" />
-          Edit
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="bg-popover z-50">
+        {showEdit && (
+          <DropdownMenuItem onClick={() => setIsEditing(true)}>
+            <Edit2 className="mr-2 h-4 w-4" />
+            Edit
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onClick={handleDelete}
           className="text-destructive focus:text-destructive"
