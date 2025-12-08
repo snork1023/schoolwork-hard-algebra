@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Maximize, Home, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { RefreshCw, Maximize, Home } from "lucide-react";
 
 interface GamePlayerDialogProps {
   open: boolean;
@@ -16,51 +15,10 @@ interface GamePlayerDialogProps {
 
 const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerDialogProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [liveUrl, setLiveUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchGame = async () => {
-    if (!gameUrl) return;
-    
-    setIsLoading(true);
-    setError(null);
-    setLiveUrl(null);
-
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('fetch-website', {
-        body: { url: gameUrl }
-      });
-
-      if (fnError) {
-        throw new Error(fnError.message);
-      }
-
-      if (data?.liveURL) {
-        setLiveUrl(data.liveURL);
-      } else {
-        throw new Error('Failed to load game');
-      }
-    } catch (err) {
-      console.error('Error fetching game:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load game');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (open && gameUrl) {
-      fetchGame();
-    } else {
-      setLiveUrl(null);
-      setError(null);
-    }
-  }, [open, gameUrl]);
+  const [key, setKey] = useState(0);
 
   const handleReload = () => {
-    fetchGame();
+    setKey(prev => prev + 1);
   };
 
   const handleFullscreen = () => {
@@ -68,10 +26,8 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
     if (container) {
       if (!document.fullscreenElement) {
         container.requestFullscreen();
-        setIsFullscreen(true);
       } else {
         document.exitFullscreen();
-        setIsFullscreen(false);
       }
     }
   };
@@ -94,10 +50,9 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
               variant="ghost"
               size="icon"
               onClick={handleReload}
-              disabled={isLoading}
               title="Reload"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -118,37 +73,16 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
           </div>
         </div>
 
-        {/* Game Content */}
+        {/* Game iframe */}
         <div className="flex-1 w-full h-[calc(90vh-52px)] bg-black">
-          {isLoading && (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-4 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <span>Loading {gameName}...</span>
-              </div>
-            </div>
-          )}
-          
-          {error && !isLoading && (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-4 text-destructive">
-                <span>{error}</span>
-                <Button variant="outline" onClick={handleReload}>
-                  Try Again
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {liveUrl && !isLoading && !error && (
-            <iframe
-              ref={iframeRef}
-              src={liveUrl}
-              className="w-full h-full border-0"
-              allow="fullscreen; autoplay; clipboard-write; accelerometer; gyroscope"
-              allowFullScreen
-            />
-          )}
+          <iframe
+            key={key}
+            ref={iframeRef}
+            src={gameUrl}
+            className="w-full h-full border-0"
+            allow="fullscreen; autoplay; clipboard-write; accelerometer; gyroscope"
+            allowFullScreen
+          />
         </div>
       </DialogContent>
     </Dialog>
