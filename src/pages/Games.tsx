@@ -1,6 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExternalLink } from "lucide-react";
+import { Gamepad2 } from "lucide-react";
+
 const games = [{
   name: "Slope",
   description: "Roll down the slope and avoid obstacles",
@@ -26,35 +28,45 @@ const games = [{
   description: "Play Minecraft in your browser",
   url: "https://classic.minecraft.net/"
 }];
+
 const Games = () => {
-  return <div className="min-h-screen bg-background">
+  const navigate = useNavigate();
+
+  const openGame = (url: string) => {
+    navigate(`/browser?url=${encodeURIComponent(url)}`);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
       <Navigation />
       
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            
-            
-          </div>
-          
-
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {games.map(game => <a key={game.name} href={game.url} target="_blank" rel="noopener noreferrer" className="group">
+            {games.map(game => (
+              <div
+                key={game.name}
+                onClick={() => openGame(game.url)}
+                className="group cursor-pointer"
+              >
                 <Card className="h-full bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center justify-between text-lg">
                       {game.name}
-                      <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <Gamepad2 className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <CardDescription>{game.description}</CardDescription>
                   </CardContent>
                 </Card>
-              </a>)}
+              </div>
+            ))}
           </div>
         </div>
       </main>
-    </div>;
+    </div>
+  );
 };
+
 export default Games;
