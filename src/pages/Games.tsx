@@ -1,7 +1,8 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gamepad2 } from "lucide-react";
+import GamePlayerDialog from "@/components/games/GamePlayerDialog";
 
 const games = [{
   name: "Slope",
@@ -30,11 +31,7 @@ const games = [{
 }];
 
 const Games = () => {
-  const navigate = useNavigate();
-
-  const openGame = (url: string) => {
-    navigate(`/browser?url=${encodeURIComponent(url)}`);
-  };
+  const [selectedGame, setSelectedGame] = useState<{ name: string; url: string } | null>(null);
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,7 +43,7 @@ const Games = () => {
             {games.map(game => (
               <div
                 key={game.name}
-                onClick={() => openGame(game.url)}
+                onClick={() => setSelectedGame({ name: game.name, url: game.url })}
                 className="group cursor-pointer"
               >
                 <Card className="h-full bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50">
@@ -65,6 +62,13 @@ const Games = () => {
           </div>
         </div>
       </main>
+
+      <GamePlayerDialog
+        open={!!selectedGame}
+        onOpenChange={(open) => !open && setSelectedGame(null)}
+        gameUrl={selectedGame?.url || ""}
+        gameName={selectedGame?.name || ""}
+      />
     </div>
   );
 };
