@@ -1,33 +1,46 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import { Card } from "@/components/ui/card";
-import { Gamepad2 } from "lucide-react";
+import { Mountain, Grid3X3, Layers, Worm, Ghost, Box, LucideIcon } from "lucide-react";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
 
-const games = [{
+interface Game {
+  name: string;
+  description: string;
+  url: string;
+  icon: LucideIcon;
+}
+
+const games: Game[] = [{
   name: "Slope",
   description: "Roll down the slope and avoid obstacles",
-  url: "https://slope-game.github.io/"
+  url: "https://slope-game.github.io/",
+  icon: Mountain
 }, {
   name: "2048",
   description: "Combine tiles to reach 2048",
-  url: "https://play2048.co/"
+  url: "https://play2048.co/",
+  icon: Grid3X3
 }, {
   name: "Tetris",
   description: "Classic block stacking game",
-  url: "https://tetris.com/play-tetris"
+  url: "https://tetris.com/play-tetris",
+  icon: Layers
 }, {
   name: "Snake",
   description: "Classic snake game",
-  url: "https://playsnake.org/"
+  url: "https://playsnake.org/",
+  icon: Worm
 }, {
   name: "Pac-Man",
   description: "Classic arcade game",
-  url: "https://www.google.com/logos/2010/pacman10-i.html"
+  url: "https://www.google.com/logos/2010/pacman10-i.html",
+  icon: Ghost
 }, {
   name: "Minecraft Classic",
   description: "Play Minecraft in your browser",
-  url: "https://classic.minecraft.net/"
+  url: "https://classic.minecraft.net/",
+  icon: Box
 }];
 
 const Games = () => {
@@ -47,7 +60,7 @@ const Games = () => {
                 className="group cursor-pointer"
               >
                 <Card className="aspect-square bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50 flex flex-col items-center justify-center p-3">
-                  <Gamepad2 className="h-8 w-8 mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <game.icon className="h-8 w-8 mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
                   <span className="text-sm font-medium text-center text-foreground">{game.name}</span>
                 </Card>
               </div>
