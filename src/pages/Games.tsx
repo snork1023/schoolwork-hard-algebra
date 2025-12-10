@@ -1,46 +1,46 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import { Card } from "@/components/ui/card";
-import { Mountain, Grid3X3, Layers, Worm, Ghost, Box, LucideIcon } from "lucide-react";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
+
+// Import game icons
+import slopeIcon from "@/assets/games/slope.png";
+import game2048Icon from "@/assets/games/2048.png";
+import tetrisIcon from "@/assets/games/tetris.png";
+import snakeIcon from "@/assets/games/snake.png";
+import pacmanIcon from "@/assets/games/pacman.png";
+import minecraftIcon from "@/assets/games/minecraft.png";
 
 interface Game {
   name: string;
-  description: string;
   url: string;
-  icon: LucideIcon;
+  icon: string;
 }
 
 const games: Game[] = [{
   name: "Slope",
-  description: "Roll down the slope and avoid obstacles",
   url: "https://slope-game.github.io/",
-  icon: Mountain
+  icon: slopeIcon
 }, {
   name: "2048",
-  description: "Combine tiles to reach 2048",
   url: "https://play2048.co/",
-  icon: Grid3X3
+  icon: game2048Icon
 }, {
   name: "Tetris",
-  description: "Classic block stacking game",
   url: "https://tetris.com/play-tetris",
-  icon: Layers
+  icon: tetrisIcon
 }, {
   name: "Snake",
-  description: "Classic snake game",
   url: "https://playsnake.org/",
-  icon: Worm
+  icon: snakeIcon
 }, {
   name: "Pac-Man",
-  description: "Classic arcade game",
   url: "https://www.google.com/logos/2010/pacman10-i.html",
-  icon: Ghost
+  icon: pacmanIcon
 }, {
   name: "Minecraft Classic",
-  description: "Play Minecraft in your browser",
   url: "https://classic.minecraft.net/",
-  icon: Box
+  icon: minecraftIcon
 }];
 
 const Games = () => {
@@ -60,7 +60,11 @@ const Games = () => {
                 className="group cursor-pointer"
               >
                 <Card className="aspect-square bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50 flex flex-col items-center justify-center p-3">
-                  <game.icon className="h-8 w-8 mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <img 
+                    src={game.icon} 
+                    alt={game.name} 
+                    className="h-12 w-12 mb-2 object-contain rounded-lg"
+                  />
                   <span className="text-sm font-medium text-center text-foreground">{game.name}</span>
                 </Card>
               </div>
