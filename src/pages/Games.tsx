@@ -59,13 +59,13 @@ const Games = () => {
                 onClick={() => setSelectedGame({ name: game.name, url: game.url })}
                 className="group cursor-pointer"
               >
-                <Card className="aspect-square bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50 flex flex-col items-center justify-center p-3">
+                <Card className="aspect-square bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50 flex flex-col items-center justify-center p-2">
                   <img 
                     src={game.icon} 
                     alt={game.name} 
-                    className="h-12 w-12 mb-2 object-contain rounded-lg"
+                    className="h-20 w-20 mb-1 object-contain rounded-lg"
                   />
-                  <span className="text-sm font-medium text-center text-foreground">{game.name}</span>
+                  <span className="text-xs font-medium text-center text-foreground">{game.name}</span>
                 </Card>
               </div>
             ))}
