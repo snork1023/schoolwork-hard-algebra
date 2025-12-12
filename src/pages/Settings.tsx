@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Palette } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 
 const accentColors = [
   { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
@@ -80,22 +80,20 @@ const Settings = () => {
                   </div>
                   <Button
                     variant="outline"
+                    size="icon"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="min-w-[100px]"
                   >
-                    {theme === "dark" ? "Dark" : "Light"}
+                    <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="space-y-0.5 flex items-center gap-3">
-                    <Palette className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <Label>Accent Color</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Choose your preferred accent color
-                      </p>
-                    </div>
+                  <div className="space-y-0.5">
+                    <Label>Accent Color</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Choose your preferred accent color
+                    </p>
                   </div>
                   <div className="flex gap-2">
                     {accentColors.map((color) => (
