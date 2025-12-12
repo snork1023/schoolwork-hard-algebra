@@ -80,11 +80,12 @@ const Settings = () => {
                   </div>
                   <Button
                     variant="outline"
-                    size="icon"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    className="gap-2"
                   >
-                    <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                    <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="ml-4">{theme === "dark" ? "Dark" : "Light"}</span>
                   </Button>
                 </div>
 
@@ -95,17 +96,46 @@ const Settings = () => {
                       Choose your preferred accent color
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     {accentColors.map((color) => (
                       <button
                         key={color.name}
                         onClick={() => handleAccentColorChange(color.value)}
                         className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${
-                          accentColor === color.value ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""
+                          accentColor === color.value && !accentColor.startsWith("custom") ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""
                         }`}
                         title={color.name}
                       />
                     ))}
+                    <label className="relative cursor-pointer">
+                      <input
+                        type="color"
+                        onChange={(e) => {
+                          const hex = e.target.value;
+                          // Convert hex to HSL
+                          const r = parseInt(hex.slice(1, 3), 16) / 255;
+                          const g = parseInt(hex.slice(3, 5), 16) / 255;
+                          const b = parseInt(hex.slice(5, 7), 16) / 255;
+                          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                          let h = 0, s = 0, l = (max + min) / 2;
+                          if (max !== min) {
+                            const d = max - min;
+                            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                            switch (max) {
+                              case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                              case g: h = ((b - r) / d + 2) / 6; break;
+                              case b: h = ((r - g) / d + 4) / 6; break;
+                            }
+                          }
+                          const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+                          handleAccentColorChange(hsl);
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 via-green-500 to-blue-500 transition-all hover:scale-110 flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">+</span>
+                      </div>
+                    </label>
                   </div>
                 </div>
               </CardContent>
