@@ -63,7 +63,7 @@ const Games = () => {
                   <img 
                     src={game.icon} 
                     alt={game.name} 
-                    className="h-20 w-20 mb-1 object-contain rounded-lg"
+                    className="h-20 w-20 mb-1 object-contain rounded-lg transition-transform duration-200 group-hover:scale-110"
                   />
                   <span className="text-xs font-medium text-center text-foreground">{game.name}</span>
                 </Card>
