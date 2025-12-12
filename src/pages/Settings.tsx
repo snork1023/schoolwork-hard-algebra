@@ -4,6 +4,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 
 const Settings = () => {
   const [autoOpen, setAutoOpen] = useState(true);
@@ -11,6 +13,7 @@ const Settings = () => {
   const [browserType, setBrowserType] = useState(
     localStorage.getItem("browserType") || "chrome"
   );
+  const { theme, setTheme } = useTheme();
 
   const handleBrowserTypeChange = (value: string) => {
     setBrowserType(value);
@@ -29,6 +32,36 @@ const Settings = () => {
           </p>
 
           <div className="space-y-6">
+            <Card className="bg-card border-border shadow-lg hover-glow">
+              <CardHeader>
+                <CardTitle>Appearance</CardTitle>
+                <CardDescription>
+                  Customize how the app looks
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 flex items-center gap-3">
+                    {theme === "dark" ? (
+                      <Moon className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <Sun className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div>
+                      <Label>Dark Mode</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Toggle between light and dark theme
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={theme === "dark"}
+                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="bg-card border-border shadow-lg hover-glow">
               <CardHeader>
                 <CardTitle>General Settings</CardTitle>
