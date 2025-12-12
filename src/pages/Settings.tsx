@@ -3,9 +3,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
+import { Palette } from "lucide-react";
+
+const accentColors = [
+  { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
+  { name: "Blue", value: "217 91% 60%", class: "bg-[hsl(217,91%,60%)]" },
+  { name: "Green", value: "142 76% 36%", class: "bg-[hsl(142,76%,36%)]" },
+  { name: "Red", value: "0 84% 60%", class: "bg-[hsl(0,84%,60%)]" },
+  { name: "Orange", value: "25 95% 53%", class: "bg-[hsl(25,95%,53%)]" },
+  { name: "Pink", value: "330 81% 60%", class: "bg-[hsl(330,81%,60%)]" },
+];
 
 const Settings = () => {
   const [autoOpen, setAutoOpen] = useState(true);
@@ -14,11 +24,32 @@ const Settings = () => {
     localStorage.getItem("browserType") || "chrome"
   );
   const { theme, setTheme } = useTheme();
+  const [accentColor, setAccentColor] = useState(
+    localStorage.getItem("accentColor") || "263 70% 50%"
+  );
 
   const handleBrowserTypeChange = (value: string) => {
     setBrowserType(value);
     localStorage.setItem("browserType", value);
   };
+
+  const handleAccentColorChange = (value: string) => {
+    setAccentColor(value);
+    localStorage.setItem("accentColor", value);
+    document.documentElement.style.setProperty("--primary", value);
+    // Update related colors
+    const lightness = parseInt(value.split(" ")[2]);
+    document.documentElement.style.setProperty("--primary-glow", value.replace(/\d+%$/, `${Math.min(lightness + 15, 100)}%`));
+    document.documentElement.style.setProperty("--ring", value);
+  };
+
+  useEffect(() => {
+    // Apply saved accent color on mount
+    const savedAccent = localStorage.getItem("accentColor");
+    if (savedAccent) {
+      handleAccentColorChange(savedAccent);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,23 +72,43 @@ const Settings = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Theme</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Toggle between light and dark theme
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    className="min-w-[100px]"
+                  >
+                    {theme === "dark" ? "Dark" : "Light"}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between">
                   <div className="space-y-0.5 flex items-center gap-3">
-                    {theme === "dark" ? (
-                      <Moon className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <Sun className="h-5 w-5 text-muted-foreground" />
-                    )}
+                    <Palette className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <Label>Dark Mode</Label>
+                      <Label>Accent Color</Label>
                       <p className="text-sm text-muted-foreground">
-                        Toggle between light and dark theme
+                        Choose your preferred accent color
                       </p>
                     </div>
                   </div>
-                  <Switch
-                    checked={theme === "dark"}
-                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-                  />
+                  <div className="flex gap-2">
+                    {accentColors.map((color) => (
+                      <button
+                        key={color.name}
+                        onClick={() => handleAccentColorChange(color.value)}
+                        className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${
+                          accentColor === color.value ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""
+                        }`}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
