@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Plus } from "lucide-react";
 
 const accentColors = [
   { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
@@ -16,6 +16,41 @@ const accentColors = [
   { name: "Orange", value: "25 95% 53%", class: "bg-[hsl(25,95%,53%)]" },
   { name: "Pink", value: "330 81% 60%", class: "bg-[hsl(330,81%,60%)]" },
 ];
+
+const hslToHex = (hsl: string): string => {
+  const parts = hsl.match(/(\d+)\s+(\d+)%\s+(\d+)%/);
+  if (!parts) return "#808080";
+  const h = parseInt(parts[1]) / 360;
+  const s = parseInt(parts[2]) / 100;
+  const l = parseInt(parts[3]) / 100;
+  
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+  
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  
+  const toHex = (x: number) => {
+    const hex = Math.round(x * 255).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
 
 const Settings = () => {
   const [autoOpen, setAutoOpen] = useState(true);
@@ -27,6 +62,11 @@ const Settings = () => {
   const [accentColor, setAccentColor] = useState(
     localStorage.getItem("accentColor") || "263 70% 50%"
   );
+  const [customColor, setCustomColor] = useState<string | null>(
+    localStorage.getItem("customAccentColor") || null
+  );
+  
+  const isCustomColor = customColor && accentColor === customColor;
 
   const handleBrowserTypeChange = (value: string) => {
     setBrowserType(value);
@@ -81,11 +121,13 @@ const Settings = () => {
                   <Button
                     variant="outline"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="gap-2"
+                    className="gap-2 min-w-[100px]"
                   >
-                    <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                    <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span className="ml-4">{theme === "dark" ? "Dark" : "Light"}</span>
+                    <div className="relative w-4 h-4">
+                      <Sun className="h-4 w-4 absolute inset-0 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="h-4 w-4 absolute inset-0 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    </div>
+                    <span>{theme === "dark" ? "Dark" : "Light"}</span>
                   </Button>
                 </div>
 
@@ -102,17 +144,17 @@ const Settings = () => {
                         key={color.name}
                         onClick={() => handleAccentColorChange(color.value)}
                         className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${
-                          accentColor === color.value && !accentColor.startsWith("custom") ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""
+                          accentColor === color.value && !isCustomColor ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""
                         }`}
                         title={color.name}
                       />
                     ))}
-                    <label className="relative cursor-pointer">
+                    <div className="relative">
                       <input
                         type="color"
+                        value={customColor ? hslToHex(customColor) : "#808080"}
                         onChange={(e) => {
                           const hex = e.target.value;
-                          // Convert hex to HSL
                           const r = parseInt(hex.slice(1, 3), 16) / 255;
                           const g = parseInt(hex.slice(3, 5), 16) / 255;
                           const b = parseInt(hex.slice(5, 7), 16) / 255;
@@ -128,14 +170,23 @@ const Settings = () => {
                             }
                           }
                           const hsl = `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+                          setCustomColor(hsl);
+                          localStorage.setItem("customAccentColor", hsl);
                           handleAccentColorChange(hsl);
                         }}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                       />
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 via-green-500 to-blue-500 transition-all hover:scale-110 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">+</span>
+                      <div 
+                        className={`w-8 h-8 rounded-full transition-all hover:scale-110 flex items-center justify-center border-2 border-dashed border-muted-foreground/50 ${
+                          isCustomColor ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""
+                        }`}
+                        style={{ 
+                          backgroundColor: customColor ? `hsl(${customColor})` : 'hsl(var(--muted))',
+                        }}
+                      >
+                        {!customColor && <Plus className="h-4 w-4 text-muted-foreground" />}
                       </div>
-                    </label>
+                    </div>
                   </div>
                 </div>
               </CardContent>
