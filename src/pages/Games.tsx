@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Navigation from "@/components/Navigation";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
 
 // Import game icons
@@ -45,6 +47,13 @@ const games: Game[] = [{
 
 const Games = () => {
   const [selectedGame, setSelectedGame] = useState<{ name: string; url: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredGames = useMemo(() => {
+    return games
+      .filter(game => game.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [searchQuery]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,8 +61,18 @@ const Games = () => {
       
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-6xl mx-auto">
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search games..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-            {games.map(game => (
+            {filteredGames.map(game => (
               <div
                 key={game.name}
                 onClick={() => setSelectedGame({ name: game.name, url: game.url })}
