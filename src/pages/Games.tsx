@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import Navigation from "@/components/Navigation";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
@@ -19,31 +18,14 @@ interface Game {
   icon: string;
 }
 
-const games: Game[] = [{
-  name: "Slope",
-  url: "https://slope-game.github.io/",
-  icon: slopeIcon
-}, {
-  name: "2048",
-  url: "https://play2048.co/",
-  icon: game2048Icon
-}, {
-  name: "Tetris",
-  url: "https://tetris.com/play-tetris",
-  icon: tetrisIcon
-}, {
-  name: "Snake",
-  url: "https://playsnake.org/",
-  icon: snakeIcon
-}, {
-  name: "Pac-Man",
-  url: "https://www.google.com/logos/2010/pacman10-i.html",
-  icon: pacmanIcon
-}, {
-  name: "Minecraft Classic",
-  url: "https://classic.minecraft.net/",
-  icon: minecraftIcon
-}];
+const games: Game[] = [
+  { name: "Slope", url: "https://slope-game.github.io/", icon: slopeIcon },
+  { name: "2048", url: "https://play2048.co/", icon: game2048Icon },
+  { name: "Tetris", url: "https://tetris.com/play-tetris", icon: tetrisIcon },
+  { name: "Snake", url: "https://playsnake.org/", icon: snakeIcon },
+  { name: "Pac-Man", url: "https://www.google.com/logos/2010/pacman10-i.html", icon: pacmanIcon },
+  { name: "Minecraft Classic", url: "https://classic.minecraft.net/", icon: minecraftIcon },
+];
 
 const Games = () => {
   const [selectedGame, setSelectedGame] = useState<{ name: string; url: string } | null>(null);
@@ -51,45 +33,60 @@ const Games = () => {
 
   const filteredGames = useMemo(() => {
     return games
-      .filter(game => game.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .filter((game) => game.name.toLowerCase().includes(searchQuery.toLowerCase()))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-muted/30">
       <Navigation />
-      
+
       <main className="container mx-auto px-4 pt-24 pb-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative mb-6 max-w-md mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        {/* Search Bar - 55gms style centered search */}
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search games..."
+              placeholder={`Click here or type to search through our ${games.length} games!`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="w-full pl-12 pr-4 py-6 text-base bg-background/50 border-border/50 rounded-xl placeholder:text-muted-foreground/70 focus:bg-background focus:border-primary/50 transition-all"
             />
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-            {filteredGames.map(game => (
-              <div
-                key={game.name}
-                onClick={() => setSelectedGame({ name: game.name, url: game.url })}
-                className="group cursor-pointer"
-              >
-                <Card className="aspect-square bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50 flex flex-col items-center justify-center p-2">
-                  <img 
-                    src={game.icon} 
-                    alt={game.name} 
-                    className="h-20 w-20 mb-1 object-contain rounded-lg transition-transform duration-200 group-hover:scale-110"
-                  />
-                  <span className="text-xs font-medium text-center text-foreground">{game.name}</span>
-                </Card>
-              </div>
-            ))}
-          </div>
         </div>
+
+        {/* Games Grid - 55gms style square cards */}
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+          {filteredGames.map((game) => (
+            <button
+              key={game.name}
+              onClick={() => setSelectedGame({ name: game.name, url: game.url })}
+              className="group relative aspect-square rounded-xl overflow-hidden bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {/* Game Image - fills the card like 55gms */}
+              <img
+                src={game.icon}
+                alt={game.name}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              
+              {/* Game Name Overlay - appears on hover like 55gms */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span className="text-white text-xs font-medium line-clamp-2 text-center block">
+                  {game.name}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredGames.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No games found matching "{searchQuery}"</p>
+          </div>
+        )}
       </main>
 
       <GamePlayerDialog
