@@ -38,7 +38,7 @@ const Games = () => {
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-background">
       <Navigation />
 
       <main className="container mx-auto px-4 pt-24 pb-12">
