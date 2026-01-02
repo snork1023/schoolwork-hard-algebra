@@ -2,6 +2,3 @@ project_id = "fsblsudfvtlwwzipheow"
 
 [functions.fetch-website]
 verify_jwt = false
-
-[functions.game-proxy]
-verify_jwt = false
