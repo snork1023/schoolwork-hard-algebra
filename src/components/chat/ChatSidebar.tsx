@@ -43,85 +43,87 @@ const ChatSidebar = ({
   };
 
   return (
-    <div className="w-64 border-r bg-card flex flex-col h-full">
-      <div className="p-4 border-b">
-        <Button onClick={onCreateNew} className="w-full" size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          New Chat
-        </Button>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
-          {conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors ${
-                selectedConversationId === conv.id ? 'bg-accent' : ''
-              }`}
-              onClick={() => onSelectConversation(conv.id)}
-            >
-              <Avatar className="h-8 w-8">
-                <AvatarFallback>
-                  {conv.type === 'group' ? (
-                    <Users className="h-4 w-4" />
-                  ) : (
-                    <MessageSquare className="h-4 w-4" />
-                  )}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {getConversationDisplay(conv)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {conv.type === 'dm' ? 'Direct Message' : 'Group Chat'}
-                </p>
-              </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                {conv.type === 'group' && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRename(conv);
-                    }}
-                  >
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
-                )}
-                {conv.created_by === currentUserId ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(conv.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onLeave(conv.id);
-                    }}
-                  >
-                    <LogOut className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
+    <div className="w-72 p-3 flex flex-col h-full">
+      <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl flex flex-col h-full shadow-lg">
+        <div className="p-4 border-b border-border/50">
+          <Button onClick={onCreateNew} className="w-full rounded-xl" size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            New Chat
+          </Button>
         </div>
-      </ScrollArea>
+
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {conversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`group flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-accent/50 transition-colors ${
+                  selectedConversationId === conv.id ? 'bg-accent' : ''
+                }`}
+                onClick={() => onSelectConversation(conv.id)}
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary/10">
+                    {conv.type === 'group' ? (
+                      <Users className="h-4 w-4 text-primary" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                    )}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {getConversationDisplay(conv)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {conv.type === 'dm' ? 'Direct Message' : 'Group Chat'}
+                  </p>
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                  {conv.type === 'group' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRename(conv);
+                      }}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                  {conv.created_by === currentUserId ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(conv.id);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onLeave(conv.id);
+                      }}
+                    >
+                      <LogOut className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   );
 };
