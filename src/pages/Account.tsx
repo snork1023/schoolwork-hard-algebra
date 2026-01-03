@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { z } from "zod";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 const usernameSchema = z.string().trim().min(1, "Username is required").max(50, "Username must be 50 characters or less");
 const Account = () => {
@@ -121,7 +122,7 @@ const Account = () => {
     if (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } else {

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, X, Image as ImageIcon, FileText, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 interface FileUploadProps {
   conversationId: string;
@@ -67,7 +68,7 @@ export const FileUpload = ({ conversationId, onFilesSelected }: FileUploadProps)
     } catch (error: any) {
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } finally {

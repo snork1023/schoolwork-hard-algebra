@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 type Conversation = {
   id: string;
@@ -62,7 +63,7 @@ const RenameConversationDialog = ({
     } catch (error: any) {
       toast({
         title: "Error renaming conversation",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } finally {
