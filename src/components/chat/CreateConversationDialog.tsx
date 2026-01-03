@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
 import { z } from "zod";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 const usernameSchema = z.string().trim().min(1, "Username cannot be empty").max(50);
 const groupNameSchema = z.string().trim().min(1, "Group name cannot be empty").max(100);
@@ -56,7 +57,7 @@ const CreateConversationDialog = ({
     if (error) {
       toast({
         title: "Error loading users",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } else {
@@ -129,7 +130,7 @@ const CreateConversationDialog = ({
     } catch (error: any) {
       toast({
         title: "Error creating DM",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } finally {
@@ -195,7 +196,7 @@ const CreateConversationDialog = ({
     } catch (error: any) {
       toast({
         title: "Error creating group",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } finally {

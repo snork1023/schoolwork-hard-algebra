@@ -17,6 +17,7 @@ import { FileUpload } from "@/components/chat/FileUpload";
 import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
 import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
 import { Send, FileText } from "lucide-react";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 type Attachment = { 
   path?: string; 
@@ -218,7 +219,7 @@ const CommunityChat = () => {
     if (participantError) {
       toast({
         title: "Error loading conversations",
-        description: participantError.message,
+        description: getUserFriendlyError(participantError),
         variant: "destructive",
       });
       return;
@@ -247,7 +248,7 @@ const CommunityChat = () => {
     if (error) {
       toast({
         title: "Error loading conversations",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } else {
@@ -291,7 +292,7 @@ const CommunityChat = () => {
     if (error) {
       toast({
         title: "Error loading messages",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     } else {
@@ -385,7 +386,7 @@ const CommunityChat = () => {
     } catch (error: any) {
       toast({
         title: "Error sending message",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     }
@@ -422,7 +423,7 @@ const CommunityChat = () => {
     } catch (error: any) {
       toast({
         title: "Error deleting conversation",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     }
@@ -455,7 +456,7 @@ const CommunityChat = () => {
     } catch (error: any) {
       toast({
         title: "Error leaving conversation",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     }
@@ -488,7 +489,7 @@ const CommunityChat = () => {
     } catch (error: any) {
       toast({
         title: "Error updating message",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     }
@@ -512,7 +513,7 @@ const CommunityChat = () => {
     } catch (error: any) {
       toast({
         title: "Error deleting message",
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
     }
