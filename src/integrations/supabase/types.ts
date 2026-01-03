@@ -232,6 +232,10 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      is_participant_in_attachment_conversation: {
+        Args: { object_path: string }
+        Returns: boolean
+      }
     }
     Enums: {
       conversation_type: "dm" | "group"
