@@ -6,10 +6,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface FileUploadProps {
-  onFilesSelected: (files: Array<{ url: string; type: string; name: string }>) => void;
+  conversationId: string;
+  onFilesSelected: (files: Array<{ path: string; type: string; name: string }>) => void;
 }
 
-export const FileUpload = ({ onFilesSelected }: FileUploadProps) => {
+export const FileUpload = ({ conversationId, onFilesSelected }: FileUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; preview: string }>>([]);
   const { toast } = useToast();
@@ -33,16 +34,17 @@ export const FileUpload = ({ onFilesSelected }: FileUploadProps) => {
   };
 
   const uploadFiles = async () => {
-    if (selectedFiles.length === 0) return;
+    if (selectedFiles.length === 0 || !conversationId) return;
 
     setUploading(true);
-    const uploadedFiles: Array<{ url: string; type: string; name: string }> = [];
+    const uploadedFiles: Array<{ path: string; type: string; name: string }> = [];
 
     try {
       for (const { file } of selectedFiles) {
         const fileExt = file.name.split(".").pop();
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `${Date.now()}_${fileName}`;
+        // Store files in conversation-specific folder for RLS to work
+        const filePath = `${conversationId}/${Date.now()}_${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat-attachments")
@@ -50,12 +52,10 @@ export const FileUpload = ({ onFilesSelected }: FileUploadProps) => {
 
         if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage
-          .from("chat-attachments")
-          .getPublicUrl(filePath);
-
+        // Store only the file path, not the URL
+        // Signed URLs will be generated on-demand when displaying messages
         uploadedFiles.push({
-          url: data.publicUrl,
+          path: filePath,
           type: file.type,
           name: file.name,
         });
