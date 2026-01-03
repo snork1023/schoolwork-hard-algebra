@@ -5,16 +5,18 @@ import { Plus, X, Image as ImageIcon, FileText, Video, Mic, BarChart3, Clock, Pa
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getUserFriendlyError } from "@/lib/error-utils";
+import { VoiceRecorder } from "./VoiceRecorder";
 
 interface FileUploadProps {
   conversationId: string;
-  onFilesSelected: (files: Array<{ path: string; type: string; name: string }>) => void;
+  onFilesSelected: (files: Array<{ path: string; type: string; name: string; duration?: number }>) => void;
 }
 
 export const FileUpload = ({ conversationId, onFilesSelected }: FileUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; preview: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   const { toast } = useToast();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,11 +84,12 @@ export const FileUpload = ({ conversationId, onFilesSelected }: FileUploadProps)
   };
 
   const handleVoiceMessage = () => {
-    toast({
-      title: "Voice Messages",
-      description: "Voice message recording coming soon!",
-    });
     setIsOpen(false);
+    setVoiceRecorderOpen(true);
+  };
+
+  const handleVoiceRecordingComplete = (file: { path: string; type: string; name: string; duration?: number }) => {
+    onFilesSelected([file]);
   };
 
   const handlePollCreation = () => {
@@ -133,70 +136,79 @@ export const FileUpload = ({ conversationId, onFilesSelected }: FileUploadProps)
   ];
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
-          <Plus className="h-5 w-5" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-2" align="start" side="top">
-        <div className="space-y-1">
-          {menuItems.map((item) => (
-            <button
-              key={item.label}
-              onClick={item.onClick}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left"
-            >
-              <item.icon className={`h-5 w-5 ${item.color}`} />
-              <span className="text-sm font-medium">{item.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <input
-          id="file-upload"
-          type="file"
-          multiple
-          accept="image/*,video/*,.pdf"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-
-        {selectedFiles.length > 0 && (
-          <div className="mt-3 pt-3 border-t space-y-2">
-            <p className="text-xs text-muted-foreground px-1">
-              {selectedFiles.length} file(s) selected
-            </p>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {selectedFiles.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 p-2 bg-secondary rounded-lg"
-                >
-                  {getFileIcon(item.file.type)}
-                  <span className="text-xs flex-1 truncate">{item.file.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5"
-                    onClick={() => removeFile(index)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button
-              className="w-full"
-              size="sm"
-              onClick={uploadFiles}
-              disabled={uploading}
-            >
-              {uploading ? "Uploading..." : "Upload & Attach"}
-            </Button>
+    <>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
+            <Plus className="h-5 w-5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" align="start" side="top">
+          <div className="space-y-1">
+            {menuItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={item.onClick}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left"
+              >
+                <item.icon className={`h-5 w-5 ${item.color}`} />
+                <span className="text-sm font-medium">{item.label}</span>
+              </button>
+            ))}
           </div>
-        )}
-      </PopoverContent>
-    </Popover>
+
+          <input
+            id="file-upload"
+            type="file"
+            multiple
+            accept="image/*,video/*,.pdf"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
+          {selectedFiles.length > 0 && (
+            <div className="mt-3 pt-3 border-t space-y-2">
+              <p className="text-xs text-muted-foreground px-1">
+                {selectedFiles.length} file(s) selected
+              </p>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {selectedFiles.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-2 bg-secondary rounded-lg"
+                  >
+                    {getFileIcon(item.file.type)}
+                    <span className="text-xs flex-1 truncate">{item.file.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => removeFile(index)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                className="w-full"
+                size="sm"
+                onClick={uploadFiles}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Upload & Attach"}
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      <VoiceRecorder
+        open={voiceRecorderOpen}
+        onOpenChange={setVoiceRecorderOpen}
+        conversationId={conversationId}
+        onRecordingComplete={handleVoiceRecordingComplete}
+      />
+    </>
   );
 };

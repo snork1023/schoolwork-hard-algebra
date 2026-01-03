@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AudioPlayer } from "./AudioPlayer";
 
 interface Attachment {
   path?: string;
   url?: string;
   type: string;
   name: string;
+  duration?: number;
 }
 
 interface AttachmentRendererProps {
@@ -107,6 +109,12 @@ export const AttachmentRenderer = ({ attachment, onImageClick }: AttachmentRende
         controls
         className="rounded-lg max-w-xs max-h-64"
       />
+    );
+  }
+
+  if (attachment.type.startsWith("audio/")) {
+    return (
+      <AudioPlayer src={signedUrl} duration={attachment.duration} />
     );
   }
 
