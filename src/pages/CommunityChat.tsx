@@ -15,7 +15,15 @@ import ReadReceipts from "@/components/chat/ReadReceipts";
 import MessageActions from "@/components/chat/MessageActions";
 import { FileUpload } from "@/components/chat/FileUpload";
 import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
+import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
 import { Send, FileText } from "lucide-react";
+
+type Attachment = { 
+  path?: string; 
+  url?: string; 
+  type: string; 
+  name: string; 
+};
 
 type Message = {
   id: string;
@@ -24,7 +32,7 @@ type Message = {
   created_at: string;
   conversation_id: string;
   edited_at: string | null;
-  attachments?: Array<{ url: string; type: string; name: string }>;
+  attachments?: Attachment[];
   profiles?: {
     username: string;
   };
@@ -51,7 +59,7 @@ const CommunityChat = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
-  const [attachments, setAttachments] = useState<Array<{ url: string; type: string; name: string }>>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -574,29 +582,10 @@ const CommunityChat = () => {
                               <div className="mt-2 space-y-2">
                                 {message.attachments.map((attachment, idx) => (
                                   <div key={idx}>
-                                    {attachment.type.startsWith("image/") ? (
-                                      <img
-                                        src={attachment.url}
-                                        alt={attachment.name}
-                                        className="rounded-lg max-w-xs max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => setPreviewImage({ url: attachment.url, name: attachment.name })}
-                                      />
-                                    ) : attachment.type.startsWith("video/") ? (
-                                      <video
-                                        src={attachment.url}
-                                        controls
-                                        className="rounded-lg max-w-xs max-h-64"
-                                      />
-                                    ) : (
-                                      <a
-                                        href={attachment.url}
-                                        download
-                                        className="flex items-center gap-2 p-2 bg-background/50 rounded hover:bg-background/80 transition-colors"
-                                      >
-                                        <FileText className="h-4 w-4" />
-                                        <span className="text-sm">{attachment.name}</span>
-                                      </a>
-                                    )}
+                                    <AttachmentRenderer
+                                      attachment={attachment}
+                                      onImageClick={(url, name) => setPreviewImage({ url, name })}
+                                    />
                                   </div>
                                 ))}
                               </div>
@@ -636,17 +625,13 @@ const CommunityChat = () => {
                   <div className="mb-2 flex flex-wrap gap-2">
                     {attachments.map((attachment, idx) => (
                       <div key={idx} className="relative inline-block">
-                        {attachment.type.startsWith("image/") ? (
-                          <img
-                            src={attachment.url}
-                            alt={attachment.name}
-                            className="h-20 w-20 object-cover rounded-lg"
-                          />
-                        ) : (
-                          <div className="h-20 w-20 bg-secondary rounded-lg flex items-center justify-center">
+                        <div className="h-20 w-20 bg-secondary rounded-lg flex items-center justify-center">
+                          {attachment.type.startsWith("image/") ? (
+                            <span className="text-xs text-center p-1 truncate">{attachment.name}</span>
+                          ) : (
                             <FileText className="h-8 w-8" />
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <button
                           type="button"
                           onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
@@ -660,6 +645,7 @@ const CommunityChat = () => {
                 )}
                 <div className="flex gap-2 items-end">
                   <FileUpload
+                    conversationId={selectedConversationId || ""}
                     onFilesSelected={(files) => {
                       setAttachments([...attachments, ...files]);
                     }}

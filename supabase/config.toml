@@ -1,4 +1,4 @@
 project_id = "fsblsudfvtlwwzipheow"
 
-[functions.fetch-website]
-verify_jwt = false
+# fetch-website: JWT verification is enabled (verify_jwt = true by default)
+# The function also implements manual auth verification for custom error messages
