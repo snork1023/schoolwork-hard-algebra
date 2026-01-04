@@ -6,21 +6,18 @@ import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 
-interface VoiceRecorderProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface VoiceRecorderInlineProps {
   conversationId: string;
-  onRecordingComplete: (file: { path: string; type: string; name: string; duration?: number }) => void;
+  onClose: () => void;
+  onSend: (file: { path: string; type: string; name: string; duration?: number }) => void;
 }
 
-export const VoiceRecorder = ({
-  open,
-  onOpenChange,
+export const VoiceRecorderInline = ({
   conversationId,
-  onRecordingComplete,
-}: VoiceRecorderProps) => {
+  onClose,
+  onSend,
+}: VoiceRecorderInlineProps) => {
   const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
@@ -46,7 +43,6 @@ export const VoiceRecorder = ({
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteFrequencyData(dataArray);
     
-    // Sample bars from the frequency data
     const bars = 40;
     const step = Math.floor(dataArray.length / bars);
     const newData = [];
@@ -56,24 +52,22 @@ export const VoiceRecorder = ({
     }
     setWaveformData(newData);
     
-    if (isRecording && !isPaused) {
+    if (isRecording) {
       animationFrameRef.current = requestAnimationFrame(updateVisualization);
     }
-  }, [isRecording, isPaused]);
+  }, [isRecording]);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       
-      // Set up audio context for visualization
       audioContextRef.current = new AudioContext();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
       source.connect(analyserRef.current);
       
-      // Set up media recorder
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -90,7 +84,6 @@ export const VoiceRecorder = ({
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
         
-        // Create static waveform for preview
         const staticWaveform = Array.from({ length: 40 }, () => 
           Math.random() * 0.5 + 0.2
         );
@@ -101,12 +94,10 @@ export const VoiceRecorder = ({
       setIsRecording(true);
       setDuration(0);
       
-      // Start timer
       timerRef.current = setInterval(() => {
         setDuration((d) => d + 1);
       }, 1000);
       
-      // Start visualization
       updateVisualization();
     } catch (error) {
       toast({
@@ -114,7 +105,7 @@ export const VoiceRecorder = ({
         description: "Please allow microphone access to record voice messages.",
         variant: "destructive",
       });
-      onOpenChange(false);
+      onClose();
     }
   };
 
@@ -122,7 +113,6 @@ export const VoiceRecorder = ({
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      setIsPaused(false);
       
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -147,13 +137,7 @@ export const VoiceRecorder = ({
       audioRef.current.pause();
       audioRef.current = null;
     }
-    setAudioBlob(null);
-    setAudioUrl(null);
-    setDuration(0);
-    setIsPlaying(false);
-    setPlaybackProgress(0);
-    setWaveformData(new Array(40).fill(0.15));
-    onOpenChange(false);
+    onClose();
   };
 
   const togglePlayback = () => {
@@ -195,26 +179,19 @@ export const VoiceRecorder = ({
       
       if (uploadError) throw uploadError;
       
-      onRecordingComplete({
+      onSend({
         path: filePath,
         type: "audio/webm",
         name: fileName,
         duration,
       });
       
-      // Clean up
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
-      setAudioBlob(null);
-      setAudioUrl(null);
-      setDuration(0);
-      setIsPlaying(false);
-      setPlaybackProgress(0);
-      setWaveformData(new Array(40).fill(0.15));
-      onOpenChange(false);
+      onClose();
     } catch (error: any) {
       toast({
         title: "Upload failed",
@@ -232,15 +209,10 @@ export const VoiceRecorder = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Auto-start recording when opened
+  // Auto-start recording when mounted
   useEffect(() => {
-    if (open && !isRecording && !audioBlob) {
-      startRecording();
-    }
-  }, [open]);
-
-  // Cleanup on unmount or close
-  useEffect(() => {
+    startRecording();
+    
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
@@ -257,15 +229,13 @@ export const VoiceRecorder = ({
     };
   }, []);
 
-  if (!open) return null;
-
   return (
-    <div className="absolute inset-0 bg-background/95 backdrop-blur-sm flex items-center px-4 gap-3 z-10">
+    <div className="absolute inset-0 bg-secondary/80 backdrop-blur-sm flex items-center px-3 gap-3 rounded-2xl">
       {/* Cancel button */}
       <Button
         variant="ghost"
         size="icon"
-        className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+        className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50"
         onClick={discardRecording}
       >
         <X className="h-5 w-5" />
@@ -274,26 +244,25 @@ export const VoiceRecorder = ({
       {/* Recording indicator / Waveform */}
       <div className="flex-1 flex items-center gap-3 min-w-0">
         {isRecording && !audioBlob && (
-          <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse shrink-0" />
+          <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
         )}
         
         {/* Waveform visualization */}
         <div 
           className={cn(
-            "flex-1 flex items-center justify-center gap-[2px] h-10 cursor-pointer",
+            "flex-1 flex items-center justify-center gap-[2px] h-8 cursor-pointer",
             audioBlob && "hover:opacity-80"
           )}
           onClick={audioBlob ? togglePlayback : undefined}
         >
           {waveformData.map((value, index) => {
-            // Calculate if this bar should be "played"
             const isPlayed = audioBlob && (index / waveformData.length) <= playbackProgress;
             
             return (
               <div
                 key={index}
                 className={cn(
-                  "w-[3px] rounded-full transition-all duration-75",
+                  "w-[2.5px] rounded-full transition-all duration-75",
                   isRecording && !audioBlob 
                     ? "bg-red-500" 
                     : isPlayed 
@@ -301,7 +270,7 @@ export const VoiceRecorder = ({
                       : "bg-muted-foreground/40"
                 )}
                 style={{
-                  height: `${Math.max(4, value * 32)}px`,
+                  height: `${Math.max(4, value * 28)}px`,
                 }}
               />
             );
@@ -315,47 +284,76 @@ export const VoiceRecorder = ({
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         {isRecording && !audioBlob ? (
-          // Stop recording button
           <Button
             size="icon"
-            className="h-10 w-10 rounded-full bg-red-500 hover:bg-red-600 text-white"
+            className="h-9 w-9 rounded-full bg-red-500 hover:bg-red-600 text-white"
             onClick={stopRecording}
           >
-            <Square className="h-4 w-4 fill-current" />
+            <Square className="h-3.5 w-3.5 fill-current" />
           </Button>
         ) : audioBlob ? (
           <>
-            {/* Play/Pause button */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 rounded-full"
+              className="h-9 w-9 rounded-full hover:bg-background/50"
               onClick={togglePlayback}
             >
               {isPlaying ? (
-                <Pause className="h-5 w-5" />
+                <Pause className="h-4 w-4" />
               ) : (
-                <Play className="h-5 w-5" />
+                <Play className="h-4 w-4" />
               )}
             </Button>
             
-            {/* Send button - Apple style */}
             <Button
               size="icon"
-              className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90"
+              className="h-9 w-9 rounded-full"
               onClick={sendRecording}
               disabled={isUploading}
             >
               {isUploading ? (
                 <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (
-                <ArrowUp className="h-5 w-5" />
+                <ArrowUp className="h-4 w-4" />
               )}
             </Button>
           </>
         ) : null}
+      </div>
+    </div>
+  );
+};
+
+// Legacy dialog-based recorder (kept for compatibility)
+interface VoiceRecorderProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  conversationId: string;
+  onRecordingComplete: (file: { path: string; type: string; name: string; duration?: number }) => void;
+}
+
+export const VoiceRecorder = ({
+  open,
+  onOpenChange,
+  conversationId,
+  onRecordingComplete,
+}: VoiceRecorderProps) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-card rounded-2xl p-6 w-full max-w-md">
+        <VoiceRecorderInline
+          conversationId={conversationId}
+          onClose={() => onOpenChange(false)}
+          onSend={(file) => {
+            onRecordingComplete(file);
+            onOpenChange(false);
+          }}
+        />
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import TypingIndicator from "@/components/chat/TypingIndicator";
 import ReadReceipts from "@/components/chat/ReadReceipts";
 import MessageActions from "@/components/chat/MessageActions";
 import { FileUpload } from "@/components/chat/FileUpload";
+import { VoiceRecorderInline } from "@/components/chat/VoiceRecorder";
 import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
 import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
 import { Send, FileText } from "lucide-react";
@@ -297,10 +298,21 @@ const CommunityChat = () => {
         variant: "destructive",
       });
     } else {
-      const formattedMessages = (data || []).map((msg: any) => ({
-        ...msg,
-        attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
-      }));
+      const formattedMessages = (data || []).map((msg: any) => {
+        // Handle attachments that may be a string (double-stringified) or array
+        let parsedAttachments = msg.attachments;
+        if (typeof parsedAttachments === 'string') {
+          try {
+            parsedAttachments = JSON.parse(parsedAttachments);
+          } catch {
+            parsedAttachments = [];
+          }
+        }
+        return {
+          ...msg,
+          attachments: Array.isArray(parsedAttachments) ? parsedAttachments : [],
+        };
+      });
       setMessages(formattedMessages);
       
       // Mark messages as read
@@ -370,7 +382,7 @@ const CommunityChat = () => {
         user_id: user.id,
         content: newMessage.trim(),
         conversation_id: selectedConversationId,
-        attachments: attachments.length > 0 ? JSON.stringify(attachments) : null,
+        attachments: attachments.length > 0 ? attachments : null,
       });
 
       if (error) throw error;
@@ -659,78 +671,113 @@ const CommunityChat = () => {
 
               <TypingIndicator typingUsers={typingUsers} />
 
-              <form onSubmit={handleSendMessage} className="p-4 border-t max-w-4xl mx-auto w-full relative">
-                {attachments.length > 0 && (
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    {attachments.map((attachment, idx) => (
-                      <div key={idx} className="relative inline-block">
-                        <div className="h-20 w-20 bg-secondary rounded-lg flex items-center justify-center">
-                          {attachment.type.startsWith("image/") ? (
-                            <span className="text-xs text-center p-1 truncate">{attachment.name}</span>
-                          ) : (
-                            <FileText className="h-8 w-8" />
-                          )}
+              <div className="p-4 max-w-4xl mx-auto w-full">
+                <form onSubmit={handleSendMessage} className="relative bg-secondary/50 rounded-2xl border border-border/50 overflow-hidden">
+                  {attachments.length > 0 && (
+                    <div className="p-3 pb-0 flex flex-wrap gap-2">
+                      {attachments.map((attachment, idx) => (
+                        <div key={idx} className="relative inline-block">
+                          <div className="h-16 w-16 bg-background rounded-lg flex items-center justify-center">
+                            {attachment.type.startsWith("image/") ? (
+                              <span className="text-xs text-center p-1 truncate">{attachment.name}</span>
+                            ) : (
+                              <FileText className="h-6 w-6" />
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                            className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90"
+                          >
+                            ×
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
-                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-2 items-end">
-                  <FileUpload
-                    conversationId={selectedConversationId || ""}
-                    onFilesSelected={async (files) => {
-                      // Auto-send voice messages immediately
-                      if (files.length === 1 && files[0].type === "audio/webm") {
-                        try {
-                          const { error } = await supabase.from("chat_messages").insert({
-                            user_id: user?.id,
-                            content: "",
-                            conversation_id: selectedConversationId,
-                            attachments: JSON.stringify(files),
-                          });
-                          if (error) throw error;
-                        } catch (error: any) {
-                          toast({
-                            title: "Error sending voice message",
-                            description: getUserFriendlyError(error),
-                            variant: "destructive",
-                          });
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Voice recorder overlay */}
+                  {voiceRecorderOpen && (
+                    <div className="absolute inset-0 z-10">
+                      <VoiceRecorderInline
+                        conversationId={selectedConversationId || ""}
+                        onClose={() => setVoiceRecorderOpen(false)}
+                        onSend={async (file) => {
+                          try {
+                            const { error } = await supabase.from("chat_messages").insert({
+                              user_id: user?.id,
+                              content: "",
+                              conversation_id: selectedConversationId,
+                              attachments: [file],
+                            });
+                            if (error) throw error;
+                          } catch (error: any) {
+                            toast({
+                              title: "Error sending voice message",
+                              description: getUserFriendlyError(error),
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2 items-end p-2">
+                    <FileUpload
+                      conversationId={selectedConversationId || ""}
+                      onFilesSelected={async (files) => {
+                        // Auto-send voice messages immediately
+                        if (files.length === 1 && files[0].type === "audio/webm") {
+                          try {
+                            const { error } = await supabase.from("chat_messages").insert({
+                              user_id: user?.id,
+                              content: "",
+                              conversation_id: selectedConversationId,
+                              attachments: files,
+                            });
+                            if (error) throw error;
+                          } catch (error: any) {
+                            toast({
+                              title: "Error sending voice message",
+                              description: getUserFriendlyError(error),
+                              variant: "destructive",
+                            });
+                          }
+                        } else {
+                          setAttachments([...attachments, ...files]);
                         }
-                      } else {
-                        setAttachments([...attachments, ...files]);
-                      }
-                    }}
-                    voiceRecorderOpen={voiceRecorderOpen}
-                    setVoiceRecorderOpen={setVoiceRecorderOpen}
-                  />
-                  <Textarea
-                    value={newMessage}
-                    onChange={(e) => {
-                      setNewMessage(e.target.value);
-                      handleTyping();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage(e);
-                      }
-                    }}
-                    placeholder="Type your message... (Shift+Enter for new line)"
-                    className="flex-1 min-h-[40px] max-h-[120px] resize-none"
-                    rows={1}
-                  />
-                  <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon">
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </form>
+                      }}
+                      voiceRecorderOpen={voiceRecorderOpen}
+                      setVoiceRecorderOpen={setVoiceRecorderOpen}
+                    />
+                    <Textarea
+                      value={newMessage}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        handleTyping();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      placeholder="Message..."
+                      className="flex-1 min-h-[40px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
+                      rows={1}
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={!newMessage.trim() && attachments.length === 0} 
+                      size="icon"
+                      className="h-9 w-9 rounded-full shrink-0"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
