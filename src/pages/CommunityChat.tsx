@@ -69,6 +69,7 @@ const CommunityChat = () => {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
@@ -658,7 +659,7 @@ const CommunityChat = () => {
 
               <TypingIndicator typingUsers={typingUsers} />
 
-              <form onSubmit={handleSendMessage} className="p-4 border-t max-w-4xl mx-auto w-full">
+              <form onSubmit={handleSendMessage} className="p-4 border-t max-w-4xl mx-auto w-full relative">
                 {attachments.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-2">
                     {attachments.map((attachment, idx) => (
@@ -684,9 +685,30 @@ const CommunityChat = () => {
                 <div className="flex gap-2 items-end">
                   <FileUpload
                     conversationId={selectedConversationId || ""}
-                    onFilesSelected={(files) => {
-                      setAttachments([...attachments, ...files]);
+                    onFilesSelected={async (files) => {
+                      // Auto-send voice messages immediately
+                      if (files.length === 1 && files[0].type === "audio/webm") {
+                        try {
+                          const { error } = await supabase.from("chat_messages").insert({
+                            user_id: user?.id,
+                            content: "",
+                            conversation_id: selectedConversationId,
+                            attachments: JSON.stringify(files),
+                          });
+                          if (error) throw error;
+                        } catch (error: any) {
+                          toast({
+                            title: "Error sending voice message",
+                            description: getUserFriendlyError(error),
+                            variant: "destructive",
+                          });
+                        }
+                      } else {
+                        setAttachments([...attachments, ...files]);
+                      }
                     }}
+                    voiceRecorderOpen={voiceRecorderOpen}
+                    setVoiceRecorderOpen={setVoiceRecorderOpen}
                   />
                   <Textarea
                     value={newMessage}

@@ -10,13 +10,14 @@ import { VoiceRecorder } from "./VoiceRecorder";
 interface FileUploadProps {
   conversationId: string;
   onFilesSelected: (files: Array<{ path: string; type: string; name: string; duration?: number }>) => void;
+  voiceRecorderOpen: boolean;
+  setVoiceRecorderOpen: (open: boolean) => void;
 }
 
-export const FileUpload = ({ conversationId, onFilesSelected }: FileUploadProps) => {
+export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen, setVoiceRecorderOpen }: FileUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; preview: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   const { toast } = useToast();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,7 +89,8 @@ export const FileUpload = ({ conversationId, onFilesSelected }: FileUploadProps)
     setVoiceRecorderOpen(true);
   };
 
-  const handleVoiceRecordingComplete = (file: { path: string; type: string; name: string; duration?: number }) => {
+  const handleVoiceRecordingComplete = async (file: { path: string; type: string; name: string; duration?: number }) => {
+    // Auto-send voice message immediately
     onFilesSelected([file]);
   };
 
