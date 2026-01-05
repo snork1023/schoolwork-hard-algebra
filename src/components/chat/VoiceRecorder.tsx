@@ -25,7 +25,9 @@ export const VoiceRecorderInline = ({
   const [waveformData, setWaveformData] = useState<number[]>(new Array(40).fill(0.15));
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackProgress, setPlaybackProgress] = useState(0);
-  
+  const [recordingMimeType, setRecordingMimeType] = useState<string>("audio/webm");
+  const [recordingExt, setRecordingExt] = useState<string>("webm");
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -61,48 +63,79 @@ export const VoiceRecorderInline = ({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      
+
       audioContextRef.current = new AudioContext();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
       source.connect(analyserRef.current);
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+      // Prefer a supported mimeType (Safari/iOS often doesn't support audio/webm)
+      const preferredTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/mpeg",
+        "audio/ogg;codecs=opus",
+        "audio/ogg",
+      ];
+
+      const chosenMime =
+        preferredTypes.find((t) => (window as any).MediaRecorder?.isTypeSupported?.(t)) ||
+        "";
+
+      const mimeType = chosenMime || "audio/webm";
+      setRecordingMimeType(mimeType);
+
+      const ext = mimeType.includes("mp4")
+        ? "m4a"
+        : mimeType.includes("mpeg")
+          ? "mp3"
+          : mimeType.includes("ogg")
+            ? "ogg"
+            : "webm";
+      setRecordingExt(ext);
+
+      const mediaRecorder = chosenMime
+        ? new MediaRecorder(stream, { mimeType: chosenMime })
+        : new MediaRecorder(stream);
+
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
-      
+
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
-      
+
+      mediaRecorder.onerror = (e: any) => {
+        console.error("MediaRecorder error:", e);
+      };
+
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
-        
-        const staticWaveform = Array.from({ length: 40 }, () => 
-          Math.random() * 0.5 + 0.2
-        );
+
+        const staticWaveform = Array.from({ length: 40 }, () => Math.random() * 0.5 + 0.2);
         setWaveformData(staticWaveform);
       };
-      
+
       mediaRecorder.start(100);
       setIsRecording(true);
       setDuration(0);
-      
+
       timerRef.current = setInterval(() => {
         setDuration((d) => d + 1);
       }, 1000);
-      
+
       updateVisualization();
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Microphone access denied",
-        description: "Please allow microphone access to record voice messages.",
+        title: "Couldn't start recording",
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
       onClose();
@@ -166,26 +199,29 @@ export const VoiceRecorderInline = ({
 
   const sendRecording = async () => {
     if (!audioBlob || !conversationId) return;
-    
+
     setIsUploading(true);
-    
+
     try {
-      const fileName = `voice_${Date.now()}.webm`;
+      const fileName = `voice_${Date.now()}.${recordingExt}`;
       const filePath = `${conversationId}/${fileName}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
-        .upload(filePath, audioBlob);
-      
+        .upload(filePath, audioBlob, {
+          contentType: recordingMimeType,
+          upsert: false,
+        });
+
       if (uploadError) throw uploadError;
-      
+
       onSend({
         path: filePath,
-        type: "audio/webm",
+        type: recordingMimeType.startsWith("audio/") ? recordingMimeType : "audio/webm",
         name: fileName,
         duration,
       });
-      
+
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       if (audioRef.current) {
         audioRef.current.pause();
@@ -233,6 +269,7 @@ export const VoiceRecorderInline = ({
     <div className="absolute inset-0 bg-background/95 backdrop-blur-md flex items-center px-4 gap-3 rounded-2xl border border-border/30">
       {/* Cancel button - slide up text style */}
       <button
+        type="button"
         onClick={discardRecording}
         className="text-destructive font-medium text-sm hover:text-destructive/80 transition-colors shrink-0"
       >
@@ -285,6 +322,7 @@ export const VoiceRecorderInline = ({
       <div className="flex items-center gap-2 shrink-0">
         {isRecording && !audioBlob ? (
           <button
+            type="button"
             className="h-8 w-8 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors"
             onClick={stopRecording}
           >
@@ -293,6 +331,7 @@ export const VoiceRecorderInline = ({
         ) : audioBlob ? (
           <>
             <button
+              type="button"
               className="h-8 w-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
               onClick={togglePlayback}
             >
@@ -304,6 +343,7 @@ export const VoiceRecorderInline = ({
             </button>
             
             <button
+              type="button"
               className="h-8 w-8 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center transition-colors disabled:opacity-50"
               onClick={sendRecording}
               disabled={isUploading}
