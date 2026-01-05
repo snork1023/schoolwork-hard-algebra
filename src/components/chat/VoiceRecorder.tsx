@@ -230,28 +230,26 @@ export const VoiceRecorderInline = ({
   }, []);
 
   return (
-    <div className="absolute inset-0 bg-secondary/80 backdrop-blur-sm flex items-center px-3 gap-3 rounded-2xl">
-      {/* Cancel button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50"
+    <div className="absolute inset-0 bg-background/95 backdrop-blur-md flex items-center px-4 gap-3 rounded-2xl border border-border/30">
+      {/* Cancel button - slide up text style */}
+      <button
         onClick={discardRecording}
+        className="text-destructive font-medium text-sm hover:text-destructive/80 transition-colors shrink-0"
       >
-        <X className="h-5 w-5" />
-      </Button>
+        Cancel
+      </button>
 
-      {/* Recording indicator / Waveform */}
+      {/* Recording waveform / indicator */}
       <div className="flex-1 flex items-center gap-3 min-w-0">
         {isRecording && !audioBlob && (
-          <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+          <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse shrink-0" />
         )}
         
-        {/* Waveform visualization */}
+        {/* Waveform visualization - Apple style bars */}
         <div 
           className={cn(
-            "flex-1 flex items-center justify-center gap-[2px] h-8 cursor-pointer",
-            audioBlob && "hover:opacity-80"
+            "flex-1 flex items-center justify-center gap-[1.5px] h-10",
+            audioBlob && "cursor-pointer hover:opacity-80"
           )}
           onClick={audioBlob ? togglePlayback : undefined}
         >
@@ -262,64 +260,60 @@ export const VoiceRecorderInline = ({
               <div
                 key={index}
                 className={cn(
-                  "w-[2.5px] rounded-full transition-all duration-75",
+                  "w-[3px] rounded-full transition-all duration-100",
                   isRecording && !audioBlob 
                     ? "bg-red-500" 
                     : isPlayed 
                       ? "bg-primary" 
-                      : "bg-muted-foreground/40"
+                      : "bg-muted-foreground/30"
                 )}
                 style={{
-                  height: `${Math.max(4, value * 28)}px`,
+                  height: `${Math.max(6, value * 32)}px`,
                 }}
               />
             );
           })}
         </div>
 
-        {/* Duration */}
-        <span className="text-sm font-mono text-muted-foreground tabular-nums shrink-0">
+        {/* Duration - Apple style */}
+        <span className="text-sm font-medium text-foreground tabular-nums shrink-0 min-w-[40px]">
           {formatTime(duration)}
         </span>
       </div>
 
       {/* Action buttons */}
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         {isRecording && !audioBlob ? (
-          <Button
-            size="icon"
-            className="h-9 w-9 rounded-full bg-red-500 hover:bg-red-600 text-white"
+          <button
+            className="h-8 w-8 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors"
             onClick={stopRecording}
           >
-            <Square className="h-3.5 w-3.5 fill-current" />
-          </Button>
+            <Square className="h-3 w-3 fill-white text-white" />
+          </button>
         ) : audioBlob ? (
           <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-full hover:bg-background/50"
+            <button
+              className="h-8 w-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
               onClick={togglePlayback}
             >
               {isPlaying ? (
-                <Pause className="h-4 w-4" />
+                <Pause className="h-3.5 w-3.5 text-foreground" />
               ) : (
-                <Play className="h-4 w-4" />
+                <Play className="h-3.5 w-3.5 text-foreground ml-0.5" />
               )}
-            </Button>
+            </button>
             
-            <Button
-              size="icon"
-              className="h-9 w-9 rounded-full"
+            <button
+              className="h-8 w-8 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center transition-colors disabled:opacity-50"
               onClick={sendRecording}
               disabled={isUploading}
             >
               {isUploading ? (
-                <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                <div className="h-3.5 w-3.5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (
-                <ArrowUp className="h-4 w-4" />
+                <ArrowUp className="h-4 w-4 text-primary-foreground" />
               )}
-            </Button>
+            </button>
           </>
         ) : null}
       </div>

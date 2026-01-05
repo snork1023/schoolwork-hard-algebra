@@ -539,45 +539,22 @@ const CommunityChat = () => {
               <TypingIndicator typingUsers={typingUsers} />
 
               <div className="p-4 max-w-4xl mx-auto w-full">
-                <form onSubmit={handleSendMessage} className="relative bg-secondary/50 rounded-2xl border border-border/50 overflow-hidden">
-                  {attachments.length > 0 && <div className="p-3 pb-0 flex flex-wrap gap-2">
-                      {attachments.map((attachment, idx) => <div key={idx} className="relative inline-block">
-                          <div className="h-16 w-16 bg-background rounded-lg flex items-center justify-center">
-                            {attachment.type.startsWith("image/") ? <span className="text-xs text-center p-1 truncate">{attachment.name}</span> : <FileText className="h-6 w-6" />}
-                          </div>
-                          <button type="button" onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90">
-                            ×
-                          </button>
-                        </div>)}
-                    </div>}
-                  
-                  {/* Voice recorder overlay */}
-                  {voiceRecorderOpen && <div className="absolute inset-0 z-10">
-                      <VoiceRecorderInline conversationId={selectedConversationId || ""} onClose={() => setVoiceRecorderOpen(false)} onSend={async file => {
-                  try {
-                    const {
-                      error
-                    } = await supabase.from("chat_messages").insert({
-                      user_id: user?.id,
-                      content: "",
-                      conversation_id: selectedConversationId,
-                      attachments: [file]
-                    });
-                    if (error) throw error;
-                  } catch (error: any) {
-                    toast({
-                      title: "Error sending voice message",
-                      description: getUserFriendlyError(error),
-                      variant: "destructive"
-                    });
-                  }
-                }} />
-                    </div>}
-                  
-                  <div className="flex gap-2 items-end p-2">
-                    <FileUpload conversationId={selectedConversationId || ""} onFilesSelected={async files => {
-                  // Auto-send voice messages immediately
-                  if (files.length === 1 && files[0].type === "audio/webm") {
+                <div className="bg-secondary/30 backdrop-blur-lg rounded-2xl border border-border/30 shadow-lg">
+                  <form onSubmit={handleSendMessage} className="relative">
+                    {attachments.length > 0 && <div className="p-3 pb-0 flex flex-wrap gap-2 border-b border-border/30">
+                        {attachments.map((attachment, idx) => <div key={idx} className="relative inline-block">
+                            <div className="h-16 w-16 bg-background/50 rounded-xl flex items-center justify-center border border-border/20">
+                              {attachment.type.startsWith("image/") ? <span className="text-xs text-center p-1 truncate">{attachment.name}</span> : <FileText className="h-6 w-6 text-muted-foreground" />}
+                            </div>
+                            <button type="button" onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90 shadow-sm">
+                              ×
+                            </button>
+                          </div>)}
+                      </div>}
+                    
+                    {/* Voice recorder overlay */}
+                    {voiceRecorderOpen && <div className="absolute inset-0 z-10">
+                        <VoiceRecorderInline conversationId={selectedConversationId || ""} onClose={() => setVoiceRecorderOpen(false)} onSend={async file => {
                     try {
                       const {
                         error
@@ -585,7 +562,7 @@ const CommunityChat = () => {
                         user_id: user?.id,
                         content: "",
                         conversation_id: selectedConversationId,
-                        attachments: files
+                        attachments: [file]
                       });
                       if (error) throw error;
                     } catch (error: any) {
@@ -595,24 +572,53 @@ const CommunityChat = () => {
                         variant: "destructive"
                       });
                     }
-                  } else {
-                    setAttachments([...attachments, ...files]);
-                  }
-                }} voiceRecorderOpen={voiceRecorderOpen} setVoiceRecorderOpen={setVoiceRecorderOpen} />
-                    <Textarea value={newMessage} onChange={e => {
-                  setNewMessage(e.target.value);
-                  handleTyping();
-                }} onKeyDown={e => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }} className="flex-1 min-h-[40px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60" rows={1} placeholder="Message..." />
-                    <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon" className="h-9 w-9 rounded-full shrink-0">
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </form>
+                  }} />
+                      </div>}
+                    
+                    <div className="flex items-end gap-2 p-3">
+                      <FileUpload conversationId={selectedConversationId || ""} onFilesSelected={async files => {
+                    // Auto-send voice messages immediately
+                    if (files.length === 1 && files[0].type === "audio/webm") {
+                      try {
+                        const {
+                          error
+                        } = await supabase.from("chat_messages").insert({
+                          user_id: user?.id,
+                          content: "",
+                          conversation_id: selectedConversationId,
+                          attachments: files
+                        });
+                        if (error) throw error;
+                      } catch (error: any) {
+                        toast({
+                          title: "Error sending voice message",
+                          description: getUserFriendlyError(error),
+                          variant: "destructive"
+                        });
+                      }
+                    } else {
+                      setAttachments([...attachments, ...files]);
+                    }
+                  }} voiceRecorderOpen={voiceRecorderOpen} setVoiceRecorderOpen={setVoiceRecorderOpen} />
+                      
+                      <div className="flex-1 flex items-end bg-background/60 rounded-xl border border-border/20 px-3 py-2 min-h-[44px]">
+                        <Textarea value={newMessage} onChange={e => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }} onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage(e);
+                    }
+                  }} className="flex-1 min-h-[24px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 p-0 text-sm" rows={1} placeholder="Message..." />
+                      </div>
+                      
+                      <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon" className="h-9 w-9 rounded-full shrink-0 bg-primary hover:bg-primary/90 shadow-md">
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </> : <div className="flex-1 flex items-center justify-center text-muted-foreground">
               <p>Select a conversation or create a new one to start chatting</p>
