@@ -141,7 +141,7 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
     <>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
+          <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full">
             <Plus className="h-5 w-5" />
           </Button>
         </PopoverTrigger>

@@ -148,8 +148,20 @@ const CommunityChat = () => {
       const {
         data: profile
       } = await supabase.from("profiles").select("username").eq("id", payload.new.user_id).single();
+
+      // Normalize attachments (can arrive as JSON, stringified JSON, or null)
+      let parsedAttachments: any = (payload.new as any).attachments;
+      if (typeof parsedAttachments === "string") {
+        try {
+          parsedAttachments = JSON.parse(parsedAttachments);
+        } catch {
+          parsedAttachments = [];
+        }
+      }
+
       setMessages(current => [...current, {
         ...payload.new,
+        attachments: Array.isArray(parsedAttachments) ? parsedAttachments : [],
         profiles: profile,
         message_read_receipts: []
       } as Message]);
@@ -575,7 +587,7 @@ const CommunityChat = () => {
                   }} />
                       </div>}
                     
-                    <div className="flex items-end gap-2 p-3">
+                    <div className="flex items-center gap-2 p-3">
                       <FileUpload conversationId={selectedConversationId || ""} onFilesSelected={async files => {
                     // Auto-send voice messages immediately
                     if (files.length === 1 && files[0].type === "audio/webm") {
@@ -601,7 +613,7 @@ const CommunityChat = () => {
                     }
                   }} voiceRecorderOpen={voiceRecorderOpen} setVoiceRecorderOpen={setVoiceRecorderOpen} />
                       
-                      <div className="flex-1 flex items-end bg-background/60 rounded-xl border border-border/20 px-3 py-2 min-h-[44px]">
+                      <div className="flex-1 flex items-center bg-background/60 rounded-xl border border-border/20 px-3 py-2 min-h-[44px]">
                         <Textarea value={newMessage} onChange={e => {
                     setNewMessage(e.target.value);
                     handleTyping();
