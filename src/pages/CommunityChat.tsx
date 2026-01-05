@@ -590,7 +590,7 @@ const CommunityChat = () => {
                     <div className="flex items-center gap-2 p-3">
                       <FileUpload conversationId={selectedConversationId || ""} onFilesSelected={async files => {
                     // Auto-send voice messages immediately
-                    if (files.length === 1 && files[0].type === "audio/webm") {
+                    if (files.length === 1 && files[0].type?.startsWith("audio/")) {
                       try {
                         const {
                           error
@@ -625,7 +625,7 @@ const CommunityChat = () => {
                   }} className="flex-1 min-h-[24px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 p-0 text-sm" rows={1} placeholder="Message..." />
                       </div>
                       
-                      <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon" className="h-9 w-9 rounded-full shrink-0 bg-primary hover:bg-primary/90 shadow-md">
+                      <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon" className="h-10 w-10 rounded-full shrink-0 bg-primary hover:bg-primary/90 shadow-md flex items-center justify-center">
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
