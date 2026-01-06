@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 interface VoiceRecorderInlineProps {
   conversationId: string;
   onClose: () => void;
-  onSend: (file: { path: string; type: string; name: string; duration?: number }) => void;
+  onSend: (file: { path: string; type: string; name: string; duration?: number }) => void | Promise<void>;
 }
 
 export const VoiceRecorderInline = ({
@@ -206,7 +206,7 @@ export const VoiceRecorderInline = ({
       const fileName = `voice_${Date.now()}.${recordingExt}`;
       const filePath = `${conversationId}/${fileName}`;
 
-      // Supabase Storage expects a standard MIME type; strip codecs params like ";codecs=opus".
+      // Storage expects a standard MIME type; strip codecs params like ";codecs=opus".
       const baseMimeType = recordingMimeType.split(";")[0] || "audio/webm";
 
       const { error: uploadError } = await supabase.storage
@@ -218,7 +218,8 @@ export const VoiceRecorderInline = ({
 
       if (uploadError) throw uploadError;
 
-      onSend({
+      // IMPORTANT: await parent send (DB insert). Only close UI if it succeeds.
+      await onSend({
         path: filePath,
         type: baseMimeType.startsWith("audio/") ? baseMimeType : "audio/webm",
         name: fileName,
@@ -233,7 +234,7 @@ export const VoiceRecorderInline = ({
       onClose();
     } catch (error: any) {
       toast({
-        title: "Upload failed",
+        title: "Couldn't send voice message",
         description: getUserFriendlyError(error),
         variant: "destructive",
       });
@@ -386,8 +387,8 @@ export const VoiceRecorder = ({
         <VoiceRecorderInline
           conversationId={conversationId}
           onClose={() => onOpenChange(false)}
-          onSend={(file) => {
-            onRecordingComplete(file);
+          onSend={async (file) => {
+            await onRecordingComplete(file);
             onOpenChange(false);
           }}
         />
