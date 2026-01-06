@@ -206,10 +206,13 @@ export const VoiceRecorderInline = ({
       const fileName = `voice_${Date.now()}.${recordingExt}`;
       const filePath = `${conversationId}/${fileName}`;
 
+      // Supabase Storage expects a standard MIME type; strip codecs params like ";codecs=opus".
+      const baseMimeType = recordingMimeType.split(";")[0] || "audio/webm";
+
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
         .upload(filePath, audioBlob, {
-          contentType: recordingMimeType,
+          contentType: baseMimeType,
           upsert: false,
         });
 
@@ -217,7 +220,7 @@ export const VoiceRecorderInline = ({
 
       onSend({
         path: filePath,
-        type: recordingMimeType.startsWith("audio/") ? recordingMimeType : "audio/webm",
+        type: baseMimeType.startsWith("audio/") ? baseMimeType : "audio/webm",
         name: fileName,
         duration,
       });

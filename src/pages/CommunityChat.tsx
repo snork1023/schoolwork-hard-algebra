@@ -567,11 +567,19 @@ const CommunityChat = () => {
                     {/* Voice recorder overlay */}
                     {voiceRecorderOpen && <div className="absolute inset-0 z-10">
                         <VoiceRecorderInline conversationId={selectedConversationId || ""} onClose={() => setVoiceRecorderOpen(false)} onSend={async file => {
+                    if (!user?.id || !selectedConversationId) {
+                      toast({
+                        title: "Can't send voice message",
+                        description: "Please select a conversation and make sure you're signed in.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
                     try {
                       const {
                         error
                       } = await supabase.from("chat_messages").insert({
-                        user_id: user?.id,
+                        user_id: user.id,
                         content: "",
                         conversation_id: selectedConversationId,
                         attachments: [file]
@@ -586,16 +594,24 @@ const CommunityChat = () => {
                     }
                   }} />
                       </div>}
-                    
+                     
                     <div className="flex items-center gap-2 p-3">
                       <FileUpload conversationId={selectedConversationId || ""} onFilesSelected={async files => {
                     // Auto-send voice messages immediately
                     if (files.length === 1 && files[0].type?.startsWith("audio/")) {
+                      if (!user?.id || !selectedConversationId) {
+                        toast({
+                          title: "Can't send voice message",
+                          description: "Please select a conversation and make sure you're signed in.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
                       try {
                         const {
                           error
                         } = await supabase.from("chat_messages").insert({
-                          user_id: user?.id,
+                          user_id: user.id,
                           content: "",
                           conversation_id: selectedConversationId,
                           attachments: files
@@ -625,7 +641,7 @@ const CommunityChat = () => {
                   }} className="flex-1 min-h-[24px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 p-0 text-sm" rows={1} placeholder="Message..." />
                       </div>
                       
-                      <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon" className="h-10 w-10 rounded-full shrink-0 bg-primary hover:bg-primary/90 shadow-md flex items-center justify-center">
+                      <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon" className="h-10 w-10 self-center rounded-full shrink-0 bg-primary hover:bg-primary/90 shadow-md flex items-center justify-center">
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
