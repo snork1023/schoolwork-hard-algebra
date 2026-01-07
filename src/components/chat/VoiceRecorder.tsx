@@ -253,6 +253,13 @@ export const VoiceRecorderInline = ({
     const baseMimeType = recordingMimeType.split(";")[0] || "audio/webm";
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authed = Boolean(sessionData.session?.access_token);
+      pushDebug("upload", `Auth session: ${authed ? "yes" : "no"}`);
+      if (!authed) {
+        throw new Error("Not signed in (no session). Please sign in again.");
+      }
+
       pushDebug(
         "upload",
         `Uploading ${Math.round(audioBlob.size / 1024)}KB → ${filePath} (${baseMimeType})`
@@ -295,10 +302,16 @@ export const VoiceRecorderInline = ({
       }
       onClose();
     } catch (uploadErr: any) {
-      pushDebug("error", `Upload failed: ${getUserFriendlyError(uploadErr)}`);
+      const desc = getUserFriendlyError(uploadErr);
+      const status = uploadErr?.status || uploadErr?.cause?.status;
+      const isAuth = status === 401 || status === 403 || /jwt|permission|auth/i.test(String(uploadErr?.message || ""));
+
+      pushDebug("error", `Upload failed${status ? ` (${status})` : ""}: ${desc}`);
       toast({
-        title: "Voice upload failed",
-        description: getUserFriendlyError(uploadErr),
+        title: isAuth ? "Voice upload blocked" : "Voice upload failed",
+        description: isAuth
+          ? `${desc} (This usually means you're signed out or don't have permission in this conversation.)`
+          : desc,
         variant: "destructive",
       });
     } finally {
