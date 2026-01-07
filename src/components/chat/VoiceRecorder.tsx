@@ -6,6 +6,22 @@ import { useToast } from "@/hooks/use-toast";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 
+type VoiceSendStep =
+  | "init"
+  | "mic_permission"
+  | "recording"
+  | "stopped"
+  | "upload"
+  | "db_insert"
+  | "done"
+  | "error";
+
+type VoiceDebugEvent = {
+  at: string;
+  step: VoiceSendStep;
+  message: string;
+};
+
 interface VoiceRecorderInlineProps {
   conversationId: string;
   onClose: () => void;
@@ -28,6 +44,11 @@ export const VoiceRecorderInline = ({
   const [recordingMimeType, setRecordingMimeType] = useState<string>("audio/webm");
   const [recordingExt, setRecordingExt] = useState<string>("webm");
 
+  // Dev-only: end-to-end status panel (mic → upload → DB insert)
+  const isDev = import.meta.env.DEV;
+  const [debugStep, setDebugStep] = useState<VoiceSendStep>("init");
+  const [debugEvents, setDebugEvents] = useState<VoiceDebugEvent[]>([]);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -36,8 +57,20 @@ export const VoiceRecorderInline = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
+
   const { toast } = useToast();
+
+  const pushDebug = useCallback(
+    (step: VoiceSendStep, message: string) => {
+      if (!isDev) return;
+      setDebugStep(step);
+      setDebugEvents((prev) => [
+        ...prev.slice(-9),
+        { at: new Date().toISOString(), step, message },
+      ]);
+    },
+    [isDev]
+  );
 
   const updateVisualization = useCallback(() => {
     if (!analyserRef.current) return;
@@ -61,8 +94,11 @@ export const VoiceRecorderInline = ({
 
   const startRecording = async () => {
     try {
+      pushDebug("mic_permission", "Requesting microphone permission");
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      pushDebug("mic_permission", "Microphone granted");
 
       audioContextRef.current = new AudioContext();
       const source = audioContextRef.current.createMediaStreamSource(stream);
@@ -111,6 +147,7 @@ export const VoiceRecorderInline = ({
 
       mediaRecorder.onerror = (e: any) => {
         console.error("MediaRecorder error:", e);
+        pushDebug("error", `MediaRecorder error: ${String(e?.message || e)}`);
       };
 
       mediaRecorder.onstop = () => {
@@ -119,11 +156,17 @@ export const VoiceRecorderInline = ({
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
 
+        pushDebug(
+          "stopped",
+          `Recording stopped. blob=${Math.round(blob.size / 1024)}KB type=${mimeType}`
+        );
+
         const staticWaveform = Array.from({ length: 40 }, () => Math.random() * 0.5 + 0.2);
         setWaveformData(staticWaveform);
       };
 
       mediaRecorder.start(100);
+      pushDebug("recording", `Recording started (${mimeType})`);
       setIsRecording(true);
       setDuration(0);
 
@@ -133,6 +176,7 @@ export const VoiceRecorderInline = ({
 
       updateVisualization();
     } catch (error: any) {
+      pushDebug("error", `Mic permission/recording failed: ${getUserFriendlyError(error)}`);
       toast({
         title: "Couldn't start recording",
         description: getUserFriendlyError(error),
@@ -202,12 +246,17 @@ export const VoiceRecorderInline = ({
 
     setIsUploading(true);
 
-    try {
-      const fileName = `voice_${Date.now()}.${recordingExt}`;
-      const filePath = `${conversationId}/${fileName}`;
+    const fileName = `voice_${Date.now()}.${recordingExt}`;
+    const filePath = `${conversationId}/${fileName}`;
 
-      // Storage expects a standard MIME type; strip codecs params like ";codecs=opus".
-      const baseMimeType = recordingMimeType.split(";")[0] || "audio/webm";
+    // Storage expects a standard MIME type; strip codecs params like ";codecs=opus".
+    const baseMimeType = recordingMimeType.split(";")[0] || "audio/webm";
+
+    try {
+      pushDebug(
+        "upload",
+        `Uploading ${Math.round(audioBlob.size / 1024)}KB → ${filePath} (${baseMimeType})`
+      );
 
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
@@ -217,14 +266,27 @@ export const VoiceRecorderInline = ({
         });
 
       if (uploadError) throw uploadError;
+      pushDebug("upload", "Upload OK");
 
-      // IMPORTANT: await parent send (DB insert). Only close UI if it succeeds.
-      await onSend({
-        path: filePath,
-        type: baseMimeType.startsWith("audio/") ? baseMimeType : "audio/webm",
-        name: fileName,
-        duration,
-      });
+      try {
+        pushDebug("db_insert", "Inserting chat message row");
+        // IMPORTANT: await parent send (DB insert). Only close UI if it succeeds.
+        await onSend({
+          path: filePath,
+          type: baseMimeType.startsWith("audio/") ? baseMimeType : "audio/webm",
+          name: fileName,
+          duration,
+        });
+        pushDebug("done", "DB insert OK");
+      } catch (dbError: any) {
+        pushDebug("error", `DB insert failed: ${getUserFriendlyError(dbError)}`);
+        toast({
+          title: "Voice message insert failed",
+          description: getUserFriendlyError(dbError),
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       if (audioRef.current) {
@@ -232,10 +294,11 @@ export const VoiceRecorderInline = ({
         audioRef.current = null;
       }
       onClose();
-    } catch (error: any) {
+    } catch (uploadErr: any) {
+      pushDebug("error", `Upload failed: ${getUserFriendlyError(uploadErr)}`);
       toast({
-        title: "Couldn't send voice message",
-        description: getUserFriendlyError(error),
+        title: "Voice upload failed",
+        description: getUserFriendlyError(uploadErr),
         variant: "destructive",
       });
     } finally {
@@ -270,7 +333,7 @@ export const VoiceRecorderInline = ({
   }, []);
 
   return (
-    <div className="absolute inset-0 bg-background/95 backdrop-blur-md flex items-center px-4 gap-3 rounded-2xl border border-border/30">
+    <div className="absolute inset-0 relative bg-background/95 backdrop-blur-md flex items-center px-4 gap-3 rounded-2xl border border-border/30">
       {/* Cancel button - slide up text style */}
       <button
         type="button"
@@ -361,6 +424,26 @@ export const VoiceRecorderInline = ({
           </>
         ) : null}
       </div>
+
+      {isDev && (
+        <div className="absolute left-3 bottom-2 right-3 rounded-lg border border-border/40 bg-card/90 backdrop-blur px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-medium text-foreground">
+              Voice debug: <span className="font-mono">{debugStep}</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground font-mono">
+              {recordingMimeType.split(";")[0]}
+            </p>
+          </div>
+          <div className="mt-1 space-y-0.5">
+            {debugEvents.slice(-3).map((e) => (
+              <p key={e.at} className="text-[11px] text-muted-foreground font-mono truncate">
+                {e.step}: {e.message}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
