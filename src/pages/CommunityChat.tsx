@@ -567,15 +567,15 @@ const CommunityChat = () => {
                     {/* Voice recorder overlay */}
                     {voiceRecorderOpen && <div className="absolute inset-0 z-10">
                         <VoiceRecorderInline conversationId={selectedConversationId || ""} onClose={() => setVoiceRecorderOpen(false)} onSend={async file => {
-                    if (!user?.id || !selectedConversationId) {
-                      toast({
-                        title: "Can't send voice message",
-                        description: "Please select a conversation and make sure you're signed in.",
-                        variant: "destructive"
-                      });
-                      return;
-                    }
-                    try {
+                      if (!user?.id || !selectedConversationId) {
+                        toast({
+                          title: "Can't send voice message",
+                          description: "Please select a conversation and make sure you're signed in.",
+                          variant: "destructive"
+                        });
+                        throw new Error("Missing user or conversation");
+                      }
+
                       const {
                         error
                       } = await supabase.from("chat_messages").insert({
@@ -584,15 +584,9 @@ const CommunityChat = () => {
                         conversation_id: selectedConversationId,
                         attachments: [file]
                       });
+
                       if (error) throw error;
-                    } catch (error: any) {
-                      toast({
-                        title: "Error sending voice message",
-                        description: getUserFriendlyError(error),
-                        variant: "destructive"
-                      });
-                    }
-                  }} />
+                    }} />
                       </div>}
                      
                     <div className="flex items-center gap-2 p-3">
