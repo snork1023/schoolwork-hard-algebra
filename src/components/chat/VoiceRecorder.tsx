@@ -45,10 +45,13 @@ export const VoiceRecorderInline = ({
   const [recordingMimeType, setRecordingMimeType] = useState<string>("audio/webm");
   const [recordingExt, setRecordingExt] = useState<string>("webm");
 
-  // Dev-only: end-to-end status panel (mic → upload → DB insert)
-  const isDev = import.meta.env.DEV;
+  // Debug panel: enabled in dev OR when localStorage.voice_debug = "1"
+  const debugEnabled =
+    import.meta.env.DEV ||
+    (typeof window !== "undefined" && window.localStorage?.getItem("voice_debug") === "1");
   const [debugStep, setDebugStep] = useState<VoiceSendStep>("init");
   const [debugEvents, setDebugEvents] = useState<VoiceDebugEvent[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -72,14 +75,14 @@ export const VoiceRecorderInline = ({
 
   const pushDebug = useCallback(
     (step: VoiceSendStep, message: string) => {
-      if (!isDev) return;
+      if (!debugEnabled) return;
       setDebugStep(step);
       setDebugEvents((prev) => [
         ...prev.slice(-9),
         { at: new Date().toISOString(), step, message },
       ]);
     },
-    [isDev]
+    [debugEnabled]
   );
 
   const updateVisualization = useCallback(() => {
@@ -188,6 +191,7 @@ export const VoiceRecorderInline = ({
     } catch (error: any) {
       const desc = getUserFriendlyError(error);
       pushDebug("error", `Mic permission/recording failed: ${desc}`);
+      setLastError(desc);
       notifyError("Couldn't start recording", desc);
       onClose();
     }
@@ -290,7 +294,7 @@ export const VoiceRecorderInline = ({
         "upload",
         `Uploading ${Math.round(payload.size / 1024)}KB → ${filePath} (${baseMimeType})`
       );
-      if (isDev) console.log("[VoiceRecorder] uploading", { filePath, baseMimeType, size: payload.size });
+      if (debugEnabled) console.log("[VoiceRecorder] uploading", { filePath, baseMimeType, size: payload.size });
 
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
@@ -315,6 +319,7 @@ export const VoiceRecorderInline = ({
        } catch (dbError: any) {
          const desc = getUserFriendlyError(dbError);
          pushDebug("error", `DB insert failed: ${desc}`);
+         setLastError(desc);
          notifyError("Voice message insert failed", desc);
          return;
        }
@@ -354,6 +359,7 @@ export const VoiceRecorderInline = ({
 
        pushDebug("error", `Upload failed${status ? ` (${status})` : ""}: ${desc}`);
        pushDebug("error", `Upload raw: ${raw}`);
+       setLastError(`${desc}${status ? ` (status ${status})` : ""}`);
 
        notifyError(
          isAuth ? "Voice upload blocked" : "Voice upload failed",
@@ -485,7 +491,7 @@ export const VoiceRecorderInline = ({
         ) : null}
       </div>
 
-      {isDev && (
+      {debugEnabled && (
         <div className="absolute left-3 bottom-2 right-3 rounded-lg border border-border/40 bg-card/90 backdrop-blur px-3 py-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[11px] font-medium text-foreground">
@@ -501,6 +507,9 @@ export const VoiceRecorderInline = ({
                 {e.step}: {e.message}
               </p>
             ))}
+            {lastError && (
+              <p className="text-[11px] text-muted-foreground font-mono truncate">error: {lastError}</p>
+            )}
           </div>
         </div>
       )}
