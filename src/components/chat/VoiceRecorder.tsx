@@ -284,14 +284,17 @@ export const VoiceRecorderInline = ({
         throw new Error("You are not a participant in this conversation (upload not permitted).");
       }
 
+      const payload = new File([audioBlob], fileName, { type: baseMimeType });
+
       pushDebug(
         "upload",
-        `Uploading ${Math.round(audioBlob.size / 1024)}KB → ${filePath} (${baseMimeType})`
+        `Uploading ${Math.round(payload.size / 1024)}KB → ${filePath} (${baseMimeType})`
       );
+      if (isDev) console.log("[VoiceRecorder] uploading", { filePath, baseMimeType, size: payload.size });
 
       const { error: uploadError } = await supabase.storage
         .from("chat-attachments")
-        .upload(filePath, audioBlob, {
+        .upload(filePath, payload, {
           contentType: baseMimeType,
           upsert: false,
         });
