@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, Square, ArrowUp, X, Pause, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "@/components/ui/sonner";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,15 @@ export const VoiceRecorderInline = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { toast } = useToast();
+
+  const notifyError = useCallback(
+    (title: string, description: string) => {
+      toast({ title, description, variant: "destructive" });
+      // Fallback: if Radix toasts are not visible for any reason, Sonner is also mounted in App.
+      sonnerToast.error(title, { description });
+    },
+    [toast]
+  );
 
   const pushDebug = useCallback(
     (step: VoiceSendStep, message: string) => {
@@ -176,12 +186,9 @@ export const VoiceRecorderInline = ({
 
       updateVisualization();
     } catch (error: any) {
-      pushDebug("error", `Mic permission/recording failed: ${getUserFriendlyError(error)}`);
-      toast({
-        title: "Couldn't start recording",
-        description: getUserFriendlyError(error),
-        variant: "destructive",
-      });
+      const desc = getUserFriendlyError(error);
+      pushDebug("error", `Mic permission/recording failed: ${desc}`);
+      notifyError("Couldn't start recording", desc);
       onClose();
     }
   };
@@ -254,10 +261,27 @@ export const VoiceRecorderInline = ({
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
-      const authed = Boolean(sessionData.session?.access_token);
+      const session = sessionData.session;
+      const authed = Boolean(session?.access_token);
+      const userId = session?.user?.id;
+
       pushDebug("upload", `Auth session: ${authed ? "yes" : "no"}`);
-      if (!authed) {
+      if (!authed || !userId) {
         throw new Error("Not signed in (no session). Please sign in again.");
+      }
+
+      // Preflight: ensure the current user is a participant in this conversation (matches storage policy)
+      pushDebug("upload", `Preflight: checking conversation membership (${conversationId})`);
+      const { data: membership, error: membershipError } = await supabase
+        .from("conversation_participants")
+        .select("id")
+        .eq("conversation_id", conversationId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (membershipError) throw membershipError;
+      if (!membership) {
+        throw new Error("You are not a participant in this conversation (upload not permitted).");
       }
 
       pushDebug(
@@ -285,15 +309,12 @@ export const VoiceRecorderInline = ({
           duration,
         });
         pushDebug("done", "DB insert OK");
-      } catch (dbError: any) {
-        pushDebug("error", `DB insert failed: ${getUserFriendlyError(dbError)}`);
-        toast({
-          title: "Voice message insert failed",
-          description: getUserFriendlyError(dbError),
-          variant: "destructive",
-        });
-        return;
-      }
+       } catch (dbError: any) {
+         const desc = getUserFriendlyError(dbError);
+         pushDebug("error", `DB insert failed: ${desc}`);
+         notifyError("Voice message insert failed", desc);
+         return;
+       }
 
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       if (audioRef.current) {
@@ -301,20 +322,43 @@ export const VoiceRecorderInline = ({
         audioRef.current = null;
       }
       onClose();
-    } catch (uploadErr: any) {
-      const desc = getUserFriendlyError(uploadErr);
-      const status = uploadErr?.status || uploadErr?.cause?.status;
-      const isAuth = status === 401 || status === 403 || /jwt|permission|auth/i.test(String(uploadErr?.message || ""));
+     } catch (uploadErr: any) {
+       const desc = getUserFriendlyError(uploadErr);
+       const status = uploadErr?.status || uploadErr?.cause?.status;
+       const raw = (() => {
+         try {
+           return JSON.stringify(
+             {
+               name: uploadErr?.name,
+               status,
+               message: uploadErr?.message,
+               details: uploadErr?.details,
+               hint: uploadErr?.hint,
+               code: uploadErr?.code,
+             },
+             null,
+             0
+           );
+         } catch {
+           return String(uploadErr);
+         }
+       })();
 
-      pushDebug("error", `Upload failed${status ? ` (${status})` : ""}: ${desc}`);
-      toast({
-        title: isAuth ? "Voice upload blocked" : "Voice upload failed",
-        description: isAuth
-          ? `${desc} (This usually means you're signed out or don't have permission in this conversation.)`
-          : desc,
-        variant: "destructive",
-      });
-    } finally {
+       const isAuth =
+         status === 401 ||
+         status === 403 ||
+         /jwt|permission|auth/i.test(String(uploadErr?.message || ""));
+
+       pushDebug("error", `Upload failed${status ? ` (${status})` : ""}: ${desc}`);
+       pushDebug("error", `Upload raw: ${raw}`);
+
+       notifyError(
+         isAuth ? "Voice upload blocked" : "Voice upload failed",
+         isAuth
+           ? `${desc} (This usually means you're signed out or don't have permission in this conversation.)`
+           : desc
+       );
+     } finally {
       setIsUploading(false);
     }
   };
