@@ -340,46 +340,50 @@ export const VoiceRecorderInline = ({
         audioRef.current = null;
       }
       onClose();
-     } catch (uploadErr: any) {
-       const desc = getUserFriendlyError(uploadErr);
-       const status = uploadErr?.status || uploadErr?.cause?.status;
-       const raw = (() => {
-         try {
-           return JSON.stringify(
-             {
-               name: uploadErr?.name,
-               status,
-               message: uploadErr?.message,
-               details: uploadErr?.details,
-               hint: uploadErr?.hint,
-               code: uploadErr?.code,
-             },
-             null,
-             0
-           );
-         } catch {
-           return String(uploadErr);
-         }
-       })();
+      } catch (uploadErr: any) {
+        // NOTE: Supabase storage errors can be vague; keep both user-friendly + raw details.
+        const desc = getUserFriendlyError(uploadErr);
+        const status = uploadErr?.status || uploadErr?.cause?.status;
+        const raw = (() => {
+          try {
+            return JSON.stringify(
+              {
+                name: uploadErr?.name,
+                status,
+                message: uploadErr?.message,
+                details: uploadErr?.details,
+                hint: uploadErr?.hint,
+                code: uploadErr?.code,
+              },
+              null,
+              0
+            );
+          } catch {
+            return String(uploadErr);
+          }
+        })();
 
-       const isAuth =
-         status === 401 ||
-         status === 403 ||
-         /jwt|permission|auth/i.test(String(uploadErr?.message || ""));
+        const isAuth =
+          status === 401 ||
+          status === 403 ||
+          /jwt|permission|auth/i.test(String(uploadErr?.message || ""));
 
-       pushDebug("error", `Upload failed${status ? ` (${status})` : ""}: ${desc}`);
-       pushDebug("error", `Upload raw: ${raw}`);
-       setLastError(`${desc}${status ? ` (status ${status})` : ""}`);
+        pushDebug("error", `Upload failed${status ? ` (${status})` : ""}: ${desc}`);
+        pushDebug("error", `Upload raw: ${raw}`);
 
-       notifyError(
-         isAuth ? "Voice upload blocked" : "Voice upload failed",
-         isAuth
-           ? `${desc} (This usually means you're signed out or don't have permission in this conversation.)`
-           : desc
-       );
-     } finally {
-      setIsUploading(false);
-    }
+        // Surface raw details in-UI (user doesn't have console access)
+        const visibleError = `${desc}${status ? ` (status ${status})` : ""} • raw: ${raw}`;
+        setLastError(visibleError);
+
+        notifyError(
+          isAuth ? "Voice upload blocked" : "Voice upload failed",
+          isAuth
+            ? `${desc} (This usually means you're signed out or don't have permission in this conversation.)`
+            : desc
+        );
+      } finally {
+        setIsUploading(false);
+      }
   };
 
   const formatTime = (seconds: number) => {
