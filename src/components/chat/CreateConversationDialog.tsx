@@ -17,6 +17,7 @@ const groupNameSchema = z.string().trim().min(1, "Group name cannot be empty").m
 type Profile = {
   id: string;
   username: string;
+  discoverable?: boolean;
 };
 
 type CreateConversationDialogProps = {
@@ -49,10 +50,12 @@ const CreateConversationDialog = ({
   }, [open]);
 
   const fetchUsers = async () => {
+    // Only fetch users who are discoverable (allow message requests)
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, username")
-      .neq("id", currentUserId);
+      .select("id, username, discoverable")
+      .neq("id", currentUserId)
+      .eq("discoverable", true);
 
     if (error) {
       toast({
