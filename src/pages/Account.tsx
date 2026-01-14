@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +13,7 @@ import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 
 const usernameSchema = z.string().trim().min(1, "Username is required").max(50, "Username must be 50 characters or less");
+
 const Account = () => {
   const [username, setUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -19,6 +21,8 @@ const Account = () => {
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
+  const [discoverable, setDiscoverable] = useState(true);
+  const [discoverableLoading, setDiscoverableLoading] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,12 +41,13 @@ const Account = () => {
       
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, discoverable")
         .eq("id", user.id)
         .single();
       
       if (profile) {
         setUsername(profile.username || "");
+        setDiscoverable(profile.discoverable ?? true);
       }
     };
     
@@ -56,6 +61,34 @@ const Account = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const handleToggleDiscoverable = async (checked: boolean) => {
+    if (!userId) return;
+    
+    setDiscoverableLoading(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ discoverable: checked })
+      .eq("id", userId);
+    
+    setDiscoverableLoading(false);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } else {
+      setDiscoverable(checked);
+      toast({
+        title: "Privacy updated",
+        description: checked 
+          ? "Others can now find you when creating new chats" 
+          : "You are now hidden from new chat searches",
+      });
+    }
+  };
 
   const handleUpdateUsername = async () => {
     if (!userId) return;
@@ -208,6 +241,31 @@ const Account = () => {
                       Update
                     </Button>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border shadow-lg hover-glow">
+              <CardHeader>
+                <CardTitle>Privacy</CardTitle>
+                <CardDescription>
+                  Control who can find and message you
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="discoverable">Allow message requests</Label>
+                    <p className="text-sm text-muted-foreground">
+                      When off, you won't appear in user searches and others can't start new chats with you
+                    </p>
+                  </div>
+                  <Switch
+                    id="discoverable"
+                    checked={discoverable}
+                    onCheckedChange={handleToggleDiscoverable}
+                    disabled={discoverableLoading}
+                  />
                 </div>
               </CardContent>
             </Card>
