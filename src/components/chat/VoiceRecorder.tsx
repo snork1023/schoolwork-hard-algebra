@@ -45,7 +45,17 @@ export const VoiceRecorderInline = ({
   const [recordingMimeType, setRecordingMimeType] = useState<string>("audio/webm");
   const [recordingExt, setRecordingExt] = useState<string>("webm");
 
-  // Debug panel: enabled in dev OR when localStorage.voice_debug = "1"
+  // Debug panel: enabled in dev OR via URL/localStorage flag
+  // - Add `?voice_debug=1` to the URL to enable without console access.
+  // - Add `?voice_debug=0` to disable.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const flag = params.get("voice_debug");
+    if (flag === "1") window.localStorage?.setItem("voice_debug", "1");
+    if (flag === "0") window.localStorage?.removeItem("voice_debug");
+  }, []);
+
   const debugEnabled =
     import.meta.env.DEV ||
     (typeof window !== "undefined" && window.localStorage?.getItem("voice_debug") === "1");
@@ -491,26 +501,59 @@ export const VoiceRecorderInline = ({
         ) : null}
       </div>
 
-      {debugEnabled && (
-        <div className="absolute left-3 bottom-2 right-3 rounded-lg border border-border/40 bg-card/90 backdrop-blur px-3 py-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-medium text-foreground">
-              Voice debug: <span className="font-mono">{debugStep}</span>
-            </p>
-            <p className="text-[11px] text-muted-foreground font-mono">
-              {recordingMimeType.split(";")[0]}
-            </p>
-          </div>
-          <div className="mt-1 space-y-0.5">
-            {debugEvents.slice(-3).map((e) => (
-              <p key={e.at} className="text-[11px] text-muted-foreground font-mono truncate">
-                {e.step}: {e.message}
+      {(lastError || debugEnabled) && (
+        <div className="absolute left-3 bottom-2 right-3 space-y-2">
+          {lastError && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
+              <p className="text-xs font-medium text-destructive">Voice upload failed</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground font-mono break-words">
+                {lastError}
               </p>
-            ))}
-            {lastError && (
-              <p className="text-[11px] text-muted-foreground font-mono truncate">error: {lastError}</p>
-            )}
-          </div>
+            </div>
+          )}
+
+          {debugEnabled && (
+            <div className="rounded-lg border border-border/40 bg-card/90 backdrop-blur px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-medium text-foreground">
+                  Voice debug: <span className="font-mono">{debugStep}</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    {recordingMimeType.split(";")[0]}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px]"
+                    onClick={async () => {
+                      const lines = [
+                        `step: ${debugStep}`,
+                        ...debugEvents.slice(-8).map((e) => `${e.step}: ${e.message}`),
+                        lastError ? `error: ${lastError}` : "",
+                      ].filter(Boolean);
+                      try {
+                        await navigator.clipboard.writeText(lines.join("\n"));
+                        sonnerToast.success("Copied voice debug");
+                      } catch {
+                        sonnerToast.error("Couldn't copy", { description: "Clipboard permission denied." });
+                      }
+                    }}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-1 space-y-0.5">
+                {debugEvents.slice(-3).map((e) => (
+                  <p key={e.at} className="text-[11px] text-muted-foreground font-mono truncate">
+                    {e.step}: {e.message}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
