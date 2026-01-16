@@ -45,20 +45,9 @@ export const VoiceRecorderInline = ({
   const [recordingMimeType, setRecordingMimeType] = useState<string>("audio/webm");
   const [recordingExt, setRecordingExt] = useState<string>("webm");
 
-  // Debug panel: enabled in dev OR via URL/localStorage flag
-  // - Add `?voice_debug=1` to the URL to enable without console access.
-  // - Add `?voice_debug=0` to disable.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const flag = params.get("voice_debug");
-    if (flag === "1") window.localStorage?.setItem("voice_debug", "1");
-    if (flag === "0") window.localStorage?.removeItem("voice_debug");
-  }, []);
-
+  // Debug panel: only enabled when developer mode is on in settings
   const debugEnabled =
-    import.meta.env.DEV ||
-    (typeof window !== "undefined" && window.localStorage?.getItem("voice_debug") === "1");
+    typeof window !== "undefined" && window.localStorage?.getItem("developerMode") === "true";
   const [debugStep, setDebugStep] = useState<VoiceSendStep>("init");
   const [debugEvents, setDebugEvents] = useState<VoiceDebugEvent[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
