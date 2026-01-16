@@ -449,7 +449,7 @@ export const VoiceRecorderInline = ({
                     ? "bg-red-500" 
                     : isPlayed 
                       ? "bg-primary" 
-                      : "bg-muted-foreground/30"
+                      : "bg-muted-foreground/60"
                 )}
                 style={{
                   height: `${Math.max(6, value * 32)}px`,

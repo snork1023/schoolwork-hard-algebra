@@ -310,12 +310,17 @@ const CommunityChat = () => {
       }
     }
   };
+  // Scroll to bottom when messages change or conversation is selected
   useEffect(() => {
-    // Scroll to bottom when messages change
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Use setTimeout to ensure DOM has rendered
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 50);
     }
-  }, [messages]);
+  }, [messages, selectedConversationId]);
   const handleTyping = async () => {
     if (!user || !selectedConversationId) return;
     const channel = supabase.channel(`presence_${selectedConversationId}`);
