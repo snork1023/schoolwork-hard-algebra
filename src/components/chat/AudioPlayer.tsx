@@ -157,7 +157,7 @@ export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps
                   "w-[3px] rounded-full transition-all duration-100",
                   isPlayed
                     ? "bg-primary"
-                    : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50"
+                    : "bg-muted-foreground/60 group-hover:bg-muted-foreground/80"
                 )}
                 style={{ height: `${height * 100}%` }}
               />
