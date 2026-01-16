@@ -61,6 +61,7 @@ const CommunityChat = () => {
   const [newMessage, setNewMessage] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [username, setUsername] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -78,6 +79,25 @@ const CommunityChat = () => {
   const {
     toast
   } = useToast();
+
+  // Fetch username from profile
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchUsername = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      if (data?.username) {
+        setUsername(data.username);
+      }
+    };
+    
+    fetchUsername();
+  }, [user]);
   useEffect(() => {
     // Check authentication
     supabase.auth.getSession().then(({
@@ -493,7 +513,7 @@ const CommunityChat = () => {
   return <div className="h-screen bg-background flex flex-col">
       <Navigation />
       <div className="flex-1 pt-16 flex overflow-hidden">
-        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} />
+        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} />
 
         <div className="flex-1 flex flex-col">
           {selectedConversationId ? <>
