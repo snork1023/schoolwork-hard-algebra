@@ -4,10 +4,19 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Code } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const accentColors = [
   { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
@@ -17,6 +26,8 @@ const accentColors = [
   { name: "Orange", value: "25 95% 53%", class: "bg-[hsl(25,95%,53%)]" },
   { name: "Pink", value: "330 81% 60%", class: "bg-[hsl(330,81%,60%)]" },
 ];
+
+const DEVELOPER_PASSCODE = "snork";
 
 const Settings = () => {
   const [autoOpen, setAutoOpen] = useState(true);
@@ -31,6 +42,13 @@ const Settings = () => {
   const [customColor, setCustomColor] = useState<string | null>(
     localStorage.getItem("customAccentColor") || null
   );
+  
+  const [developerMode, setDeveloperMode] = useState(
+    localStorage.getItem("developerMode") === "true"
+  );
+  const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState("");
+  const [passcodeError, setPasscodeError] = useState(false);
   
   const isCustomColor = customColor && accentColor === customColor;
 
@@ -47,6 +65,31 @@ const Settings = () => {
     const lightness = parseInt(value.split(" ")[2]);
     document.documentElement.style.setProperty("--primary-glow", value.replace(/\d+%$/, `${Math.min(lightness + 15, 100)}%`));
     document.documentElement.style.setProperty("--ring", value);
+  };
+
+  const handleDeveloperModeToggle = (checked: boolean) => {
+    if (checked) {
+      // Opening developer mode - ask for passcode
+      setPasscodeDialogOpen(true);
+      setPasscodeInput("");
+      setPasscodeError(false);
+    } else {
+      // Turning off - no passcode needed
+      setDeveloperMode(false);
+      localStorage.removeItem("developerMode");
+    }
+  };
+
+  const handlePasscodeSubmit = () => {
+    if (passcodeInput === DEVELOPER_PASSCODE) {
+      setDeveloperMode(true);
+      localStorage.setItem("developerMode", "true");
+      setPasscodeDialogOpen(false);
+      setPasscodeInput("");
+      setPasscodeError(false);
+    } else {
+      setPasscodeError(true);
+    }
   };
 
   useEffect(() => {
@@ -221,9 +264,74 @@ const Settings = () => {
               </CardContent>
             </Card>
 
+            <Card className="bg-card border-border shadow-lg hover-glow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Code className="h-5 w-5" />
+                  Developer Options
+                </CardTitle>
+                <CardDescription>
+                  Advanced debugging and diagnostic tools
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable Developer Mode</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Show debug info for voice messages and other features
+                    </p>
+                  </div>
+                  <Switch
+                    checked={developerMode}
+                    onCheckedChange={handleDeveloperModeToggle}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
         </div>
       </main>
+
+      <Dialog open={passcodeDialogOpen} onOpenChange={setPasscodeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter Developer Passcode</DialogTitle>
+            <DialogDescription>
+              Developer options require a passcode to enable.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              type="password"
+              placeholder="Enter passcode"
+              value={passcodeInput}
+              onChange={(e) => {
+                setPasscodeInput(e.target.value);
+                setPasscodeError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handlePasscodeSubmit();
+              }}
+              className={passcodeError ? "border-destructive" : ""}
+            />
+            {passcodeError && (
+              <p className="text-sm text-destructive mt-2">
+                Incorrect passcode. Please try again.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasscodeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePasscodeSubmit}>
+              Unlock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
