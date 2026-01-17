@@ -175,9 +175,30 @@ const CommunityChat = () => {
     }, () => {
       fetchConversations();
     }).subscribe();
+
+    // Subscribe to profile status changes for real-time status updates
+    const profilesChannel = supabase.channel("profiles_status_changes").on("postgres_changes", {
+      event: "UPDATE",
+      schema: "public",
+      table: "profiles"
+    }, (payload) => {
+      // Update conversation participants' status in real-time
+      setConversations(current => 
+        current.map(conv => ({
+          ...conv,
+          participants: conv.participants?.map(p => 
+            p.user_id === payload.new.id 
+              ? { ...p, status: payload.new.status, status_message: payload.new.status_message }
+              : p
+          )
+        }))
+      );
+    }).subscribe();
+
     return () => {
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(participantsChannel);
+      supabase.removeChannel(profilesChannel);
     };
   }, [user, toast]);
   useEffect(() => {

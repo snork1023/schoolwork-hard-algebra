@@ -68,9 +68,11 @@ const CreateConversationDialog = ({
     }
   };
 
+  // Only show users with EXACT username match (case-insensitive)
   const filteredUsers = users.filter(
     (user) =>
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      searchQuery.trim() !== "" &&
+      user.username.toLowerCase() === searchQuery.toLowerCase().trim() &&
       !selectedUsers.some((selected) => selected.id === user.id)
   );
 
@@ -258,14 +260,17 @@ const CreateConversationDialog = ({
 
           <TabsContent value="dm" className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="dmSearch">Search User</Label>
+              <Label htmlFor="dmSearch">Enter exact username</Label>
               <Input
                 id="dmSearch"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type username to search..."
+                placeholder="Type exact username..."
                 maxLength={50}
               />
+              <p className="text-xs text-muted-foreground">
+                Enter the user's exact username to find them
+              </p>
             </div>
 
             {selectedUsers.length > 0 && (
@@ -289,18 +294,25 @@ const CreateConversationDialog = ({
               </div>
             )}
 
-            {searchQuery && filteredUsers.length > 0 && (
+            {searchQuery.trim() && filteredUsers.length > 0 && (
               <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md">
-                {filteredUsers.slice(0, 10).map((user) => (
+                {filteredUsers.map((user) => (
                   <div
                     key={user.id}
-                    className="p-2 hover:bg-accent cursor-pointer transition-colors"
+                    className="p-2 hover:bg-accent cursor-pointer transition-colors flex items-center gap-2"
                     onClick={() => addUser(user)}
                   >
+                    <span className="text-green-500">✓</span>
                     {user.username}
                   </div>
                 ))}
               </div>
+            )}
+
+            {searchQuery.trim() && filteredUsers.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                No user found with that exact username
+              </p>
             )}
 
             <Button type="button" onClick={handleCreateDM} disabled={loading || selectedUsers.length !== 1} className="w-full">
@@ -321,14 +333,17 @@ const CreateConversationDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="groupSearch">Search Members</Label>
+              <Label htmlFor="groupSearch">Enter exact username</Label>
               <Input
                 id="groupSearch"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type username to search..."
+                placeholder="Type exact username..."
                 maxLength={50}
               />
+              <p className="text-xs text-muted-foreground">
+                Enter the user's exact username to add them
+              </p>
             </div>
 
             {selectedUsers.length > 0 && (
@@ -352,18 +367,25 @@ const CreateConversationDialog = ({
               </div>
             )}
 
-            {searchQuery && filteredUsers.length > 0 && (
+            {searchQuery.trim() && filteredUsers.length > 0 && (
               <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md">
-                {filteredUsers.slice(0, 10).map((user) => (
+                {filteredUsers.map((user) => (
                   <div
                     key={user.id}
-                    className="p-2 hover:bg-accent cursor-pointer transition-colors"
+                    className="p-2 hover:bg-accent cursor-pointer transition-colors flex items-center gap-2"
                     onClick={() => addUser(user)}
                   >
+                    <span className="text-green-500">✓</span>
                     {user.username}
                   </div>
                 ))}
               </div>
+            )}
+
+            {searchQuery.trim() && filteredUsers.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                No user found with that exact username
+              </p>
             )}
 
             <Button type="button" onClick={handleCreateGroup} disabled={loading || selectedUsers.length < 1} className="w-full">
