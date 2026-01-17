@@ -105,7 +105,43 @@ const CreateConversationDialog = ({
 
     setLoading(true);
     try {
-      // Create conversation
+      const targetUserId = selectedUsers[0].id;
+
+      // Check if DM already exists between these two users
+      const { data: existingConvs } = await supabase
+        .from("conversations")
+        .select(`
+          id,
+          type,
+          conversation_participants!inner(user_id)
+        `)
+        .eq("type", "dm");
+
+      // Find a DM where both users are participants
+      let existingDmId: string | null = null;
+      if (existingConvs) {
+        for (const conv of existingConvs) {
+          const participantIds = (conv.conversation_participants as any[]).map(p => p.user_id);
+          if (
+            participantIds.length === 2 &&
+            participantIds.includes(currentUserId) &&
+            participantIds.includes(targetUserId)
+          ) {
+            existingDmId = conv.id;
+            break;
+          }
+        }
+      }
+
+      if (existingDmId) {
+        // DM already exists, just navigate to it
+        toast({ title: "Opening existing conversation" });
+        onConversationCreated();
+        onOpenChange(false);
+        return;
+      }
+
+      // Create new conversation
       const { data: conversation, error: convError } = await supabase
         .from("conversations")
         .insert({
@@ -122,7 +158,7 @@ const CreateConversationDialog = ({
         .from("conversation_participants")
         .insert([
           { conversation_id: conversation.id, user_id: currentUserId },
-          { conversation_id: conversation.id, user_id: selectedUsers[0].id },
+          { conversation_id: conversation.id, user_id: targetUserId },
         ]);
 
       if (partError) throw partError;

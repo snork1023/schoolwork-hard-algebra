@@ -52,6 +52,9 @@ type Conversation = {
   created_by: string;
   participants?: Array<{
     username: string;
+    user_id: string;
+    status?: 'online' | 'idle' | 'dnd' | 'offline';
+    status_message?: string | null;
   }>;
 };
 const CommunityChat = () => {
@@ -62,6 +65,8 @@ const CommunityChat = () => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [username, setUsername] = useState<string>("");
+  const [userStatus, setUserStatus] = useState<'online' | 'idle' | 'dnd' | 'offline'>('offline');
+  const [userStatusMessage, setUserStatusMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -80,23 +85,46 @@ const CommunityChat = () => {
     toast
   } = useToast();
 
-  // Fetch username from profile
+  // Fetch username and status from profile
   useEffect(() => {
     if (!user) return;
     
-    const fetchUsername = async () => {
+    const fetchProfile = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, status, status_message")
         .eq("id", user.id)
         .maybeSingle();
       
       if (data?.username) {
         setUsername(data.username);
       }
+      if (data?.status) {
+        setUserStatus(data.status as 'online' | 'idle' | 'dnd' | 'offline');
+      }
+      if (data?.status_message !== undefined) {
+        setUserStatusMessage(data.status_message);
+      }
+
+      // Set user as online when they open chat
+      await supabase
+        .from("profiles")
+        .update({ status: 'online', last_seen: new Date().toISOString() })
+        .eq("id", user.id);
+      setUserStatus('online');
     };
     
-    fetchUsername();
+    fetchProfile();
+
+    // Set offline when leaving
+    return () => {
+      if (user?.id) {
+        supabase
+          .from("profiles")
+          .update({ status: 'offline', last_seen: new Date().toISOString() })
+          .eq("id", user.id);
+      }
+    };
   }, [user]);
   useEffect(() => {
     // Check authentication
@@ -249,7 +277,7 @@ const CommunityChat = () => {
         *,
         conversation_participants(
           user_id,
-          profiles(username)
+          profiles(username, status, status_message)
         )
       `).in("id", conversationIds).order("created_at", {
       ascending: false
@@ -268,7 +296,10 @@ const CommunityChat = () => {
         created_at: conv.created_at,
         created_by: conv.created_by,
         participants: (conv.conversation_participants || []).filter((p: any) => p.user_id !== user?.id).map((p: any) => ({
-          username: p.profiles?.username || "Unknown"
+          username: p.profiles?.username || "Unknown",
+          user_id: p.user_id,
+          status: p.profiles?.status || 'offline',
+          status_message: p.profiles?.status_message || null
         }))
       }));
       setConversations(formattedConversations);
@@ -513,7 +544,7 @@ const CommunityChat = () => {
   return <div className="h-screen bg-background flex flex-col">
       <Navigation />
       <div className="flex-1 pt-16 flex overflow-hidden">
-        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} />
+        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setUserStatus(status); setUserStatusMessage(message); }} />
 
         <div className="flex-1 flex flex-col">
           {selectedConversationId ? <>
