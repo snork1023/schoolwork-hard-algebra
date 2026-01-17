@@ -208,6 +208,9 @@ export type Database = {
           created_at: string
           discoverable: boolean
           id: string
+          last_seen: string | null
+          status: string | null
+          status_message: string | null
           username: string
         }
         Insert: {
@@ -215,6 +218,9 @@ export type Database = {
           created_at?: string
           discoverable?: boolean
           id: string
+          last_seen?: string | null
+          status?: string | null
+          status_message?: string | null
           username: string
         }
         Update: {
@@ -222,6 +228,9 @@ export type Database = {
           created_at?: string
           discoverable?: boolean
           id?: string
+          last_seen?: string | null
+          status?: string | null
+          status_message?: string | null
           username?: string
         }
         Relationships: []
@@ -231,6 +240,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_existing_dm: {
+        Args: { user1_id: string; user2_id: string }
+        Returns: string
+      }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
