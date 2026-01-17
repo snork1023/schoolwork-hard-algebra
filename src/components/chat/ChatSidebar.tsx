@@ -3,8 +3,13 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, MessageSquare, Users, Edit2, Trash2, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { StatusIndicator, type Status } from "./StatusIndicator";
+import { StatusIndicator, getStatusLabel, type Status } from "./StatusIndicator";
 import { StatusSelector } from "./StatusSelector";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Conversation = {
   id: string;
@@ -69,6 +74,17 @@ const ChatSidebar = ({
     return 'offline';
   };
 
+  const getOtherParticipantStatusInfo = (conv: Conversation): { status: Status; message: string | null } => {
+    if (conv.type === 'dm' && conv.participants) {
+      const other = conv.participants.find(p => p.user_id !== currentUserId);
+      return {
+        status: (other?.status as Status) || 'offline',
+        message: other?.status_message || null
+      };
+    }
+    return { status: 'offline', message: null };
+  };
+
   const maskEmail = (email: string) => {
     const [localPart, domain] = email.split('@');
     if (!domain) return '••••••••';
@@ -116,20 +132,37 @@ const ChatSidebar = ({
                 className={`group flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-accent/50 transition-colors ${selectedConversationId === conv.id ? 'bg-accent' : ''}`}
                 onClick={() => onSelectConversation(conv.id)}
               >
-                <div className="relative">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary/10">
-                      {conv.type === 'group' ? <Users className="h-4 w-4 text-primary" /> : <MessageSquare className="h-4 w-4 text-primary" />}
-                    </AvatarFallback>
-                  </Avatar>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="relative cursor-pointer">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary/10">
+                          {conv.type === 'group' ? <Users className="h-4 w-4 text-primary" /> : <MessageSquare className="h-4 w-4 text-primary" />}
+                        </AvatarFallback>
+                      </Avatar>
+                      {conv.type === 'dm' && (
+                        <StatusIndicator
+                          status={getOtherParticipantStatus(conv)}
+                          size="sm"
+                          className="absolute -bottom-0.5 -right-0.5"
+                        />
+                      )}
+                    </div>
+                  </TooltipTrigger>
                   {conv.type === 'dm' && (
-                    <StatusIndicator
-                      status={getOtherParticipantStatus(conv)}
-                      size="sm"
-                      className="absolute -bottom-0.5 -right-0.5"
-                    />
+                    <TooltipContent side="right" className="max-w-[200px]">
+                      <div className="flex items-center gap-2">
+                        <StatusIndicator status={getOtherParticipantStatusInfo(conv).status} size="sm" />
+                        <span className="font-medium">{getStatusLabel(getOtherParticipantStatusInfo(conv).status)}</span>
+                      </div>
+                      {getOtherParticipantStatusInfo(conv).message && (
+                        <p className="text-xs text-muted-foreground mt-1 italic">
+                          "{getOtherParticipantStatusInfo(conv).message}"
+                        </p>
+                      )}
+                    </TooltipContent>
                   )}
-                </div>
+                </Tooltip>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate text-left">
                     {getConversationDisplay(conv)}
