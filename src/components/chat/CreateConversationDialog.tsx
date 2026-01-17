@@ -234,9 +234,7 @@ const CreateConversationDialog = ({
             <div className="space-y-2">
               <Label htmlFor="dmSearch">Enter exact username</Label>
               <Input id="dmSearch" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Type exact username..." maxLength={50} />
-              <p className="text-xs text-muted-foreground">
-                *If you already have an existing chat with the user no DM will be created                     
-              </p>
+              
             </div>
 
             {selectedUsers.length > 0 && <div className="space-y-2">
@@ -276,9 +274,7 @@ const CreateConversationDialog = ({
             <div className="space-y-2">
               <Label htmlFor="groupSearch">Enter exact username</Label>
               <Input id="groupSearch" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Type exact username..." maxLength={50} />
-              <p className="text-xs text-muted-foreground">
-                Enter the user's exact username to add them
-              </p>
+              
             </div>
 
             {selectedUsers.length > 0 && <div className="space-y-2">
