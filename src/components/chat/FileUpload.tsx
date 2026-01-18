@@ -12,9 +12,10 @@ interface FileUploadProps {
   onFilesSelected: (files: Array<{ path: string; type: string; name: string; duration?: number }>) => void;
   voiceRecorderOpen: boolean;
   setVoiceRecorderOpen: (open: boolean) => void;
+  onCreatePoll: () => void;
 }
 
-export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen, setVoiceRecorderOpen }: FileUploadProps) => {
+export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen, setVoiceRecorderOpen, onCreatePoll }: FileUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; preview: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -95,11 +96,8 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
   };
 
   const handlePollCreation = () => {
-    toast({
-      title: "Create Poll",
-      description: "Poll creation coming soon!",
-    });
     setIsOpen(false);
+    onCreatePoll();
   };
 
   const handleScheduleMessage = () => {
