@@ -9,54 +9,52 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun, Code } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
-const accentColors = [
-  { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
-  { name: "Blue", value: "217 91% 60%", class: "bg-[hsl(217,91%,60%)]" },
-  { name: "Green", value: "142 76% 36%", class: "bg-[hsl(142,76%,36%)]" },
-  { name: "Red", value: "0 84% 60%", class: "bg-[hsl(0,84%,60%)]" },
-  { name: "Orange", value: "25 95% 53%", class: "bg-[hsl(25,95%,53%)]" },
-  { name: "Pink", value: "330 81% 60%", class: "bg-[hsl(330,81%,60%)]" },
-];
-
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+const accentColors = [{
+  name: "Purple",
+  value: "263 70% 50%",
+  class: "bg-[hsl(263,70%,50%)]"
+}, {
+  name: "Blue",
+  value: "217 91% 60%",
+  class: "bg-[hsl(217,91%,60%)]"
+}, {
+  name: "Green",
+  value: "142 76% 36%",
+  class: "bg-[hsl(142,76%,36%)]"
+}, {
+  name: "Red",
+  value: "0 84% 60%",
+  class: "bg-[hsl(0,84%,60%)]"
+}, {
+  name: "Orange",
+  value: "25 95% 53%",
+  class: "bg-[hsl(25,95%,53%)]"
+}, {
+  name: "Pink",
+  value: "330 81% 60%",
+  class: "bg-[hsl(330,81%,60%)]"
+}];
 const DEVELOPER_PASSCODE = "snork";
-
 const Settings = () => {
   const [autoOpen, setAutoOpen] = useState(true);
   const [searchEngine, setSearchEngine] = useState("google");
-  const [browserType, setBrowserType] = useState(
-    localStorage.getItem("browserType") || "chrome"
-  );
-  const { theme, setTheme } = useTheme();
-  const [accentColor, setAccentColor] = useState(
-    localStorage.getItem("accentColor") || "263 70% 50%"
-  );
-  const [customColor, setCustomColor] = useState<string | null>(
-    localStorage.getItem("customAccentColor") || null
-  );
-  
-  const [developerMode, setDeveloperMode] = useState(
-    localStorage.getItem("developerMode") === "true"
-  );
+  const [browserType, setBrowserType] = useState(localStorage.getItem("browserType") || "chrome");
+  const {
+    theme,
+    setTheme
+  } = useTheme();
+  const [accentColor, setAccentColor] = useState(localStorage.getItem("accentColor") || "263 70% 50%");
+  const [customColor, setCustomColor] = useState<string | null>(localStorage.getItem("customAccentColor") || null);
+  const [developerMode, setDeveloperMode] = useState(localStorage.getItem("developerMode") === "true");
   const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);
-  
   const isCustomColor = customColor && accentColor === customColor;
-
   const handleBrowserTypeChange = (value: string) => {
     setBrowserType(value);
     localStorage.setItem("browserType", value);
   };
-
   const handleAccentColorChange = (value: string) => {
     setAccentColor(value);
     localStorage.setItem("accentColor", value);
@@ -66,7 +64,6 @@ const Settings = () => {
     document.documentElement.style.setProperty("--primary-glow", value.replace(/\d+%$/, `${Math.min(lightness + 15, 100)}%`));
     document.documentElement.style.setProperty("--ring", value);
   };
-
   const handleDeveloperModeToggle = (checked: boolean) => {
     if (checked) {
       // Opening developer mode - ask for passcode
@@ -79,7 +76,6 @@ const Settings = () => {
       localStorage.removeItem("developerMode");
     }
   };
-
   const handlePasscodeSubmit = () => {
     if (passcodeInput === DEVELOPER_PASSCODE) {
       setDeveloperMode(true);
@@ -91,7 +87,6 @@ const Settings = () => {
       setPasscodeError(true);
     }
   };
-
   useEffect(() => {
     // Apply saved accent color on mount
     const savedAccent = localStorage.getItem("accentColor");
@@ -99,9 +94,7 @@ const Settings = () => {
       handleAccentColorChange(savedAccent);
     }
   }, []);
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Navigation />
       
       <main className="container mx-auto px-4 pt-24 pb-12">
@@ -127,11 +120,7 @@ const Settings = () => {
                       Toggle between light and dark theme
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                    className="gap-2 min-w-[100px]"
-                  >
+                  <Button variant="outline" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="gap-2 min-w-[100px]">
                     <div className="relative w-4 h-4">
                       <Sun className="h-4 w-4 absolute inset-0 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                       <Moon className="h-4 w-4 absolute inset-0 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -148,25 +137,12 @@ const Settings = () => {
                     </p>
                   </div>
                   <div className="flex gap-2 items-center">
-                    {accentColors.map((color) => (
-                      <button
-                        key={color.name}
-                        onClick={() => handleAccentColorChange(color.value)}
-                        className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${
-                          accentColor === color.value && !isCustomColor ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""
-                        }`}
-                        title={color.name}
-                      />
-                    ))}
-                    <ColorPicker
-                      value={customColor}
-                      onChange={(hsl) => {
-                        setCustomColor(hsl);
-                        localStorage.setItem("customAccentColor", hsl);
-                        handleAccentColorChange(hsl);
-                      }}
-                      isSelected={isCustomColor || false}
-                    />
+                    {accentColors.map(color => <button key={color.name} onClick={() => handleAccentColorChange(color.value)} className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${accentColor === color.value && !isCustomColor ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""}`} title={color.name} />)}
+                    <ColorPicker value={customColor} onChange={hsl => {
+                    setCustomColor(hsl);
+                    localStorage.setItem("customAccentColor", hsl);
+                    handleAccentColorChange(hsl);
+                  }} isSelected={isCustomColor || false} />
                   </div>
                 </div>
               </CardContent>
@@ -207,11 +183,7 @@ const Settings = () => {
                       Automatically open links in new tabs
                     </p>
                   </div>
-                  <Switch
-                    id="auto-open"
-                    checked={autoOpen}
-                    onCheckedChange={setAutoOpen}
-                  />
+                  <Switch id="auto-open" checked={autoOpen} onCheckedChange={setAutoOpen} />
                 </div>
 
                 <div className="space-y-3">
@@ -279,13 +251,10 @@ const Settings = () => {
                   <div className="space-y-0.5">
                     <Label>Enable Developer Mode</Label>
                     <p className="text-sm text-muted-foreground">
-                      Show debug info for voice messages and other features
+                      Show debug info
                     </p>
                   </div>
-                  <Switch
-                    checked={developerMode}
-                    onCheckedChange={handleDeveloperModeToggle}
-                  />
+                  <Switch checked={developerMode} onCheckedChange={handleDeveloperModeToggle} />
                 </div>
               </CardContent>
             </Card>
@@ -303,24 +272,15 @@ const Settings = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Input
-              type="password"
-              placeholder="Enter passcode"
-              value={passcodeInput}
-              onChange={(e) => {
-                setPasscodeInput(e.target.value);
-                setPasscodeError(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handlePasscodeSubmit();
-              }}
-              className={passcodeError ? "border-destructive" : ""}
-            />
-            {passcodeError && (
-              <p className="text-sm text-destructive mt-2">
+            <Input type="password" placeholder="Enter passcode" value={passcodeInput} onChange={e => {
+            setPasscodeInput(e.target.value);
+            setPasscodeError(false);
+          }} onKeyDown={e => {
+            if (e.key === "Enter") handlePasscodeSubmit();
+          }} className={passcodeError ? "border-destructive" : ""} />
+            {passcodeError && <p className="text-sm text-destructive mt-2">
                 Incorrect passcode. Please try again.
-              </p>
-            )}
+              </p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPasscodeDialogOpen(false)}>
@@ -332,8 +292,6 @@ const Settings = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 };
-
 export default Settings;
