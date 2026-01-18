@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ import { FileUpload } from "@/components/chat/FileUpload";
 import { VoiceRecorderInline } from "@/components/chat/VoiceRecorder";
 import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
 import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
+import { CreatePollDialog } from "@/components/chat/CreatePollDialog";
+import { PollCard } from "@/components/chat/PollCard";
+import { useAutoIdle } from "@/hooks/useAutoIdle";
 import { Send, FileText } from "lucide-react";
 import { getUserFriendlyError } from "@/lib/error-utils";
 type Attachment = {
@@ -57,6 +60,29 @@ type Conversation = {
     status_message?: string | null;
   }>;
 };
+
+type Poll = {
+  id: string;
+  conversation_id: string;
+  created_by: string;
+  question: string;
+  options: string[];
+  multiple_choice: boolean;
+  anonymous: boolean;
+  expires_at: string | null;
+  created_at: string;
+};
+
+type PollVote = {
+  id: string;
+  poll_id: string;
+  user_id: string;
+  option_index: number;
+  profiles?: {
+    username: string;
+  };
+};
+
 const CommunityChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -78,12 +104,22 @@ const CommunityChat = () => {
     name: string;
   } | null>(null);
   const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
+  const [createPollOpen, setCreatePollOpen] = useState(false);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const {
     toast
   } = useToast();
+
+  // Auto-idle detection
+  const handleStatusChange = useCallback((status: 'online' | 'idle' | 'dnd' | 'offline') => {
+    setUserStatus(status);
+  }, []);
+
+  const { setManualStatus } = useAutoIdle(user?.id, userStatus, handleStatusChange);
 
   // Fetch username and status from profile
   useEffect(() => {
@@ -255,6 +291,71 @@ const CommunityChat = () => {
       supabase.removeChannel(presenceChannel);
     };
   }, [user, selectedConversationId, toast]);
+
+  // Fetch polls for selected conversation
+  useEffect(() => {
+    if (!selectedConversationId) return;
+    
+    fetchPolls();
+
+    // Subscribe to poll changes
+    const pollsChannel = supabase
+      .channel(`polls_${selectedConversationId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "polls",
+        filter: `conversation_id=eq.${selectedConversationId}`
+      }, () => {
+        fetchPolls();
+      })
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "poll_votes"
+      }, () => {
+        fetchPollVotes();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(pollsChannel);
+    };
+  }, [selectedConversationId]);
+
+  const fetchPolls = async () => {
+    if (!selectedConversationId) return;
+    
+    const { data } = await supabase
+      .from("polls")
+      .select("*")
+      .eq("conversation_id", selectedConversationId)
+      .order("created_at", { ascending: false });
+    
+    if (data) {
+      setPolls(data.map(p => ({
+        ...p,
+        options: Array.isArray(p.options) ? p.options : []
+      })) as Poll[]);
+      fetchPollVotes();
+    }
+  };
+
+  const fetchPollVotes = async () => {
+    if (!selectedConversationId) return;
+    
+    const pollIds = polls.map(p => p.id);
+    if (pollIds.length === 0) return;
+
+    const { data } = await supabase
+      .from("poll_votes")
+      .select("*, profiles(username)")
+      .in("poll_id", pollIds);
+    
+    if (data) {
+      setPollVotes(data as PollVote[]);
+    }
+  };
   const fetchParticipantCount = async () => {
     if (!selectedConversationId) return;
     const {
@@ -565,13 +666,27 @@ const CommunityChat = () => {
   return <div className="h-screen bg-background flex flex-col">
       <Navigation />
       <div className="flex-1 pt-16 flex overflow-hidden">
-        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setUserStatus(status); setUserStatusMessage(message); }} />
+        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
 
         <div className="flex-1 flex flex-col">
           {selectedConversationId ? <>
               <div className="flex-1 overflow-hidden">
                 <ScrollArea className="h-full p-4" ref={scrollRef}>
                   <div className="space-y-1 max-w-4xl mx-auto">
+                    {/* Polls */}
+                    {polls.length > 0 && (
+                      <div className="space-y-3 mb-4">
+                        {polls.map(poll => (
+                          <PollCard
+                            key={poll.id}
+                            poll={poll}
+                            currentUserId={user?.id || ""}
+                            votes={pollVotes.filter(v => v.poll_id === poll.id)}
+                            onVotesChange={fetchPolls}
+                          />
+                        ))}
+                      </div>
+                    )}
                     {messages.map((message, index) => {
                   const prevMessage = messages[index - 1];
                   const nextMessage = messages[index + 1];
@@ -698,7 +813,7 @@ const CommunityChat = () => {
                     } else {
                       setAttachments([...attachments, ...files]);
                     }
-                  }} voiceRecorderOpen={voiceRecorderOpen} setVoiceRecorderOpen={setVoiceRecorderOpen} />
+                  }} voiceRecorderOpen={voiceRecorderOpen} setVoiceRecorderOpen={setVoiceRecorderOpen} onCreatePoll={() => setCreatePollOpen(true)} />
                       
                       <div className="flex-1 flex items-center bg-background/60 rounded-xl border border-border/20 px-3 py-2 min-h-[44px]">
                         <Textarea value={newMessage} onChange={e => {
@@ -730,6 +845,8 @@ const CommunityChat = () => {
       <RenameConversationDialog conversation={conversationToRename} open={renameDialogOpen} onOpenChange={setRenameDialogOpen} onRenamed={fetchConversations} />
 
       <ImagePreviewDialog imageUrl={previewImage?.url || null} imageName={previewImage?.name} onClose={() => setPreviewImage(null)} />
+
+      <CreatePollDialog open={createPollOpen} onOpenChange={setCreatePollOpen} conversationId={selectedConversationId || ""} userId={user?.id || ""} />
     </div>;
 };
 export default CommunityChat;
