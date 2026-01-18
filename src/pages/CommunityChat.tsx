@@ -673,69 +673,109 @@ const CommunityChat = () => {
               <div className="flex-1 overflow-hidden">
                 <ScrollArea className="h-full p-4" ref={scrollRef}>
                   <div className="space-y-1 max-w-4xl mx-auto">
-                    {/* Polls */}
-                    {polls.length > 0 && (
-                      <div className="space-y-3 mb-4">
-                        {polls.map(poll => (
-                          <PollCard
-                            key={poll.id}
-                            poll={poll}
-                            currentUserId={user?.id || ""}
-                            votes={pollVotes.filter(v => v.poll_id === poll.id)}
-                            onVotesChange={fetchPolls}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {messages.map((message, index) => {
-                  const prevMessage = messages[index - 1];
-                  const nextMessage = messages[index + 1];
+                    {/* Combined timeline of messages and polls */}
+                    {(() => {
+                      // Merge messages and polls into a single timeline
+                      type TimelineItem = 
+                        | { type: 'message'; data: Message; created_at: string }
+                        | { type: 'poll'; data: Poll; created_at: string };
+                      
+                      const timeline: TimelineItem[] = [
+                        ...messages.map(m => ({ type: 'message' as const, data: m, created_at: m.created_at })),
+                        ...polls.map(p => ({ type: 'poll' as const, data: p, created_at: p.created_at }))
+                      ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-                  // Check if this message is part of a rapid succession (within 2 minutes)
-                  const isSameUserAsPrev = prevMessage?.user_id === message.user_id;
-                  const isSameUserAsNext = nextMessage?.user_id === message.user_id;
-                  const timeDiffFromPrev = prevMessage ? (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) / 1000 / 60 : Infinity;
-                  const timeDiffToNext = nextMessage ? (new Date(nextMessage.created_at).getTime() - new Date(message.created_at).getTime()) / 1000 / 60 : Infinity;
-                  const isGroupedWithPrev = isSameUserAsPrev && timeDiffFromPrev < 2;
-                  const isGroupedWithNext = isSameUserAsNext && timeDiffToNext < 2;
-
-                  // Show header (username + time) only for first message in a group
-                  const showHeader = !isGroupedWithPrev;
-
-                  // Add extra spacing before a new group
-                  const showExtraSpacing = !isGroupedWithPrev && index > 0;
-                  return <div key={message.id} className={`group flex flex-col ${message.user_id === user?.id ? "items-end" : "items-start"} ${showExtraSpacing ? "mt-4" : ""}`}>
-                          {showHeader && <div className="flex items-baseline gap-2 mb-1">
-                              <span className="text-sm font-medium">
-                                {message.profiles?.username || "Anonymous"}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(message.created_at).toLocaleTimeString()}
-                                {message.edited_at && " (edited)"}
-                              </span>
-                            </div>}
-                          <div className="flex items-start gap-2">
-                            <div className={`inline-block px-4 py-2 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ${message.user_id === user?.id ? "bg-primary text-primary-foreground" : "bg-muted"} ${isGroupedWithPrev && isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-r-md" : "rounded-r-lg rounded-l-md" : isGroupedWithPrev ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-md rounded-br-lg" : "rounded-r-lg rounded-tl-md rounded-bl-lg" : isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-lg rounded-br-md" : "rounded-r-lg rounded-tl-lg rounded-bl-md" : "rounded-lg"}`}>
-                              {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
-                              
-                              {message.attachments && message.attachments.length > 0 && <div className="mt-2 space-y-2">
-                                  {message.attachments.map((attachment, idx) => <div key={idx}>
-                                      <AttachmentRenderer attachment={attachment} onImageClick={(url, name) => setPreviewImage({
-                              url,
-                              name
-                            })} />
-                                    </div>)}
-                                </div>}
+                      return timeline.map((item, index) => {
+                        if (item.type === 'poll') {
+                          const poll = item.data;
+                          return (
+                            <div key={`poll-${poll.id}`} className="flex flex-col items-start mt-4">
+                              <PollCard
+                                poll={poll}
+                                currentUserId={user?.id || ""}
+                                votes={pollVotes.filter(v => v.poll_id === poll.id)}
+                                onVotesChange={fetchPolls}
+                              />
                             </div>
-                            {message.user_id === user?.id && <MessageActions messageId={message.id} content={message.content} currentUserId={user?.id || ""} onEdit={handleEditMessage} onDelete={handleDeleteMessage} showEdit={!!message.content?.trim()} />}
+                          );
+                        }
+
+                        const message = item.data;
+                        const messageIndex = messages.indexOf(message);
+                        const prevMessage = messages[messageIndex - 1];
+                        const nextMessage = messages[messageIndex + 1];
+
+                        // Check if this message is part of a rapid succession (within 2 minutes)
+                        const isSameUserAsPrev = prevMessage?.user_id === message.user_id;
+                        const isSameUserAsNext = nextMessage?.user_id === message.user_id;
+                        const timeDiffFromPrev = prevMessage ? (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) / 1000 / 60 : Infinity;
+                        const timeDiffToNext = nextMessage ? (new Date(nextMessage.created_at).getTime() - new Date(message.created_at).getTime()) / 1000 / 60 : Infinity;
+                        const isGroupedWithPrev = isSameUserAsPrev && timeDiffFromPrev < 2;
+                        const isGroupedWithNext = isSameUserAsNext && timeDiffToNext < 2;
+
+                        // Show header (username + time) only for first message in a group
+                        const showHeader = !isGroupedWithPrev;
+
+                        // Add extra spacing before a new group
+                        const showExtraSpacing = !isGroupedWithPrev && messageIndex > 0;
+                        
+                        return (
+                          <div key={message.id} className={`group flex flex-col ${message.user_id === user?.id ? "items-end" : "items-start"} ${showExtraSpacing ? "mt-4" : ""}`}>
+                            {showHeader && (
+                              <div className="flex items-baseline gap-2 mb-1">
+                                <span className="text-sm font-medium">
+                                  {message.profiles?.username || "Anonymous"}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(message.created_at).toLocaleTimeString()}
+                                  {message.edited_at && " (edited)"}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-start gap-2">
+                              <div className={`inline-block px-4 py-2 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ${message.user_id === user?.id ? "bg-primary text-primary-foreground" : "bg-muted"} ${isGroupedWithPrev && isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-r-md" : "rounded-r-lg rounded-l-md" : isGroupedWithPrev ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-md rounded-br-lg" : "rounded-r-lg rounded-tl-md rounded-bl-lg" : isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-lg rounded-br-md" : "rounded-r-lg rounded-tl-lg rounded-bl-md" : "rounded-lg"}`}>
+                                {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+                                
+                                {message.attachments && message.attachments.length > 0 && (
+                                  <div className="mt-2 space-y-2">
+                                    {message.attachments.map((attachment, idx) => (
+                                      <div key={idx}>
+                                        <AttachmentRenderer 
+                                          attachment={attachment} 
+                                          onImageClick={(url, name) => setPreviewImage({ url, name })} 
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {message.user_id === user?.id && (
+                                <MessageActions 
+                                  messageId={message.id} 
+                                  content={message.content} 
+                                  currentUserId={user?.id || ""} 
+                                  onEdit={handleEditMessage} 
+                                  onDelete={handleDeleteMessage} 
+                                  showEdit={!!message.content?.trim()} 
+                                />
+                              )}
+                            </div>
+                            {!isGroupedWithNext && (
+                              <ReadReceipts 
+                                messageId={message.id} 
+                                readBy={message.message_read_receipts?.map(r => ({
+                                  user_id: r.user_id,
+                                  username: r.profiles?.username || "Unknown",
+                                  read_at: r.read_at
+                                })) || []} 
+                                totalParticipants={participantCount} 
+                                isSender={message.user_id === user?.id} 
+                              />
+                            )}
                           </div>
-                          {!isGroupedWithNext && <ReadReceipts messageId={message.id} readBy={message.message_read_receipts?.map(r => ({
-                      user_id: r.user_id,
-                      username: r.profiles?.username || "Unknown",
-                      read_at: r.read_at
-                    })) || []} totalParticipants={participantCount} isSender={message.user_id === user?.id} />}
-                        </div>;
-                })}
+                        );
+                      });
+                    })()}
                   </div>
                 </ScrollArea>
               </div>
