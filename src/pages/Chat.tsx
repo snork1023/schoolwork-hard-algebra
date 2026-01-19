@@ -1,22 +1,45 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
+
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const {
-    toast
-  } = useToast();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to use AI chat",
+          variant: "destructive"
+        });
+        navigate("/auth");
+      } else {
+        setIsAuthenticated(true);
+      }
+    };
+    checkAuth();
+  }, [navigate, toast]);
+
   const formatMessage = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, index) => {
@@ -27,13 +50,28 @@ const Chat = () => {
       return <span key={index}>{part}</span>;
     });
   };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
+    
+    // Get fresh session token
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast({
+        title: "Session expired",
+        description: "Please sign in again",
+        variant: "destructive"
+      });
+      navigate("/auth");
+      return;
+    }
+
     const userMessage: Message = {
       role: "user",
       content: input
@@ -48,7 +86,8 @@ const Chat = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
         },
         body: JSON.stringify({
           messages: [...messages, userMessage]
@@ -153,9 +192,9 @@ const Chat = () => {
           <div className="flex-1 bg-card rounded-lg border border-border shadow-lg overflow-hidden flex flex-col hover-glow">
             <ScrollArea className="flex-1 p-6" ref={scrollRef}>
               {messages.length === 0 ? <div className="h-full flex items-center justify-center text-center">
-                  <div className="space-y-2">
-                    
-                    
+                  <div className="space-y-2 text-muted-foreground">
+                    <p className="text-lg">Ask me anything!</p>
+                    <p className="text-sm">I'm your AI assistant, ready to help.</p>
                   </div>
                 </div> : <div className="space-y-4">
                   {messages.map((message, index) => <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
