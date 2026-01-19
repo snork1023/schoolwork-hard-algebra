@@ -1,158 +1,89 @@
-import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check authentication on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to use AI chat",
-          variant: "destructive"
-        });
-        navigate("/auth");
-      } else {
-        setIsAuthenticated(true);
-      }
-    };
-    checkAuth();
-  }, [navigate, toast]);
-
-  const formatMessage = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        const boldText = part.slice(2, -2);
-        return <strong key={index} className="font-bold">{boldText}</strong>;
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
-    
-    // Get fresh session token
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      toast({
-        title: "Session expired",
-        description: "Please sign in again",
-        variant: "destructive"
-      });
-      navigate("/auth");
-      return;
-    }
 
-    const userMessage: Message = {
-      role: "user",
-      content: input
-    };
+    const userMessage: Message = { role: "user", content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    let assistantContent = "";
+
     try {
-      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
         },
-        body: JSON.stringify({
-          messages: [...messages, userMessage]
-        })
+        body: JSON.stringify({ messages: [...messages, userMessage] })
       });
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast({
-            title: "Rate limit exceeded",
-            description: "Please try again later.",
-            variant: "destructive"
-          });
-          return;
-        }
-        if (response.status === 402) {
-          toast({
-            title: "Payment required",
-            description: "Please add funds to continue using AI features.",
-            variant: "destructive"
-          });
-          return;
-        }
-        throw new Error("Failed to get response");
-      }
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No reader available");
-      let buffer = "";
-      let streamDone = false;
 
-      // Add assistant message placeholder
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: ""
-      }]);
-      while (!streamDone) {
-        const {
-          done,
-          value
-        } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, {
-          stream: true
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast({
+          title: response.status === 429 ? "Rate limit exceeded" : response.status === 402 ? "Payment required" : "Error",
+          description: errorData.error || "Failed to get response",
+          variant: "destructive"
         });
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader available");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let assistantContent = "";
+
+      setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        
         let newlineIndex: number;
         while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-          let line = buffer.slice(0, newlineIndex);
+          const line = buffer.slice(0, newlineIndex).replace(/\r$/, "");
           buffer = buffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
+
+          if (!line.startsWith("data: ") || line.startsWith(":")) continue;
+          
           const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") {
-            streamDone = true;
-            break;
-          }
+          if (jsonStr === "[DONE]") break;
+
           try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
+            const content = JSON.parse(jsonStr).choices?.[0]?.delta?.content;
             if (content) {
               assistantContent += content;
-              setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.role === "assistant" ? {
-                ...m,
-                content: assistantContent
-              } : m));
+              setMessages(prev => 
+                prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent } : m)
+              );
             }
           } catch {
             buffer = line + "\n" + buffer;
@@ -162,69 +93,77 @@ const Chat = () => {
       }
     } catch (error) {
       console.error("Chat error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to get response from AI. Please try again.",
-        variant: "destructive"
-      });
-      // Remove the empty assistant message on error
+      toast({ title: "Error", description: "Failed to get response from AI.", variant: "destructive" });
       setMessages(prev => prev.filter((m, i) => i !== prev.length - 1 || m.content));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, isLoading, messages, toast]);
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
-  return <div className="min-h-screen flex flex-col bg-background">
-      <Navigation />
 
+  const formatMessage = (text: string) => {
+    return text.split(/(\*\*.*?\*\*)/g).map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") 
+        ? <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>
+        : <span key={i}>{part}</span>
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navigation />
       <main className="flex-1 container mx-auto px-4 pt-24 pb-6 flex flex-col">
         <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
-          <div className="mb-6">
-            
-            
-          </div>
-
           <div className="flex-1 bg-card rounded-lg border border-border shadow-lg overflow-hidden flex flex-col hover-glow">
             <ScrollArea className="flex-1 p-6" ref={scrollRef}>
-              {messages.length === 0 ? <div className="h-full flex items-center justify-center text-center">
-                  <div className="space-y-2 text-muted-foreground">
+              {messages.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-center text-muted-foreground">
+                  <div className="space-y-2">
                     <p className="text-lg">Ask me anything!</p>
                     <p className="text-sm">I'm your AI assistant, ready to help.</p>
                   </div>
-                </div> : <div className="space-y-4">
-                  {messages.map((message, index) => <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                       <div className={`max-w-[80%] rounded-lg p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>
-                        <p className="whitespace-pre-wrap break-words">
-                          {formatMessage(message.content)}
-                        </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((message, index) => (
+                    <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[80%] rounded-lg p-4 ${
+                        message.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                      }`}>
+                        <p className="whitespace-pre-wrap break-words">{formatMessage(message.content)}</p>
                       </div>
-                    </div>)}
-                  {isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && !messages[messages.length - 1].content && <div className="flex justify-start">
+                    </div>
+                  ))}
+                  {isLoading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && (
+                    <div className="flex justify-start">
                       <div className="max-w-[80%] rounded-lg p-4 bg-secondary text-secondary-foreground">
                         <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{
-                      animationDelay: "0ms"
-                    }}></div>
-                          <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{
-                      animationDelay: "150ms"
-                    }}></div>
-                          <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{
-                      animationDelay: "300ms"
-                    }}></div>
+                          {[0, 150, 300].map(delay => (
+                            <div key={delay} className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                          ))}
                         </div>
                       </div>
-                    </div>}
-                </div>}
+                    </div>
+                  )}
+                </div>
+              )}
             </ScrollArea>
-
             <div className="p-4 border-t border-border">
               <div className="flex gap-2">
-                <Input value={input} onChange={e => setInput(e.target.value)} onKeyPress={handleKeyPress} placeholder="Type your message..." disabled={isLoading} className="flex-1 bg-background" />
+                <Input
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message..."
+                  disabled={isLoading}
+                  className="flex-1 bg-background"
+                />
                 <Button onClick={sendMessage} disabled={isLoading || !input.trim()} className="bg-gradient-to-r from-primary to-accent">
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </Button>
@@ -233,6 +172,8 @@ const Chat = () => {
           </div>
         </div>
       </main>
-    </div>;
+    </div>
+  );
 };
+
 export default Chat;
