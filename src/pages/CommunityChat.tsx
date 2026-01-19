@@ -298,7 +298,7 @@ const CommunityChat = () => {
     
     fetchPolls();
 
-    // Subscribe to poll changes
+    // Subscribe to poll changes with separate channels for faster updates
     const pollsChannel = supabase
       .channel(`polls_${selectedConversationId}`)
       .on("postgres_changes", {
@@ -309,17 +309,23 @@ const CommunityChat = () => {
       }, () => {
         fetchPolls();
       })
+      .subscribe();
+
+    const votesChannel = supabase
+      .channel(`poll_votes_${selectedConversationId}`)
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "poll_votes"
       }, () => {
-        fetchPollVotes();
+        // Refresh votes immediately
+        fetchPollVotesForConversation();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(pollsChannel);
+      supabase.removeChannel(votesChannel);
     };
   }, [selectedConversationId]);
 
@@ -330,23 +336,42 @@ const CommunityChat = () => {
       .from("polls")
       .select("*")
       .eq("conversation_id", selectedConversationId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
     
     if (data) {
-      setPolls(data.map(p => ({
+      const formattedPolls = data.map(p => ({
         ...p,
         options: Array.isArray(p.options) ? p.options : []
-      })) as Poll[]);
-      fetchPollVotes();
+      })) as Poll[];
+      setPolls(formattedPolls);
+      
+      // Fetch votes for these polls immediately
+      if (formattedPolls.length > 0) {
+        const pollIds = formattedPolls.map(p => p.id);
+        const { data: votesData } = await supabase
+          .from("poll_votes")
+          .select("*, profiles(username)")
+          .in("poll_id", pollIds);
+        
+        if (votesData) {
+          setPollVotes(votesData as PollVote[]);
+        }
+      }
     }
   };
 
-  const fetchPollVotes = async () => {
+  const fetchPollVotesForConversation = async () => {
     if (!selectedConversationId) return;
     
-    const pollIds = polls.map(p => p.id);
-    if (pollIds.length === 0) return;
-
+    // Get all poll IDs for this conversation first
+    const { data: pollsData } = await supabase
+      .from("polls")
+      .select("id")
+      .eq("conversation_id", selectedConversationId);
+    
+    if (!pollsData || pollsData.length === 0) return;
+    
+    const pollIds = pollsData.map(p => p.id);
     const { data } = await supabase
       .from("poll_votes")
       .select("*, profiles(username)")
