@@ -1,4 +1,4 @@
 project_id = "fsblsudfvtlwwzipheow"
 
-# fetch-website: JWT verification is enabled (verify_jwt = true by default)
-# The function also implements manual auth verification for custom error messages
+[functions.chat]
+verify_jwt = false
