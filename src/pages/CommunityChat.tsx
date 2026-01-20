@@ -713,8 +713,9 @@ const CommunityChat = () => {
                       return timeline.map((item, index) => {
                         if (item.type === 'poll') {
                           const poll = item.data;
+                          const isPollCreator = poll.created_by === user?.id;
                           return (
-                            <div key={`poll-${poll.id}`} className="flex flex-col items-start mt-4">
+                            <div key={`poll-${poll.id}`} className={`flex flex-col ${isPollCreator ? "items-end" : "items-start"} mt-4`}>
                               <PollCard
                                 poll={poll}
                                 currentUserId={user?.id || ""}

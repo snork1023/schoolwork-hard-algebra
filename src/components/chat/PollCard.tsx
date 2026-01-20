@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { BarChart3, Check, Users, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +13,9 @@ interface Poll {
   created_by: string;
   created_at: string;
   expires_at: string | null;
+  profiles?: {
+    username: string;
+  };
 }
 
 interface PollVote {
@@ -31,9 +33,10 @@ interface PollCardProps {
   currentUserId: string;
   votes: PollVote[];
   onVotesChange: () => void;
+  creatorUsername?: string;
 }
 
-export const PollCard = ({ poll, currentUserId, votes, onVotesChange }: PollCardProps) => {
+export const PollCard = ({ poll, currentUserId, votes, onVotesChange, creatorUsername }: PollCardProps) => {
   const [loading, setLoading] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
 
@@ -115,11 +118,16 @@ export const PollCard = ({ poll, currentUserId, votes, onVotesChange }: PollCard
   };
 
   return (
-    <div className="bg-card border rounded-lg p-4 max-w-md w-full">
-      <div className="flex items-start justify-between gap-2 mb-3">
+    <div className={cn(
+      "border rounded-lg p-4 max-w-md w-full",
+      isCreator ? "bg-primary/10 border-primary/30" : "bg-card"
+    )}>
+      <div className="flex items-start justify-between gap-2 mb-1">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-purple-500 shrink-0" />
-          <h3 className="font-semibold text-sm">{poll.question}</h3>
+          <span className="text-xs text-muted-foreground">
+            {creatorUsername || (poll.profiles?.username) || "Someone"} created a poll
+          </span>
         </div>
         {isCreator && (
           <Button
@@ -132,6 +140,8 @@ export const PollCard = ({ poll, currentUserId, votes, onVotesChange }: PollCard
           </Button>
         )}
       </div>
+      
+      <h3 className="font-semibold text-sm mb-3">{poll.question}</h3>
 
       <div className="space-y-2">
         {poll.options.map((option, index) => {
