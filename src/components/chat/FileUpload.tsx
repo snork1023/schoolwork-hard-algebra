@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, X, Image as ImageIcon, FileText, Video, Mic, BarChart3, Clock, Paperclip } from "lucide-react";
+import { Plus, X, Image as ImageIcon, FileText, Video, Mic, BarChart3, Clock, Paperclip, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { VoiceRecorder } from "./VoiceRecorder";
+import { GifPickerDialog } from "./GifPickerDialog";
 
 interface FileUploadProps {
   conversationId: string;
-  onFilesSelected: (files: Array<{ path: string; type: string; name: string; duration?: number }>) => void;
+  onFilesSelected: (files: Array<{ path?: string; url?: string; type: string; name: string; duration?: number }>) => void;
   voiceRecorderOpen: boolean;
   setVoiceRecorderOpen: (open: boolean) => void;
   onCreatePoll: () => void;
@@ -19,6 +20,7 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; preview: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const { toast } = useToast();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +102,20 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
     onCreatePoll();
   };
 
+  const handleGifPicker = () => {
+    setIsOpen(false);
+    setGifPickerOpen(true);
+  };
+
+  const handleGifSelect = (gifUrl: string, gifName: string) => {
+    // Send GIF as a URL-based attachment
+    onFilesSelected([{
+      url: gifUrl,
+      type: "image/gif",
+      name: gifName,
+    }]);
+  };
+
   const handleScheduleMessage = () => {
     toast({
       title: "Schedule Message",
@@ -114,6 +130,12 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
       label: "Attach Files",
       onClick: () => document.getElementById("file-upload")?.click(),
       color: "text-blue-500",
+    },
+    {
+      icon: Sparkles,
+      label: "GIFs",
+      onClick: handleGifPicker,
+      color: "text-pink-500",
     },
     {
       icon: Mic,
@@ -212,6 +234,12 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
         onOpenChange={setVoiceRecorderOpen}
         conversationId={conversationId}
         onRecordingComplete={handleVoiceRecordingComplete}
+      />
+
+      <GifPickerDialog
+        open={gifPickerOpen}
+        onOpenChange={setGifPickerOpen}
+        onGifSelect={handleGifSelect}
       />
     </>
   );
