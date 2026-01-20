@@ -299,6 +299,7 @@ export type Database = {
           discoverable: boolean
           id: string
           last_seen: string | null
+          settings: Json | null
           status: string | null
           status_message: string | null
           username: string
@@ -309,6 +310,7 @@ export type Database = {
           discoverable?: boolean
           id: string
           last_seen?: string | null
+          settings?: Json | null
           status?: string | null
           status_message?: string | null
           username: string
@@ -319,6 +321,7 @@ export type Database = {
           discoverable?: boolean
           id?: string
           last_seen?: string | null
+          settings?: Json | null
           status?: string | null
           status_message?: string | null
           username?: string
