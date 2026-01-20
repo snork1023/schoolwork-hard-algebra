@@ -10,76 +10,49 @@ import { useTheme } from "next-themes";
 import { Moon, Sun, Code } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-const accentColors = [{
-  name: "Purple",
-  value: "263 70% 50%",
-  class: "bg-[hsl(263,70%,50%)]"
-}, {
-  name: "Blue",
-  value: "217 91% 60%",
-  class: "bg-[hsl(217,91%,60%)]"
-}, {
-  name: "Green",
-  value: "142 76% 36%",
-  class: "bg-[hsl(142,76%,36%)]"
-}, {
-  name: "Red",
-  value: "0 84% 60%",
-  class: "bg-[hsl(0,84%,60%)]"
-}, {
-  name: "Orange",
-  value: "25 95% 53%",
-  class: "bg-[hsl(25,95%,53%)]"
-}, {
-  name: "Pink",
-  value: "330 81% 60%",
-  class: "bg-[hsl(330,81%,60%)]"
-}];
+import { useUserSettings } from "@/hooks/useUserSettings";
+
+const accentColors = [
+  { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
+  { name: "Blue", value: "217 91% 60%", class: "bg-[hsl(217,91%,60%)]" },
+  { name: "Green", value: "142 76% 36%", class: "bg-[hsl(142,76%,36%)]" },
+  { name: "Red", value: "0 84% 60%", class: "bg-[hsl(0,84%,60%)]" },
+  { name: "Orange", value: "25 95% 53%", class: "bg-[hsl(25,95%,53%)]" },
+  { name: "Pink", value: "330 81% 60%", class: "bg-[hsl(330,81%,60%)]" },
+];
+
 const DEVELOPER_PASSCODE = "snork";
+
 const Settings = () => {
-  const [autoOpen, setAutoOpen] = useState(true);
-  const [searchEngine, setSearchEngine] = useState("google");
-  const [browserType, setBrowserType] = useState(localStorage.getItem("browserType") || "chrome");
-  const {
-    theme,
-    setTheme
-  } = useTheme();
-  const [accentColor, setAccentColor] = useState(localStorage.getItem("accentColor") || "263 70% 50%");
-  const [customColor, setCustomColor] = useState<string | null>(localStorage.getItem("customAccentColor") || null);
-  const [developerMode, setDeveloperMode] = useState(localStorage.getItem("developerMode") === "true");
+  const { settings, updateSettings, isLoading } = useUserSettings();
+  const { theme, setTheme } = useTheme();
   const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);
-  const isCustomColor = customColor && accentColor === customColor;
-  const handleBrowserTypeChange = (value: string) => {
-    setBrowserType(value);
-    localStorage.setItem("browserType", value);
-  };
+
+  const isCustomColor = settings.customAccentColor && settings.accentColor === settings.customAccentColor;
+
   const handleAccentColorChange = (value: string) => {
-    setAccentColor(value);
-    localStorage.setItem("accentColor", value);
-    document.documentElement.style.setProperty("--primary", value);
-    // Update related colors
-    const lightness = parseInt(value.split(" ")[2]);
-    document.documentElement.style.setProperty("--primary-glow", value.replace(/\d+%$/, `${Math.min(lightness + 15, 100)}%`));
-    document.documentElement.style.setProperty("--ring", value);
+    updateSettings({ accentColor: value });
   };
+
+  const handleCustomColorChange = (hsl: string) => {
+    updateSettings({ accentColor: hsl, customAccentColor: hsl });
+  };
+
   const handleDeveloperModeToggle = (checked: boolean) => {
     if (checked) {
-      // Opening developer mode - ask for passcode
       setPasscodeDialogOpen(true);
       setPasscodeInput("");
       setPasscodeError(false);
     } else {
-      // Turning off - no passcode needed
-      setDeveloperMode(false);
-      localStorage.removeItem("developerMode");
+      updateSettings({ developerMode: false });
     }
   };
+
   const handlePasscodeSubmit = () => {
     if (passcodeInput === DEVELOPER_PASSCODE) {
-      setDeveloperMode(true);
-      localStorage.setItem("developerMode", "true");
+      updateSettings({ developerMode: true });
       setPasscodeDialogOpen(false);
       setPasscodeInput("");
       setPasscodeError(false);
@@ -87,14 +60,36 @@ const Settings = () => {
       setPasscodeError(true);
     }
   };
+
+  // Apply accent color on mount
   useEffect(() => {
-    // Apply saved accent color on mount
-    const savedAccent = localStorage.getItem("accentColor");
-    if (savedAccent) {
-      handleAccentColorChange(savedAccent);
+    if (!isLoading && settings.accentColor) {
+      document.documentElement.style.setProperty('--primary', settings.accentColor);
+      const lightness = parseInt(settings.accentColor.split(' ')[2]);
+      document.documentElement.style.setProperty('--primary-glow', settings.accentColor.replace(/\d+%$/, `${Math.min(lightness + 15, 100)}%`));
+      document.documentElement.style.setProperty('--ring', settings.accentColor);
     }
-  }, []);
-  return <div className="min-h-screen bg-background">
+  }, [isLoading, settings.accentColor]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 pt-24 pb-12">
+          <div className="max-w-2xl mx-auto animate-pulse">
+            <div className="h-10 bg-muted rounded w-48 mb-8" />
+            <div className="space-y-6">
+              <div className="h-48 bg-muted rounded" />
+              <div className="h-48 bg-muted rounded" />
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
       <Navigation />
       
       <main className="container mx-auto px-4 pt-24 pb-12">
@@ -137,12 +132,19 @@ const Settings = () => {
                     </p>
                   </div>
                   <div className="flex gap-2 items-center">
-                    {accentColors.map(color => <button key={color.name} onClick={() => handleAccentColorChange(color.value)} className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${accentColor === color.value && !isCustomColor ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""}`} title={color.name} />)}
-                    <ColorPicker value={customColor} onChange={hsl => {
-                    setCustomColor(hsl);
-                    localStorage.setItem("customAccentColor", hsl);
-                    handleAccentColorChange(hsl);
-                  }} isSelected={isCustomColor || false} />
+                    {accentColors.map(color => (
+                      <button
+                        key={color.name}
+                        onClick={() => handleAccentColorChange(color.value)}
+                        className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${settings.accentColor === color.value && !isCustomColor ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""}`}
+                        title={color.name}
+                      />
+                    ))}
+                    <ColorPicker
+                      value={settings.customAccentColor}
+                      onChange={handleCustomColorChange}
+                      isSelected={isCustomColor || false}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -163,7 +165,7 @@ const Settings = () => {
                       Choose which browser interface to display
                     </p>
                   </div>
-                  <Select value={browserType} onValueChange={handleBrowserTypeChange}>
+                  <Select value={settings.browserType} onValueChange={(value) => updateSettings({ browserType: value })}>
                     <SelectTrigger className="w-[180px] bg-background">
                       <SelectValue placeholder="Select browser" />
                     </SelectTrigger>
@@ -183,12 +185,16 @@ const Settings = () => {
                       Automatically open links in new tabs
                     </p>
                   </div>
-                  <Switch id="auto-open" checked={autoOpen} onCheckedChange={setAutoOpen} />
+                  <Switch
+                    id="auto-open"
+                    checked={settings.autoOpen}
+                    onCheckedChange={(checked) => updateSettings({ autoOpen: checked })}
+                  />
                 </div>
 
                 <div className="space-y-3">
                   <Label>Default Search Engine</Label>
-                  <Select value={searchEngine} onValueChange={setSearchEngine}>
+                  <Select value={settings.searchEngine} onValueChange={(value) => updateSettings({ searchEngine: value })}>
                     <SelectTrigger className="bg-background">
                       <SelectValue />
                     </SelectTrigger>
@@ -254,11 +260,10 @@ const Settings = () => {
                       Show debug info
                     </p>
                   </div>
-                  <Switch checked={developerMode} onCheckedChange={handleDeveloperModeToggle} />
+                  <Switch checked={settings.developerMode} onCheckedChange={handleDeveloperModeToggle} />
                 </div>
               </CardContent>
             </Card>
-
           </div>
         </div>
       </main>
@@ -272,15 +277,24 @@ const Settings = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Input type="password" placeholder="Enter passcode" value={passcodeInput} onChange={e => {
-            setPasscodeInput(e.target.value);
-            setPasscodeError(false);
-          }} onKeyDown={e => {
-            if (e.key === "Enter") handlePasscodeSubmit();
-          }} className={passcodeError ? "border-destructive" : ""} />
-            {passcodeError && <p className="text-sm text-destructive mt-2">
+            <Input
+              type="password"
+              placeholder="Enter passcode"
+              value={passcodeInput}
+              onChange={(e) => {
+                setPasscodeInput(e.target.value);
+                setPasscodeError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handlePasscodeSubmit();
+              }}
+              className={passcodeError ? "border-destructive" : ""}
+            />
+            {passcodeError && (
+              <p className="text-sm text-destructive mt-2">
                 Incorrect passcode. Please try again.
-              </p>}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPasscodeDialogOpen(false)}>
@@ -292,6 +306,8 @@ const Settings = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>;
+    </div>
+  );
 };
+
 export default Settings;
