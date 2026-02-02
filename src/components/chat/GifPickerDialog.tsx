@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search } from "lucide-react";
 
 interface GifPickerDialogProps {
@@ -110,7 +109,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
           />
         </div>
 
-        <ScrollArea className="flex-1 min-h-[300px] max-h-[400px]">
+        <div className="h-[350px] overflow-y-auto pr-2">
           {loading ? (
             <div className="flex items-center justify-center h-40">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -137,7 +136,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         <p className="text-xs text-muted-foreground text-center">
           Powered by Tenor
