@@ -173,8 +173,8 @@ const CommunityChat = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
-        setLoading(false);
       }
+      setLoading(false);
     });
     const {
       data: {
