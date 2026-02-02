@@ -164,23 +164,30 @@ const CommunityChat = () => {
   }, [user]);
   useEffect(() => {
     // Check authentication
+    console.log("CommunityChat: Starting auth check...");
     supabase.auth.getSession().then(({
       data: {
         session
       }
     }) => {
+      console.log("CommunityChat: Session result:", session ? "has session" : "no session");
       if (!session) {
         navigate("/auth");
       } else {
         setUser(session.user);
       }
       setLoading(false);
+    }).catch((error) => {
+      console.error("CommunityChat: Auth error:", error);
+      setLoading(false);
+      navigate("/auth");
     });
     const {
       data: {
         subscription
       }
     } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("CommunityChat: Auth state changed:", event);
       if (!session) {
         navigate("/auth");
       } else {
