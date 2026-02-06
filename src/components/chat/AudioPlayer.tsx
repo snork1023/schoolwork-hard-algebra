@@ -122,21 +122,21 @@ export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps
   const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
-    <div className="flex items-center gap-2 min-w-[220px] max-w-[280px] p-2.5 rounded-xl bg-accent/40 backdrop-blur-sm">
+    <div className="flex items-center gap-3 min-w-[240px] max-w-[300px] p-3 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 backdrop-blur-sm shadow-sm">
       <audio ref={audioRef} src={src} preload="metadata" />
 
       {/* Play/Pause button */}
       <Button
         size="icon"
         variant="ghost"
-        className="h-9 w-9 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20"
+        className="h-10 w-10 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
         onClick={togglePlay}
         disabled={isLoading}
       >
         {isPlaying ? (
-          <Pause className="h-4 w-4 text-primary" />
+          <Pause className="h-4 w-4" />
         ) : (
-          <Play className="h-4 w-4 text-primary ml-0.5" />
+          <Play className="h-4 w-4 ml-0.5" />
         )}
       </Button>
 
@@ -154,10 +154,10 @@ export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps
               <div
                 key={index}
                 className={cn(
-                  "w-[3px] rounded-full transition-all duration-100",
+                  "w-[3px] rounded-full transition-all duration-150",
                   isPlayed
-                    ? "bg-primary"
-                    : "bg-muted-foreground/60 group-hover:bg-muted-foreground/80"
+                    ? "bg-primary shadow-sm"
+                    : "bg-foreground/30 group-hover:bg-foreground/50"
                 )}
                 style={{ height: `${height * 100}%` }}
               />
@@ -167,10 +167,10 @@ export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps
 
         {/* Duration display */}
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono text-muted-foreground">
+          <span className="text-[10px] font-medium text-foreground/70">
             {formatTime(currentTime)}
           </span>
-          <span className="text-[10px] font-mono text-muted-foreground">
+          <span className="text-[10px] font-medium text-foreground/70">
             {formatTime(duration)}
           </span>
         </div>
@@ -180,11 +180,11 @@ export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps
       <Button
         size="icon"
         variant="ghost"
-        className="h-7 w-7 shrink-0 rounded-full hover:bg-accent"
+        className="h-8 w-8 shrink-0 rounded-full hover:bg-primary/10"
         onClick={handleDownload}
         title="Download voice message"
       >
-        <Download className="h-3.5 w-3.5 text-muted-foreground" />
+        <Download className="h-3.5 w-3.5 text-foreground/60" />
       </Button>
     </div>
   );
