@@ -71,11 +71,6 @@ export const CreatePollDialog = ({
       return;
     }
 
-    if (!conversationId || !userId) {
-      toast({ title: "Please select a conversation first", variant: "destructive" });
-      return;
-    }
-
     setLoading(true);
     try {
       const { error } = await supabase.from("polls").insert({
@@ -93,7 +88,6 @@ export const CreatePollDialog = ({
       resetForm();
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Poll creation error:", error);
       toast({ 
         title: "Failed to create poll", 
         description: error.message,

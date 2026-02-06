@@ -7,7 +7,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { GifPickerDialog } from "./GifPickerDialog";
-import { ScheduleMessageDialog } from "./ScheduleMessageDialog";
 
 interface FileUploadProps {
   conversationId: string;
@@ -15,15 +14,13 @@ interface FileUploadProps {
   voiceRecorderOpen: boolean;
   setVoiceRecorderOpen: (open: boolean) => void;
   onCreatePoll: () => void;
-  onScheduleMessage?: (message: string, scheduledAt: Date) => void;
 }
 
-export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen, setVoiceRecorderOpen, onCreatePoll, onScheduleMessage }: FileUploadProps) => {
+export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen, setVoiceRecorderOpen, onCreatePoll }: FileUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; preview: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
-  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,19 +117,11 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
   };
 
   const handleScheduleMessage = () => {
+    toast({
+      title: "Schedule Message",
+      description: "Message scheduling coming soon!",
+    });
     setIsOpen(false);
-    setScheduleDialogOpen(true);
-  };
-
-  const handleScheduleSubmit = (message: string, scheduledAt: Date) => {
-    if (onScheduleMessage) {
-      onScheduleMessage(message, scheduledAt);
-    } else {
-      toast({
-        title: "Message Scheduled",
-        description: `Your message will be sent on ${scheduledAt.toLocaleString()}`,
-      });
-    }
   };
 
   const menuItems = [
@@ -251,12 +240,6 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
         open={gifPickerOpen}
         onOpenChange={setGifPickerOpen}
         onGifSelect={handleGifSelect}
-      />
-
-      <ScheduleMessageDialog
-        open={scheduleDialogOpen}
-        onOpenChange={setScheduleDialogOpen}
-        onSchedule={handleScheduleSubmit}
       />
     </>
   );
