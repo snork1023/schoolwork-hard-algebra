@@ -163,33 +163,29 @@ const CommunityChat = () => {
     };
   }, [user]);
   useEffect(() => {
-    // Check authentication
-    supabase.auth.getSession().then(({
-      data: {
-        session
-      }
-    }) => {
-      if (!session) {
-        navigate("/auth");
-      } else {
-        setUser(session.user);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-      navigate("/auth");
-    });
+    // Set up auth listener FIRST (recommended by Supabase)
     const {
       data: {
         subscription
       }
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
+      if (event === 'INITIAL_SESSION') {
+        // This fires once when the listener is set up with the current session
+        if (!session) {
+          navigate("/auth");
+        } else {
+          setUser(session.user);
+        }
+        setLoading(false);
+      } else if (event === 'SIGNED_IN') {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
         navigate("/auth");
-      } else {
-        setUser(session.user);
       }
     });
+
     return () => subscription.unsubscribe();
   }, [navigate]);
   useEffect(() => {
