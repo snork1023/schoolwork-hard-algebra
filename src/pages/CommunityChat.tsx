@@ -20,7 +20,7 @@ import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
 import { CreatePollDialog } from "@/components/chat/CreatePollDialog";
 import { PollCard } from "@/components/chat/PollCard";
 import { useAutoIdle } from "@/hooks/useAutoIdle";
-import { Send, FileText } from "lucide-react";
+import { Send, FileText, Loader2 } from "lucide-react";
 import { getUserFriendlyError } from "@/lib/error-utils";
 type Attachment = {
   path?: string;
@@ -683,8 +683,9 @@ const CommunityChat = () => {
     navigate("/auth");
   };
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">
-        <p>Loading...</p>
+    return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 animate-fade-in">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground text-sm">Loading your conversations…</p>
       </div>;
   }
   return <div className="h-screen bg-background flex flex-col">
