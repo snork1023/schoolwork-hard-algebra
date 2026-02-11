@@ -163,30 +163,46 @@ const CommunityChat = () => {
     };
   }, [user]);
   useEffect(() => {
-    // Set up auth listener FIRST (recommended by Supabase)
-    const {
-      data: {
-        subscription
-      }
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') {
-        // This fires once when the listener is set up with the current session
-        if (!session) {
-          navigate("/auth");
-        } else {
-          setUser(session.user);
-        }
-        setLoading(false);
-      } else if (event === 'SIGNED_IN') {
+    let active = true;
+
+    // Listener for future changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+
+      if (event === "SIGNED_IN") {
         setUser(session?.user ?? null);
         setLoading(false);
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === "SIGNED_OUT") {
         setUser(null);
+        setLoading(false);
         navigate("/auth");
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Explicit initial fetch so we don't depend on INITIAL_SESSION firing
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+
+      if (!session) {
+        setUser(null);
+        setLoading(false);
+        navigate("/auth");
+        return;
+      }
+
+      setUser(session.user);
+      setLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setUser(null);
+      setLoading(false);
+      navigate("/auth");
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
   useEffect(() => {
     if (!user) return;
@@ -682,10 +698,6 @@ const CommunityChat = () => {
     await supabase.auth.signOut();
     navigate("/auth");
   };
-  if (!user && !loading) {
-    navigate("/auth");
-    return null;
-  }
   if (loading) {
     return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 animate-fade-in">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
