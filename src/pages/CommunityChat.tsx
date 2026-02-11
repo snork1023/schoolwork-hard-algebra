@@ -682,6 +682,10 @@ const CommunityChat = () => {
     await supabase.auth.signOut();
     navigate("/auth");
   };
+  if (!user && !loading) {
+    navigate("/auth");
+    return null;
+  }
   if (loading) {
     return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 animate-fade-in">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

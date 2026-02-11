@@ -1,9 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Settings, MessageSquare, User, Sparkles, Gamepad2 } from "lucide-react";
+import { Home, Settings, MessageSquare, User, Sparkles, Gamepad2, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navigation = () => {
   const location = useLocation();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   
   const links = [
     { to: "/", icon: Home, label: "Home" },
@@ -28,29 +38,41 @@ const Navigation = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            
             <div className="flex gap-1">
-            {links.map((link) => {
-              const Icon = link.icon;
-              const isActive = location.pathname === link.to;
-              
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  )}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{link.label}</span>
-                </Link>
-              );
-            })}
+              {links.map((link) => {
+                const Icon = link.icon;
+                const isActive = location.pathname === link.to;
+                
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{link.label}</span>
+                  </Link>
+                );
+              })}
             </div>
+
+            {isLoggedIn === false && (
+              <Link
+                to="/auth"
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg transition-all ml-2 bg-primary text-primary-foreground hover:bg-primary/90",
+                  location.pathname === "/auth" && "ring-2 ring-ring"
+                )}
+              >
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Log In</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
