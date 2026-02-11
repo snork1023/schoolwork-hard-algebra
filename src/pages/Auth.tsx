@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 
@@ -29,19 +30,15 @@ const Auth = () => {
   const [username, setUsername] = useState("");
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [stayLoggedIn, setStayLoggedIn] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/community-chat");
-      }
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+      if (event === 'INITIAL_SESSION' && session) {
+        navigate("/community-chat");
+      } else if (event === 'SIGNED_IN') {
         navigate("/community-chat");
       }
     });
@@ -202,6 +199,16 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                     />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="stay-logged-in"
+                      checked={stayLoggedIn}
+                      onCheckedChange={(checked) => setStayLoggedIn(checked === true)}
+                    />
+                    <Label htmlFor="stay-logged-in" className="text-sm cursor-pointer">
+                      Stay logged in
+                    </Label>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Signing in..." : "Sign In"}
