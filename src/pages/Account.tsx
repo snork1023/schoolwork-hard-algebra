@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ const Account = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
   const [discoverable, setDiscoverable] = useState(true);
@@ -27,40 +29,36 @@ const Account = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-      
-      setUserId(user.id);
-      setUserEmail(user.email || "");
-      
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, discoverable")
-        .eq("id", user.id)
-        .single();
-      
-      if (profile) {
-        setUsername(profile.username || "");
-        setDiscoverable(profile.discoverable ?? true);
-      }
-    };
-    
-    checkAuth();
+  const fetchProfile = useCallback(async (uid: string) => {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username, discoverable")
+      .eq("id", uid)
+      .single();
+    if (profile) {
+      setUsername(profile.username || "");
+      setDiscoverable(profile.discoverable ?? true);
+    }
+  }, []);
 
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        if (!session) {
+          navigate("/auth");
+          return;
+        }
+        setUserId(session.user.id);
+        setUserEmail(session.user.email || "");
+        fetchProfile(session.user.id);
+        setPageLoading(false);
+      } else if (event === 'SIGNED_OUT') {
         navigate("/auth");
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, fetchProfile]);
 
   const handleToggleDiscoverable = async (checked: boolean) => {
     if (!userId) return;
@@ -203,6 +201,15 @@ const Account = () => {
     
     navigate("/auth");
   };
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground text-sm">Loading account…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
