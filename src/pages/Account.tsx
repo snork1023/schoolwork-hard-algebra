@@ -42,22 +42,47 @@ const Account = () => {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        if (!session) {
-          navigate("/auth");
-          return;
-        }
+      if (!active) return;
+
+      if (event === "SIGNED_IN" && session) {
         setUserId(session.user.id);
         setUserEmail(session.user.email || "");
         fetchProfile(session.user.id);
         setPageLoading(false);
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === "SIGNED_OUT") {
+        setUserId(null);
+        setUserEmail("");
         navigate("/auth");
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Fallback: explicitly fetch the current session so we never get stuck
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+
+      if (!session) {
+        setPageLoading(false);
+        navigate("/auth");
+        return;
+      }
+
+      setUserId(session.user.id);
+      setUserEmail(session.user.email || "");
+      fetchProfile(session.user.id);
+      setPageLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setPageLoading(false);
+      navigate("/auth");
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [navigate, fetchProfile]);
 
   const handleToggleDiscoverable = async (checked: boolean) => {
