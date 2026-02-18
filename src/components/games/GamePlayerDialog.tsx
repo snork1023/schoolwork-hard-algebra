@@ -80,6 +80,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
             ref={iframeRef}
             src={gameUrl}
             className="w-full h-full border-0"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-pointer-lock allow-orientation-lock"
             allow="fullscreen; autoplay; clipboard-write; accelerometer; gyroscope"
             allowFullScreen
           />

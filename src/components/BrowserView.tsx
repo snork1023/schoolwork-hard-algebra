@@ -190,7 +190,7 @@ const BrowserView = () => {
               srcDoc={htmlContent}
               className="w-full h-full border-0"
               title="Browser Content"
-              sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation allow-downloads"
+              sandbox="allow-same-origin allow-scripts"
             />
           ) : null
         )}
