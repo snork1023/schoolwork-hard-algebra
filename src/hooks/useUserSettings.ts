@@ -39,23 +39,27 @@ export const useUserSettings = () => {
       setSettings(localSettings);
 
       // Check if user is logged in
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        // Fetch settings from database
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('settings')
-          .eq('id', user.id)
-          .maybeSingle();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          // Fetch settings from database
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('settings')
+            .eq('id', user.id)
+            .maybeSingle();
 
-        if (profile?.settings && typeof profile.settings === 'object') {
-          const dbSettings = profile.settings as Partial<UserSettings>;
-          const mergedSettings = { ...localSettings, ...dbSettings };
-          setSettings(mergedSettings);
-          // Sync to localStorage
-          syncToLocalStorage(mergedSettings);
+          if (profile?.settings && typeof profile.settings === 'object') {
+            const dbSettings = profile.settings as Partial<UserSettings>;
+            const mergedSettings = { ...localSettings, ...dbSettings };
+            setSettings(mergedSettings);
+            // Sync to localStorage
+            syncToLocalStorage(mergedSettings);
+          }
         }
+      } catch (err) {
+        console.warn('Failed to fetch user settings from DB, using local settings', err);
       }
       setIsLoading(false);
     };

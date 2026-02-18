@@ -71,17 +71,32 @@ const Settings = () => {
     }
   }, [isLoading, settings.accentColor]);
 
+  const devModeEnabled = localStorage.getItem('developerMode') === 'true';
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
         <main className="container mx-auto px-4 pt-24 pb-12">
-          <div className="max-w-2xl mx-auto animate-pulse">
-            <div className="h-10 bg-muted rounded w-48 mb-8" />
-            <div className="space-y-6">
-              <div className="h-48 bg-muted rounded" />
-              <div className="h-48 bg-muted rounded" />
-            </div>
+          <div className="max-w-2xl mx-auto">
+            {devModeEnabled ? (
+              <div className="font-mono text-xs text-muted-foreground space-y-1 bg-card border border-border rounded-lg p-4">
+                <p className="text-primary font-bold mb-2">[DEV] Settings Loading...</p>
+                <p>→ Reading localStorage for cached settings...</p>
+                <p>→ Checking auth state via getUser()...</p>
+                <p>→ Fetching profile.settings from database...</p>
+                <p>→ Merging local + remote settings...</p>
+                <p className="animate-pulse mt-2">⏳ Waiting for response...</p>
+              </div>
+            ) : (
+              <div className="animate-pulse">
+                <div className="h-10 bg-muted rounded w-48 mb-8" />
+                <div className="space-y-6">
+                  <div className="h-48 bg-muted rounded" />
+                  <div className="h-48 bg-muted rounded" />
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
