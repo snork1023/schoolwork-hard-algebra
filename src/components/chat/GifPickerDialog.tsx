@@ -3,15 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GifPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onGifSelect: (gifUrl: string, gifName: string) => void;
 }
-
-// Using Tenor API (free, no API key required for basic usage)
-const TENOR_API_KEY = "AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ"; // Public API key for demo
 
 interface TenorGif {
   id: string;
@@ -38,11 +36,11 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
   const loadTrending = async () => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=30&media_filter=gif,tinygif`
-      );
-      const data = await response.json();
-      setGifs(data.results || []);
+      const { data, error } = await supabase.functions.invoke("tenor-proxy", {
+        body: { featured: true },
+      });
+      if (error) throw error;
+      setGifs(data?.results || []);
       setTrendingLoaded(true);
     } catch (error) {
       console.error("Failed to load trending GIFs:", error);
@@ -59,11 +57,11 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${encodeURIComponent(query)}&limit=30&media_filter=gif,tinygif`
-      );
-      const data = await response.json();
-      setGifs(data.results || []);
+      const { data, error } = await supabase.functions.invoke("tenor-proxy", {
+        body: { query },
+      });
+      if (error) throw error;
+      setGifs(data?.results || []);
     } catch (error) {
       console.error("Failed to search GIFs:", error);
     } finally {

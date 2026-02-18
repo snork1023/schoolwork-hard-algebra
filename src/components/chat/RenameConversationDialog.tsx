@@ -86,6 +86,7 @@ const RenameConversationDialog = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter conversation name"
+              maxLength={100}
             />
           </div>
 
