@@ -13,6 +13,7 @@ import RenameConversationDialog from "@/components/chat/RenameConversationDialog
 import TypingIndicator from "@/components/chat/TypingIndicator";
 import ReadReceipts from "@/components/chat/ReadReceipts";
 import MessageActions from "@/components/chat/MessageActions";
+import { MessageReactions } from "@/components/chat/MessageReactions";
 import { FileUpload } from "@/components/chat/FileUpload";
 import { VoiceRecorderInline } from "@/components/chat/VoiceRecorder";
 import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
@@ -775,6 +776,17 @@ const CommunityChat = () => {
                               </div>
                             )}
                             <div className="flex items-start gap-2">
+                              {message.user_id !== user?.id && (
+                                <MessageActions 
+                                  messageId={message.id} 
+                                  content={message.content} 
+                                  currentUserId={user?.id || ""} 
+                                  onEdit={handleEditMessage} 
+                                  onDelete={handleDeleteMessage} 
+                                  showEdit={false}
+                                  showDelete={false}
+                                />
+                              )}
                               <div className={`inline-block px-4 py-2 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ${message.user_id === user?.id ? "bg-primary text-primary-foreground" : "bg-muted"} ${isGroupedWithPrev && isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-r-md" : "rounded-r-lg rounded-l-md" : isGroupedWithPrev ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-md rounded-br-lg" : "rounded-r-lg rounded-tl-md rounded-bl-lg" : isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-lg rounded-br-md" : "rounded-r-lg rounded-tl-lg rounded-bl-md" : "rounded-lg"}`}>
                                 {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
                                 
@@ -799,9 +811,11 @@ const CommunityChat = () => {
                                   onEdit={handleEditMessage} 
                                   onDelete={handleDeleteMessage} 
                                   showEdit={!!message.content?.trim()} 
+                                  showDelete={true}
                                 />
                               )}
                             </div>
+                            <MessageReactions messageId={message.id} currentUserId={user?.id || ""} />
                             {!isGroupedWithNext && (
                               <ReadReceipts 
                                 messageId={message.id} 
