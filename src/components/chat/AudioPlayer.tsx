@@ -122,28 +122,28 @@ export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps
   const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
-    <div className="flex items-center gap-2 min-w-[220px] max-w-[280px] p-2.5 rounded-xl bg-accent/40 backdrop-blur-sm">
+    <div className="flex items-center gap-3 min-w-[240px] max-w-[320px] p-3 rounded-2xl">
       <audio ref={audioRef} src={src} preload="metadata" />
 
       {/* Play/Pause button */}
       <Button
         size="icon"
         variant="ghost"
-        className="h-9 w-9 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20"
+        className="h-10 w-10 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
         onClick={togglePlay}
         disabled={isLoading}
       >
         {isPlaying ? (
-          <Pause className="h-4 w-4 text-primary" />
+          <Pause className="h-4 w-4" />
         ) : (
-          <Play className="h-4 w-4 text-primary ml-0.5" />
+          <Play className="h-4 w-4 ml-0.5" />
         )}
       </Button>
 
       {/* Waveform visualization */}
-      <div className="flex-1 flex flex-col gap-1.5">
+      <div className="flex-1 flex flex-col gap-1">
         <div
-          className="flex items-center gap-[2px] h-8 cursor-pointer group"
+          className="flex items-end gap-[2px] h-7 cursor-pointer group"
           onClick={handleSeek}
         >
           {waveformBars.map((height, index) => {
@@ -154,38 +154,33 @@ export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps
               <div
                 key={index}
                 className={cn(
-                  "w-[3px] rounded-full transition-all duration-100",
+                  "w-[3px] rounded-full transition-colors duration-75",
                   isPlayed
-                    ? "bg-primary"
-                    : "bg-muted-foreground/60 group-hover:bg-muted-foreground/80"
+                    ? "bg-primary-foreground"
+                    : "bg-primary-foreground/30 group-hover:bg-primary-foreground/50"
                 )}
-                style={{ height: `${height * 100}%` }}
+                style={{ height: `${Math.max(height * 100, 12)}%` }}
               />
             );
           })}
         </div>
 
         {/* Duration display */}
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono text-muted-foreground">
-            {formatTime(currentTime)}
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[10px] font-mono text-primary-foreground/70">
+            {isPlaying || currentTime > 0 ? formatTime(currentTime) : formatTime(duration)}
           </span>
-          <span className="text-[10px] font-mono text-muted-foreground">
-            {formatTime(duration)}
-          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-5 w-5 shrink-0 rounded-full hover:bg-primary-foreground/10"
+            onClick={handleDownload}
+            title="Download voice message"
+          >
+            <Download className="h-3 w-3 text-primary-foreground/70" />
+          </Button>
         </div>
       </div>
-
-      {/* Download button */}
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-7 w-7 shrink-0 rounded-full hover:bg-accent"
-        onClick={handleDownload}
-        title="Download voice message"
-      >
-        <Download className="h-3.5 w-3.5 text-muted-foreground" />
-      </Button>
     </div>
   );
 };

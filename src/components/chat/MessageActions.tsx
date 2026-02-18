@@ -23,11 +23,12 @@ type MessageActionsProps = {
   onEdit: (messageId: string, newContent: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
   showEdit?: boolean;
+  showDelete?: boolean;
 };
 
 const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🎉", "🔥", "👏"];
 
-const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, showEdit = true }: MessageActionsProps) => {
+const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, showEdit = true, showDelete = true }: MessageActionsProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [loading, setLoading] = useState(false);
@@ -188,13 +189,15 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
             Edit
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem
-          onClick={handleDelete}
-          className="text-destructive focus:text-destructive"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
+        {showDelete && (
+          <DropdownMenuItem
+            onClick={handleDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
