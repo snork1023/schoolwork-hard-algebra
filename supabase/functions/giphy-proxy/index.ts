@@ -53,7 +53,6 @@ serve(async (req) => {
     const response = await fetch(url);
     const responseData = await response.json();
 
-    // Normalize to a simple format for the client
     const results = (responseData.data || []).map((gif: any) => ({
       id: gif.id,
       title: gif.title || "",

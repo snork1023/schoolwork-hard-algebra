@@ -33,7 +33,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
   const loadTrending = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("tenor-proxy", {
+      const { data, error } = await supabase.functions.invoke("giphy-proxy", {
         body: { trending: true },
       });
       if (error) throw error;
@@ -54,7 +54,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("tenor-proxy", {
+      const { data, error } = await supabase.functions.invoke("giphy-proxy", {
         body: { query },
       });
       if (error) throw error;

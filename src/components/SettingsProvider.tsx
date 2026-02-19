@@ -38,7 +38,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Then check if user is logged in and has DB settings
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
