@@ -11,22 +11,19 @@ interface GifPickerDialogProps {
   onGifSelect: (gifUrl: string, gifName: string) => void;
 }
 
-interface TenorGif {
+interface GiphyGif {
   id: string;
   title: string;
-  media_formats: {
-    gif: { url: string };
-    tinygif: { url: string };
-  };
+  preview_url: string;
+  full_url: string;
 }
 
 export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDialogProps) => {
   const [search, setSearch] = useState("");
-  const [gifs, setGifs] = useState<TenorGif[]>([]);
+  const [gifs, setGifs] = useState<GiphyGif[]>([]);
   const [loading, setLoading] = useState(false);
   const [trendingLoaded, setTrendingLoaded] = useState(false);
 
-  // Load trending GIFs on open
   useEffect(() => {
     if (open && !trendingLoaded) {
       loadTrending();
@@ -37,7 +34,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("tenor-proxy", {
-        body: { featured: true },
+        body: { trending: true },
       });
       if (error) throw error;
       setGifs(data?.results || []);
@@ -69,21 +66,18 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
     }
   };
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (search) {
         searchGifs(search);
       }
     }, 300);
-
     return () => clearTimeout(timer);
   }, [search]);
 
-  const handleGifClick = (gif: TenorGif) => {
-    const gifUrl = gif.media_formats.gif?.url || gif.media_formats.tinygif?.url;
-    if (gifUrl) {
-      onGifSelect(gifUrl, gif.title || "GIF");
+  const handleGifClick = (gif: GiphyGif) => {
+    if (gif.full_url) {
+      onGifSelect(gif.full_url, gif.title || "GIF");
       onOpenChange(false);
       setSearch("");
     }
@@ -125,7 +119,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
                   className="relative aspect-video rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all"
                 >
                   <img
-                    src={gif.media_formats.tinygif?.url || gif.media_formats.gif?.url}
+                    src={gif.preview_url}
                     alt={gif.title}
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -137,7 +131,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
         </ScrollArea>
 
         <p className="text-xs text-muted-foreground text-center">
-          Powered by Tenor
+          Powered by GIPHY
         </p>
       </DialogContent>
     </Dialog>
