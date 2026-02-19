@@ -36,28 +36,36 @@ serve(async (req) => {
       );
     }
 
-    const { query, featured } = await req.json();
-    const TENOR_API_KEY = Deno.env.get("TENOR_API_KEY");
+    const { query, trending } = await req.json();
+    const GIPHY_API_KEY = Deno.env.get("GIPHY_API_KEY");
 
-    if (!TENOR_API_KEY) {
+    if (!GIPHY_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "Tenor API key not configured" }),
+        JSON.stringify({ error: "Giphy API key not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const url = featured
-      ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=30&media_filter=gif,tinygif`
-      : `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${encodeURIComponent(query || "")}&limit=30&media_filter=gif,tinygif`;
+    const url = trending
+      ? `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=30&rating=g`
+      : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query || "")}&limit=30&rating=g`;
 
     const response = await fetch(url);
-    const responseData = await response.text();
+    const responseData = await response.json();
 
-    return new Response(responseData, {
+    // Normalize to a simple format for the client
+    const results = (responseData.data || []).map((gif: any) => ({
+      id: gif.id,
+      title: gif.title || "",
+      preview_url: gif.images?.fixed_height_small?.url || gif.images?.fixed_height?.url,
+      full_url: gif.images?.original?.url || gif.images?.fixed_height?.url,
+    }));
+
+    return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("tenor-proxy error:", e);
+    console.error("giphy-proxy error:", e);
     return new Response(
       JSON.stringify({ error: "Failed to fetch GIFs" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
