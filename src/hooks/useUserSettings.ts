@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface UserSettings {
@@ -19,99 +19,82 @@ const DEFAULT_SETTINGS: UserSettings = {
   developerMode: false,
 };
 
+const loadFromLocalStorage = (): UserSettings => ({
+  accentColor: localStorage.getItem('accentColor') || DEFAULT_SETTINGS.accentColor,
+  customAccentColor: localStorage.getItem('customAccentColor') || null,
+  browserType: localStorage.getItem('browserType') || DEFAULT_SETTINGS.browserType,
+  searchEngine: localStorage.getItem('searchEngine') || DEFAULT_SETTINGS.searchEngine,
+  autoOpen: localStorage.getItem('autoOpen') !== 'false',
+  developerMode: localStorage.getItem('developerMode') === 'true',
+});
+
+const syncToLocalStorage = (s: UserSettings) => {
+  localStorage.setItem('accentColor', s.accentColor);
+  if (s.customAccentColor) {
+    localStorage.setItem('customAccentColor', s.customAccentColor);
+  } else {
+    localStorage.removeItem('customAccentColor');
+  }
+  localStorage.setItem('browserType', s.browserType);
+  localStorage.setItem('searchEngine', s.searchEngine);
+  localStorage.setItem('autoOpen', String(s.autoOpen));
+  if (s.developerMode) {
+    localStorage.setItem('developerMode', 'true');
+  } else {
+    localStorage.removeItem('developerMode');
+  }
+};
+
 export const useUserSettings = () => {
-  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  // Load from localStorage synchronously — never block render
+  const [settings, setSettings] = useState<UserSettings>(loadFromLocalStorage);
   const [userId, setUserId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading] = useState(false); // never loading — localStorage is instant
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
-  // Load settings from localStorage first, then override with DB if logged in
+  // Async: merge DB settings when auth is available
   useEffect(() => {
-    const loadSettings = async () => {
-      // Load from localStorage as defaults
-      const localSettings: UserSettings = {
-        accentColor: localStorage.getItem('accentColor') || DEFAULT_SETTINGS.accentColor,
-        customAccentColor: localStorage.getItem('customAccentColor') || null,
-        browserType: localStorage.getItem('browserType') || DEFAULT_SETTINGS.browserType,
-        searchEngine: localStorage.getItem('searchEngine') || DEFAULT_SETTINGS.searchEngine,
-        autoOpen: localStorage.getItem('autoOpen') !== 'false',
-        developerMode: localStorage.getItem('developerMode') === 'true',
-      };
-      setSettings(localSettings);
+    let active = true;
 
-      // Check if user is logged in
+    const mergeDbSettings = async (uid: string) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user ?? null;
-        if (user) {
-          setUserId(user.id);
-          // Fetch settings from database
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('settings')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (profile?.settings && typeof profile.settings === 'object') {
-            const dbSettings = profile.settings as Partial<UserSettings>;
-            const mergedSettings = { ...localSettings, ...dbSettings };
-            setSettings(mergedSettings);
-            // Sync to localStorage
-            syncToLocalStorage(mergedSettings);
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to fetch user settings from DB, using local settings', err);
-      }
-      setIsLoading(false);
-    };
-
-    loadSettings();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setUserId(session.user.id);
         const { data: profile } = await supabase
           .from('profiles')
           .select('settings')
-          .eq('id', session.user.id)
+          .eq('id', uid)
           .maybeSingle();
 
+        if (!active) return;
         if (profile?.settings && typeof profile.settings === 'object') {
           const dbSettings = profile.settings as Partial<UserSettings>;
-          setSettings(prev => {
-            const merged = { ...prev, ...dbSettings };
-            syncToLocalStorage(merged);
-            return merged;
-          });
+          const merged = { ...settingsRef.current, ...dbSettings };
+          setSettings(merged);
+          syncToLocalStorage(merged);
         }
+      } catch (err) {
+        console.warn('Failed to fetch user settings from DB', err);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+        setUserId(session.user.id);
+        mergeDbSettings(session.user.id);
       } else if (event === 'SIGNED_OUT') {
         setUserId(null);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const syncToLocalStorage = (s: UserSettings) => {
-    localStorage.setItem('accentColor', s.accentColor);
-    if (s.customAccentColor) {
-      localStorage.setItem('customAccentColor', s.customAccentColor);
-    } else {
-      localStorage.removeItem('customAccentColor');
-    }
-    localStorage.setItem('browserType', s.browserType);
-    localStorage.setItem('searchEngine', s.searchEngine);
-    localStorage.setItem('autoOpen', String(s.autoOpen));
-    if (s.developerMode) {
-      localStorage.setItem('developerMode', 'true');
-    } else {
-      localStorage.removeItem('developerMode');
-    }
-  };
-
   const updateSettings = useCallback(async (updates: Partial<UserSettings>) => {
-    const newSettings = { ...settings, ...updates };
+    const newSettings = { ...settingsRef.current, ...updates };
     setSettings(newSettings);
     syncToLocalStorage(newSettings);
 
@@ -124,13 +107,14 @@ export const useUserSettings = () => {
     }
 
     // Save to database if logged in
-    if (userId) {
+    const currentUserId = userId;
+    if (currentUserId) {
       await supabase
         .from('profiles')
         .update({ settings: newSettings })
-        .eq('id', userId);
+        .eq('id', currentUserId);
     }
-  }, [settings, userId]);
+  }, [userId]);
 
   return { settings, updateSettings, isLoading, isAuthenticated: !!userId };
 };
