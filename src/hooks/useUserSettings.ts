@@ -40,7 +40,8 @@ export const useUserSettings = () => {
 
       // Check if user is logged in
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
         if (user) {
           setUserId(user.id);
           // Fetch settings from database
