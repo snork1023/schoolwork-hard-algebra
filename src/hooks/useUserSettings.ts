@@ -8,6 +8,7 @@ export interface UserSettings {
   searchEngine: string;
   autoOpen: boolean;
   developerMode: boolean;
+  simpleMode: boolean;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   searchEngine: 'google',
   autoOpen: true,
   developerMode: false,
+  simpleMode: false,
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
@@ -26,6 +28,7 @@ const loadFromLocalStorage = (): UserSettings => ({
   searchEngine: localStorage.getItem('searchEngine') || DEFAULT_SETTINGS.searchEngine,
   autoOpen: localStorage.getItem('autoOpen') !== 'false',
   developerMode: localStorage.getItem('developerMode') === 'true',
+  simpleMode: localStorage.getItem('simpleMode') === 'true',
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
@@ -42,6 +45,11 @@ const syncToLocalStorage = (s: UserSettings) => {
     localStorage.setItem('developerMode', 'true');
   } else {
     localStorage.removeItem('developerMode');
+  }
+  if (s.simpleMode) {
+    localStorage.setItem('simpleMode', 'true');
+  } else {
+    localStorage.removeItem('simpleMode');
   }
 };
 

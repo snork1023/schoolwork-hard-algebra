@@ -1,12 +1,21 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Settings, MessageSquare, User, Sparkles, Gamepad2, LogIn } from "lucide-react";
+import { Home, Settings, MessageSquare, User, Sparkles, Gamepad2, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserSettings } from "@/hooks/useUserSettings";
 
 const Navigation = () => {
   const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const { settings } = useUserSettings();
+  const simpleMode = settings.simpleMode;
+
+  const handleAuthAction = async () => {
+    if (isLoggedIn) {
+      await supabase.auth.signOut();
+    }
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -48,31 +57,39 @@ const Navigation = () => {
                     key={link.to}
                     to={link.to}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
+                      "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
                       isActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                     )}
                   >
                     <Icon className="w-4 h-4" />
-                    <span className="hidden sm:inline">{link.label}</span>
+                    {!simpleMode && <span className="hidden sm:inline">{link.label}</span>}
                   </Link>
                 );
               })}
             </div>
 
-            {isLoggedIn === false && (
+            {isLoggedIn === false ? (
               <Link
                 to="/auth"
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg transition-all ml-2 bg-primary text-primary-foreground hover:bg-primary/90",
-                  location.pathname === "/auth" && "ring-2 ring-ring"
+                  "flex items-center gap-2 px-3 py-2 rounded-lg transition-all ml-2",
+                  location.pathname === "/auth"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 )}
               >
                 <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">Log In</span>
               </Link>
-            )}
+            ) : isLoggedIn === true ? (
+              <button
+                onClick={handleAuthAction}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
