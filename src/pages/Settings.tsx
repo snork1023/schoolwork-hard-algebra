@@ -162,6 +162,19 @@ const Settings = () => {
                     />
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Simple Mode</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Hide nav button labels, show icons only
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.simpleMode}
+                    onCheckedChange={(checked) => updateSettings({ simpleMode: checked })}
+                  />
+                </div>
               </CardContent>
             </Card>
 
