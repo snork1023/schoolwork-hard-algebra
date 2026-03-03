@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import Navigation from "@/components/Navigation";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
@@ -60,35 +59,45 @@ const Games = () => {
       <Navigation />
       
       <main className="container mx-auto px-4 pt-24 pb-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative mb-6 max-w-md mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="max-w-7xl mx-auto">
+          {/* Search bar like 55gms */}
+          <div className="relative mb-10 max-w-2xl mx-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search games..."
+              placeholder={`Click here or type to search through our ${games.length} games!`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-12 h-14 text-base bg-card/60 border-border/50 rounded-lg backdrop-blur-sm"
             />
           </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+
+          {/* Grid of game tiles — image-only cards like 55gms */}
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9 gap-2.5">
             {filteredGames.map(game => (
-              <div
+              <button
                 key={game.name}
                 onClick={() => setSelectedGame({ name: game.name, url: game.url })}
-                className="group cursor-pointer"
+                className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                title={game.name}
               >
-                <Card className="aspect-square bg-card border-border shadow-lg hover-glow transition-all group-hover:border-primary/50 flex flex-col items-center justify-center p-2">
-                  <img 
-                    src={game.icon} 
-                    alt={game.name} 
-                    className="h-20 w-20 mb-1 object-contain rounded-lg transition-transform duration-200 group-hover:scale-110"
-                  />
-                  <span className="text-xs font-medium text-center text-foreground">{game.name}</span>
-                </Card>
-              </div>
+                <img
+                  src={game.icon}
+                  alt={game.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                {/* Name overlay on hover */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{game.name}</span>
+                </div>
+              </button>
             ))}
           </div>
+
+          {filteredGames.length === 0 && (
+            <p className="text-center text-muted-foreground mt-12">No games found matching "{searchQuery}"</p>
+          )}
         </div>
       </main>
 
