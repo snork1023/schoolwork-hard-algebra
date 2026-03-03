@@ -13,6 +13,7 @@ import CommunityChat from "./pages/CommunityChat";
 import Account from "./pages/Account";
 import Games from "./pages/Games";
 import NotFound from "./pages/NotFound";
+import BrowserView from "./components/BrowserView";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/browser" element={<BrowserView />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
