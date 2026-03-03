@@ -20,7 +20,7 @@ const ProxyInput = () => {
       return;
     }
 
-    const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(query.trim())}`;
+    const searchUrl = `https://www.startpage.com/do/search?q=${encodeURIComponent(query.trim())}`;
     navigate(`/browser?url=${encodeURIComponent(searchUrl)}`);
     setQuery("");
   };
@@ -34,7 +34,7 @@ const ProxyInput = () => {
       <div className="flex gap-3">
         <Input
           type="text"
-          placeholder="Search with DuckDuckGo..."
+          placeholder="Search with Startpage..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyPress={handleKeyPress}
