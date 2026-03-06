@@ -127,30 +127,6 @@ export type Database = {
           },
         ]
       }
-      custom_games: {
-        Row: {
-          added_by: string
-          created_at: string
-          id: string
-          iframe_src: string
-          name: string
-        }
-        Insert: {
-          added_by: string
-          created_at?: string
-          id?: string
-          iframe_src: string
-          name: string
-        }
-        Update: {
-          added_by?: string
-          created_at?: string
-          id?: string
-          iframe_src?: string
-          name?: string
-        }
-        Relationships: []
-      }
       message_reactions: {
         Row: {
           created_at: string | null
