@@ -1,129 +1,216 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Navigation from "@/components/Navigation";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Search, Plus, Trash2, Gamepad2 } from "lucide-react";
+import { useSettingsContext } from "@/components/SettingsProvider";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
-interface Game {
+interface CustomGame {
+  id: string;
   name: string;
-  gdId: string; // GameDistribution hash ID
+  iframeSrc: string;
+  addedAt: number;
 }
 
-// Games from GameDistribution — these are designed for iframe embedding
-const games: Game[] = [
-  { name: "Thread Sort", gdId: "b3432cc59437485f8239574bd4150856" },
-  { name: "Cool SuperCars Stunts PvP", gdId: "c0ec7c50918143e8b7ba4b32282ed0e9" },
-  { name: "Small Wardrobe", gdId: "b87d87d8b9954adf92f0aae4b9f28290" },
-  { name: "Bubble Shooter Pro 4", gdId: "a2cd0ba0848b49b98ade7d2b8553f09d" },
-  { name: "Goo Goo Gaga Clicker", gdId: "740fca628f4e499d95084c2d3c935acb" },
-  { name: "Cake Merge", gdId: "1eabbe506bb743b48cda0dd4d7eef627" },
-  { name: "M5 City Driver", gdId: "ce70177ea1894fcb9421898b1e56a290" },
-  { name: "TapKO", gdId: "ac6a598abb184816af3be3acec546fb5" },
-  { name: "Jewels Blitz Legends", gdId: "36cb9c95a60244d4899f6d79210e7f4d" },
-  { name: "Slippery Drift Racing", gdId: "f312653358ec4c959a68e43bef2b72c6" },
-  { name: "Farm Blast", gdId: "8e9f68b6765f4c39a4c243c4dc6a4ec5" },
-  { name: "Racing Ball Adventure", gdId: "ddb44f5a2ab242969f0e5df218cb0640" },
-  { name: "Avenger Guard", gdId: "c89b6590d54245c390eb27cc7d8048c9" },
-  { name: "Tripeaks Solitaire Escapes", gdId: "c1337d45912e45b5be9666f08ba81963" },
-  { name: "Snow Rider Obby Parkour", gdId: "1d74e75b8da74767938d3310255b4bd3" },
-  { name: "Police Traffic Racer", gdId: "8748f54767044b99bc5373fc61596123" },
-  { name: "Thread Match 2", gdId: "58e78963f24c4305931be1bffa305a19" },
-  { name: "Daily Match", gdId: "a523b0c0ab444333b57347b6604f10c6" },
-  { name: "Wood Block Puzzle 3", gdId: "a00735b23bde40798cfc095745212754" },
-  { name: "Two Stunt Supercars", gdId: "b57c15d037024b798c2e80efbca087cc" },
-  { name: "Sudoku Brain Blocks", gdId: "cd86994bb8a44da48354779bdc56e8f8" },
-  { name: "Mojicon Love Connect", gdId: "6fb271b6c4164d22b10ab39e632c7747" },
-  { name: "Challenger City Driver", gdId: "f38d251c8d8a4477aabde9953d8ac971" },
-  { name: "Water Sort - Collections", gdId: "9ceb5732c253496e8589ac28574e0a81" },
-  { name: "Crazy Tunnel", gdId: "dd2ab5adad664c508d3fa032bd19e8c8" },
-  { name: "VegaMix Da Vinci Puzzles", gdId: "1a249236f03f474db586aeba1abafae0" },
-  { name: "Luxury Highway Cars", gdId: "5439e7734cf14dd082fe993be28b99db" },
-  { name: "Zombie Survival Shooter", gdId: "53ad84c4f3b440f2b65d5382fadf731f" },
-  { name: "Obby Toilet Line", gdId: "27214a866f174c7ebdf0089d6b383d9f" },
-  { name: "Winter Maze", gdId: "c07b3857103b41d5b3ca5ae0401027eb" },
-  { name: "Wild West Match 3", gdId: "0f34626576354c7cb131c2e1fb4b8ae6" },
-  { name: "Bubble Shooter: Spinner Pop", gdId: "e8e7f97933894e0c92422ec237d66d14" },
-  { name: "Coin Stack Up", gdId: "64e5597f616e4d58960e3b263a286e15" },
-  { name: "Gear Wars", gdId: "a6523a16099543ec804ed4057be06c0e" },
-  { name: "Mojicon Fruit Connect", gdId: "b085b22a85384f558238432316e5ba32" },
-  { name: "Kings and Queens Match 3", gdId: "15c88d1729174ebbae48fdd8e45d54e1" },
-  { name: "Steal Brainrot Eggs", gdId: "e07da43b39e443738d6a84a4a6255c32" },
-  { name: "Steal Brainrot Arena", gdId: "4592e84523ad49a8b80986c3aa503429" },
-  { name: "Color Water Puzzle", gdId: "0ea7b7e7316a47c38ac5c98ddd42ec4a" },
-  { name: "Survive The Night", gdId: "2a7a74f769ea40babd7d55ed7704af44" },
-  { name: "Pinball VS Zombie", gdId: "5cdec698c5ce4e66af14ea5b3968ef08" },
-  { name: "Catch a Fish Obby", gdId: "ac47a3b950d74509922e2c1724a4ed20" },
-  { name: "Skillful Finger", gdId: "c7af7f58929a4a3c891ccf1192223a6a" },
-  { name: "Crazy Bike Stunts PvP", gdId: "0c89181b9cfe4897afa41b0f94385da9" },
-  { name: "Plant Merge: Zombie War", gdId: "9190c99d4aae4e0085a6059478ee3520" },
-  { name: "Bubble Shooter Wild West", gdId: "0b18452cd7844e308b726bf05034fac2" },
-  { name: "Crazy Traffic Racer", gdId: "d0b8e5ba257d4f888738a7ec722443f1" },
-  { name: "Wave Dash: Geometry Arrow", gdId: "50d154abb6c5483b847cbeea848e73ff" },
-  { name: "Obby Rainbow Tower", gdId: "57de0fa8b9fb4df783e7eb8248ac5e5a" },
-];
+const STORAGE_KEY = "debug_custom_games";
 
-const getGameThumb = (gdId: string) =>
-  `https://img.gamedistribution.com/${gdId}-512x384.jpg`;
+const loadCustomGames = (): CustomGame[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
 
-const getGameUrl = (gdId: string) =>
-  `https://html5.gamedistribution.com/${gdId}/`;
+const saveCustomGames = (games: CustomGame[]) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+};
+
+/** Extract the src URL from an iframe snippet, or treat raw URL as src */
+const extractIframeSrc = (input: string): string | null => {
+  const trimmed = input.trim();
+  // If it looks like a URL already
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // Try to pull src from iframe tag
+  const match = trimmed.match(/src\s*=\s*["']([^"']+)["']/i);
+  return match ? match[1] : null;
+};
 
 const Games = () => {
+  const { settings } = useSettingsContext();
+  const [customGames, setCustomGames] = useState<CustomGame[]>(loadCustomGames);
   const [selectedGame, setSelectedGame] = useState<{ name: string; url: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newIframe, setNewIframe] = useState("");
+
+  const isDebug = settings.developerMode;
 
   const filteredGames = useMemo(() => {
-    return games
-      .filter(game => game.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    return customGames
+      .filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [searchQuery]);
+  }, [searchQuery, customGames]);
+
+  const handleAddGame = useCallback(() => {
+    const name = newName.trim();
+    if (!name) {
+      toast.error("Enter a game name");
+      return;
+    }
+    if (name.length > 100) {
+      toast.error("Name must be under 100 characters");
+      return;
+    }
+    const src = extractIframeSrc(newIframe);
+    if (!src) {
+      toast.error("Could not find a valid URL in the iframe code");
+      return;
+    }
+    // Only allow https
+    if (!src.startsWith("https://")) {
+      toast.error("Only HTTPS URLs are allowed");
+      return;
+    }
+    const game: CustomGame = {
+      id: crypto.randomUUID(),
+      name,
+      iframeSrc: src,
+      addedAt: Date.now(),
+    };
+    const updated = [...customGames, game];
+    setCustomGames(updated);
+    saveCustomGames(updated);
+    setNewName("");
+    setNewIframe("");
+    setAddDialogOpen(false);
+    toast.success(`Added "${name}"`);
+  }, [newName, newIframe, customGames]);
+
+  const handleDeleteGame = useCallback((id: string) => {
+    const updated = customGames.filter(g => g.id !== id);
+    setCustomGames(updated);
+    saveCustomGames(updated);
+    toast.success("Game removed");
+  }, [customGames]);
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-7xl mx-auto">
-          {/* Search bar */}
-          <div className="relative mb-10 max-w-2xl mx-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder={`Search through ${games.length} games...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-14 text-base bg-card/60 border-border/50 rounded-lg backdrop-blur-sm"
-            />
-          </div>
-
-          {/* Grid of game tiles */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3">
-            {filteredGames.map(game => (
-              <button
-                key={game.gdId}
-                onClick={() => setSelectedGame({ name: game.name, url: getGameUrl(game.gdId) })}
-                className="group relative aspect-[4/3] rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                title={game.name}
+          {/* Search + Add */}
+          <div className="flex items-center gap-3 mb-10 max-w-2xl mx-auto">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={`Search ${customGames.length} game${customGames.length !== 1 ? "s" : ""}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-14 text-base bg-card/60 border-border/50 rounded-lg backdrop-blur-sm"
+              />
+            </div>
+            {isDebug && (
+              <Button
+                onClick={() => setAddDialogOpen(true)}
+                size="lg"
+                className="h-14 gap-2"
               >
-                <img
-                  src={getGameThumb(game.gdId)}
-                  alt={game.name}
-                  className="w-full h-full object-cover bg-muted"
-                  loading="lazy"
-                />
-                {/* Name overlay on hover */}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{game.name}</span>
-                </div>
-              </button>
-            ))}
+                <Plus className="h-5 w-5" />
+                Add
+              </Button>
+            )}
           </div>
 
-          {filteredGames.length === 0 && (
-            <p className="text-center text-muted-foreground mt-12">No games found matching "{searchQuery}"</p>
+          {/* Game grid */}
+          {filteredGames.length > 0 ? (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3">
+              {filteredGames.map(game => (
+                <div key={game.id} className="group relative">
+                  <button
+                    onClick={() => setSelectedGame({ name: game.name, url: game.iframeSrc })}
+                    className="w-full aspect-[4/3] rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted flex items-center justify-center"
+                    title={game.name}
+                  >
+                    <div className="flex flex-col items-center gap-2 p-2">
+                      <Gamepad2 className="h-8 w-8 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-foreground leading-tight line-clamp-2 text-center">
+                        {game.name}
+                      </span>
+                    </div>
+                  </button>
+                  {isDebug && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id); }}
+                      className="absolute top-1 right-1 p-1 rounded bg-destructive/80 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Remove game"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground mt-12">
+              {searchQuery
+                ? `No games found matching "${searchQuery}"`
+                : isDebug
+                  ? "No games yet — click Add to embed one"
+                  : "No games available"
+              }
+            </div>
           )}
         </div>
       </main>
+
+      {/* Add Game Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Game</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Name</label>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="My Game"
+                maxLength={100}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Iframe embed code or URL</label>
+              <Textarea
+                value={newIframe}
+                onChange={(e) => setNewIframe(e.target.value)}
+                placeholder='<iframe src="https://..." ...>'
+                className="mt-1 min-h-[100px] font-mono text-xs"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddGame}>Add Game</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <GamePlayerDialog
         open={!!selectedGame}
