@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Trash2, Gamepad2 } from "lucide-react";
+import { Search, Plus, Trash2, Gamepad2, Loader2 } from "lucide-react";
 import { useSettingsContext } from "@/components/SettingsProvider";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
 import {
@@ -14,97 +14,113 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CustomGame {
   id: string;
   name: string;
-  iframeSrc: string;
-  addedAt: number;
+  iframe_src: string;
+  added_by: string;
+  created_at: string;
 }
-
-const STORAGE_KEY = "debug_custom_games";
-
-const loadCustomGames = (): CustomGame[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveCustomGames = (games: CustomGame[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
-};
 
 /** Extract the src URL from an iframe snippet, or treat raw URL as src */
 const extractIframeSrc = (input: string): string | null => {
   const trimmed = input.trim();
-  // If it looks like a URL already
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  // Try to pull src from iframe tag
+  if (/^https:\/\//i.test(trimmed)) return trimmed;
   const match = trimmed.match(/src\s*=\s*["']([^"']+)["']/i);
   return match ? match[1] : null;
 };
 
 const Games = () => {
   const { settings } = useSettingsContext();
-  const [customGames, setCustomGames] = useState<CustomGame[]>(loadCustomGames);
+  const [games, setGames] = useState<CustomGame[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
   const [selectedGame, setSelectedGame] = useState<{ name: string; url: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newIframe, setNewIframe] = useState("");
 
   const isDebug = settings.developerMode;
 
-  const filteredGames = useMemo(() => {
-    return customGames
-      .filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [searchQuery, customGames]);
+  // Get auth state
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const handleAddGame = useCallback(() => {
-    const name = newName.trim();
-    if (!name) {
-      toast.error("Enter a game name");
+  // Fetch games
+  useEffect(() => {
+    const fetchGames = async () => {
+      const { data, error } = await supabase
+        .from("custom_games")
+        .select("*")
+        .order("name");
+      if (error) {
+        console.error("Failed to load games", error);
+      } else {
+        setGames(data as CustomGame[]);
+      }
+      setLoading(false);
+    };
+    fetchGames();
+  }, []);
+
+  const filteredGames = useMemo(() => {
+    return games.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [searchQuery, games]);
+
+  const handleAddGame = useCallback(async () => {
+    if (!userId) {
+      toast.error("You must be logged in");
       return;
     }
-    if (name.length > 100) {
-      toast.error("Name must be under 100 characters");
+    const name = newName.trim();
+    if (!name || name.length > 100) {
+      toast.error("Enter a valid game name (1-100 chars)");
       return;
     }
     const src = extractIframeSrc(newIframe);
-    if (!src) {
-      toast.error("Could not find a valid URL in the iframe code");
+    if (!src || !src.startsWith("https://")) {
+      toast.error("Only valid HTTPS URLs are allowed");
       return;
     }
-    // Only allow https
-    if (!src.startsWith("https://")) {
-      toast.error("Only HTTPS URLs are allowed");
+
+    setAdding(true);
+    const { data, error } = await supabase
+      .from("custom_games")
+      .insert({ name, iframe_src: src, added_by: userId })
+      .select()
+      .single();
+    setAdding(false);
+
+    if (error) {
+      toast.error("Failed to add game");
+      console.error(error);
       return;
     }
-    const game: CustomGame = {
-      id: crypto.randomUUID(),
-      name,
-      iframeSrc: src,
-      addedAt: Date.now(),
-    };
-    const updated = [...customGames, game];
-    setCustomGames(updated);
-    saveCustomGames(updated);
+
+    setGames(prev => [...prev, data as CustomGame].sort((a, b) => a.name.localeCompare(b.name)));
     setNewName("");
     setNewIframe("");
     setAddDialogOpen(false);
     toast.success(`Added "${name}"`);
-  }, [newName, newIframe, customGames]);
+  }, [newName, newIframe, userId]);
 
-  const handleDeleteGame = useCallback((id: string) => {
-    const updated = customGames.filter(g => g.id !== id);
-    setCustomGames(updated);
-    saveCustomGames(updated);
+  const handleDeleteGame = useCallback(async (id: string) => {
+    const { error } = await supabase.from("custom_games").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to remove game");
+      return;
+    }
+    setGames(prev => prev.filter(g => g.id !== id));
     toast.success("Game removed");
-  }, [customGames]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -118,18 +134,14 @@ const Games = () => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder={`Search ${customGames.length} game${customGames.length !== 1 ? "s" : ""}...`}
+                placeholder={`Search ${games.length} game${games.length !== 1 ? "s" : ""}...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 h-14 text-base bg-card/60 border-border/50 rounded-lg backdrop-blur-sm"
               />
             </div>
-            {isDebug && (
-              <Button
-                onClick={() => setAddDialogOpen(true)}
-                size="lg"
-                className="h-14 gap-2"
-              >
+            {isDebug && userId && (
+              <Button onClick={() => setAddDialogOpen(true)} size="lg" className="h-14 gap-2">
                 <Plus className="h-5 w-5" />
                 Add
               </Button>
@@ -137,12 +149,16 @@ const Games = () => {
           </div>
 
           {/* Game grid */}
-          {filteredGames.length > 0 ? (
+          {loading ? (
+            <div className="flex justify-center mt-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredGames.length > 0 ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3">
               {filteredGames.map(game => (
                 <div key={game.id} className="group relative">
                   <button
-                    onClick={() => setSelectedGame({ name: game.name, url: game.iframeSrc })}
+                    onClick={() => setSelectedGame({ name: game.name, url: game.iframe_src })}
                     className="w-full aspect-[4/3] rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted flex items-center justify-center"
                     title={game.name}
                   >
@@ -153,7 +169,7 @@ const Games = () => {
                       </span>
                     </div>
                   </button>
-                  {isDebug && (
+                  {isDebug && userId && game.added_by === userId && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id); }}
                       className="absolute top-1 right-1 p-1 rounded bg-destructive/80 text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
@@ -207,7 +223,10 @@ const Games = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddGame}>Add Game</Button>
+            <Button onClick={handleAddGame} disabled={adding}>
+              {adding && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Add Game
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
