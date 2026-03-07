@@ -50,9 +50,6 @@ const Games = () => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
-                <span className="absolute inset-0 flex items-center justify-center text-foreground text-sm font-bold pointer-events-none">
-                  {game.name}
-                </span>
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                   <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{game.name}</span>
                 </div>
