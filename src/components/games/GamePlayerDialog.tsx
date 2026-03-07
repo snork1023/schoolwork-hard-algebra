@@ -1,10 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Maximize, Home } from "lucide-react";
+import { RefreshCw, Maximize, Minimize, Home } from "lucide-react";
 
 interface GamePlayerDialogProps {
   open: boolean;
@@ -16,6 +16,16 @@ interface GamePlayerDialogProps {
 const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerDialogProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [key, setKey] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const handleReload = () => {
     setKey(prev => prev + 1);
@@ -40,10 +50,16 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         id="game-container"
-        className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 bg-background border-border"
+        className={`p-0 gap-0 bg-background border-border ${
+          isFullscreen 
+            ? 'w-screen h-screen max-w-none' 
+            : 'max-w-[95vw] w-[95vw] h-[90vh]'
+        }`}
       >
         {/* Control Bar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card">
+        <div className={`flex items-center justify-between px-4 py-2 border-b border-border bg-card ${
+          isFullscreen ? 'hidden' : ''
+        }`}>
           <span className="font-medium text-foreground">{gameName}</span>
           <div className="flex items-center gap-2">
             <Button
@@ -58,9 +74,9 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
               variant="ghost"
               size="icon"
               onClick={handleFullscreen}
-              title="Fullscreen"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
-              <Maximize className="h-4 w-4" />
+              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             </Button>
             <Button
               variant="ghost"
@@ -74,7 +90,11 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
         </div>
 
         {/* Game iframe */}
-        <div className="flex-1 w-full h-[calc(90vh-52px)] bg-black">
+        <div className={`bg-black ${
+          isFullscreen 
+            ? 'w-full h-full' 
+            : 'flex-1 w-full h-[calc(90vh-52px)]'
+        }`}>
           <iframe
             key={key}
             ref={iframeRef}
