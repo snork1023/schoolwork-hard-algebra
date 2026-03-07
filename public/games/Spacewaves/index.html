@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en-us"><head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -52,7 +53,6 @@
       const spinner = document.querySelector('.spinner');
 
       const buildUrl = "https://slope3.com/game/space-wave/Build";
-      const loaderUrl = buildUrl + "/dae5c7bd2b15915f51ae4e56b8f5367d.loader.js";
       const config = {
         dataUrl: buildUrl + "/568ea6b3af616bd57f419c508c933303.data.unityweb",
         frameworkUrl: buildUrl + "/c699bc4c24abfbdb4c8b3e15b0af7d3f.framework.js.unityweb",
@@ -61,37 +61,41 @@
         companyName: "do.Games",
         productName: "Space Waves",
         productVersion: "1.1.2-ms",
-matchWebGLToCanvasSize: "false"
+        matchWebGLToCanvasSize: "false"
       };
   
       loadingCover.style.display = "";
   
-  var needMigrate = false;
-  var gameInstance;
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
+      var needMigrate = false;
+      var gameInstance;
+
+      // once loader script has run, call createUnityInstance
+      function initUnity() {
         createUnityInstance(canvas, config, (progress) => {
-      spinner.style.display = "none";
+          spinner.style.display = "none";
           progressBarEmpty.style.display = "";
           progressBarFull.style.width = 100 * progress + "%";
         }).then((unityInstance) => {
-      console.log("<do.G> Unity inited");
+          console.log("<do.G> Unity inited");
           gameInstance = unityInstance;
           loadingCover.style.display = "none";
-  resizeCanvas();
-  loadAds();
-  
-  if (needMigrate) {
-needMigrate = false;
-        gameInstance.SendMessage('MSStartSDK', 'OnMigratePlayerPrefs', window["fetchPlayerPrefs"]);
-  }
-  
+          resizeCanvas();
+          loadAds();
+          if (needMigrate) {
+            needMigrate = false;
+            gameInstance.SendMessage('MSStartSDK', 'OnMigratePlayerPrefs', window["fetchPlayerPrefs"]);
+          }
         }).catch((message) => {
           alert(message);
         });
-      };
-      document.body.appendChild(script);
+      }
+
+      // defer call until loader script has defined createUnityInstance
+      if (typeof createUnityInstance !== 'undefined') {
+        initUnity();
+      } else {
+        window.addEventListener('load', initUnity);
+      }
   
   // Focus
      function setFocus() {
@@ -235,6 +239,7 @@ loadRewardedAd();
   }
   
 </script>
+    <script src="https://slope3.com/game/space-wave/Build/dae5c7bd2b15915f51ae4e56b8f5367d.loader.js"></script>
 
   <script defer="" src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;d6959902c2b6442cb4db66f5b120c4a6&quot;,&quot;r&quot;:1,&quot;server_timing&quot;:{&quot;name&quot;:{&quot;cfCacheStatus&quot;:true,&quot;cfEdge&quot;:true,&quot;cfExtPri&quot;:true,&quot;cfL4&quot;:true,&quot;cfOrigin&quot;:true,&quot;cfSpeedBrain&quot;:true},&quot;location_startswith&quot;:null}}" crossorigin="anonymous"></script>
 
