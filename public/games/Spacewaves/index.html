@@ -5,10 +5,15 @@
     <title>Space Waves</title>
     <link rel="stylesheet" href="TemplateData/style.css">
 <link rel="manifest" href="manifest.json">
+    <style>
+      html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
+      #unity-container { width:100%; height:100%; }
+      #unity-canvas { width:100%; height:100%; }
+    </style>
   </head>
   <body class="noselect">
     <div id="unity-container">
-      <canvas id="unity-canvas" width="420" height="780" style="cursor: default;"></canvas>
+      <canvas id="unity-canvas" style="cursor: default;"></canvas>
     </div>
     <div id="loading-cover" style="display: none;">
       <div id="unity-loading-bar">
