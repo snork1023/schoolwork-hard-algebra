@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IXL Learning</title>
+    <title>Spacewaves</title>
     <style>
         body {
             margin: 0;
@@ -19,6 +19,65 @@
     </style>
 </head>
 <body>
-    <iframe src="https://shopinshop.org/play/?id=1172" allowfullscreen></iframe>
+    <iframe src="https://shopinshop.org/play/?id=1172" onload="hideElements()" allowfullscreen></iframe>
+
+    <script>
+        function hideElements() {
+            try {
+                const iframe = document.querySelector('iframe');
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                // Hide common header/navigation elements
+                const selectorsToHide = [
+                    'header',
+                    '.header',
+                    'nav',
+                    '.navbar',
+                    '.navigation',
+                    '.menu',
+                    '.top-bar',
+                    '.banner',
+                    '.alert',
+                    '#header',
+                    '#nav',
+                    '#menu',
+                    '.ad',
+                    '.ads',
+                    '.advertisement',
+                    '.sidebar',
+                    '.footer',
+                    '#footer'
+                ];
+
+                selectorsToHide.forEach(selector => {
+                    try {
+                        const elements = iframeDoc.querySelectorAll(selector);
+                        elements.forEach(el => {
+                            el.style.display = 'none';
+                        });
+                    } catch (e) {
+                        // Ignore errors for cross-origin restrictions
+                    }
+                });
+
+                // Try to make the main content full screen
+                try {
+                    const body = iframeDoc.body;
+                    const html = iframeDoc.documentElement;
+                    body.style.margin = '0';
+                    body.style.padding = '0';
+                    html.style.margin = '0';
+                    html.style.padding = '0';
+                    body.style.overflow = 'hidden';
+                } catch (e) {
+                    // Ignore cross-origin errors
+                }
+
+            } catch (e) {
+                // Cross-origin restrictions may prevent this
+                console.log('Could not modify iframe content due to cross-origin restrictions');
+            }
+        }
+    </script>
 </body>
 </html>
