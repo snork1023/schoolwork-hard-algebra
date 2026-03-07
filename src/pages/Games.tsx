@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Navigation from "@/components/Navigation";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface GameEntry {
   folder: string;
@@ -9,6 +11,7 @@ interface GameEntry {
 
 const Games = () => {
   const [games, setGames] = useState<GameEntry[]>([]);
+  const [search, setSearch] = useState("");
   const [selectedGame, setSelectedGame] = useState<{ name: string; url: string } | null>(null);
 
   useEffect(() => {
@@ -18,18 +21,33 @@ const Games = () => {
       .catch(() => setGames([]));
   }, []);
 
+  const filteredGames = useMemo(
+    () => games.filter((g) => g.name.toLowerCase().includes(search.toLowerCase())),
+    [games, search]
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
 
       <main className="container mx-auto px-4 pt-24 pb-12">
-        <div className="max-w-7xl mx-auto">
-          {games.length === 0 && (
-            <p className="text-center text-muted-foreground mt-12">No games found. Add a folder to <code>public/games/</code> and update <code>manifest.json</code>.</p>
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="relative max-w-md mx-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search games..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {filteredGames.length === 0 && (
+            <p className="text-center text-muted-foreground mt-12">No games found.</p>
           )}
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3">
-            {games.map((game) => (
+            {filteredGames.map((game) => (
               <button
                 key={game.folder}
                 onClick={() =>
@@ -38,13 +56,13 @@ const Games = () => {
                     url: `/games/${game.folder}/index.html`,
                   })
                 }
-                className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted flex items-center justify-center"
+                className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted"
                 title={game.name}
               >
                 <img
                   src={`/games/${game.folder}/thumb.png`}
                   alt={game.name}
-                  className="w-3/4 h-3/4 object-contain"
+                  className="w-full h-full object-cover"
                   loading="lazy"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = "none";
