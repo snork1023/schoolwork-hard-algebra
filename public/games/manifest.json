@@ -2,5 +2,9 @@
   {
     "folder": "2048",
     "name": "2048"
+  },
+  {
+    "folder": "Slope",
+    "name": "Slope"
   }
 ]
