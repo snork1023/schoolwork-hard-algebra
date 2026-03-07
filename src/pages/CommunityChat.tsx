@@ -706,7 +706,7 @@ const CommunityChat = () => {
       </div>;
   }
   return <div className="h-screen bg-background flex flex-col">
-      <Navigation />
+      
       <div className="flex-1 pt-16 flex overflow-hidden">
         <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
 
