@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { User, Loader2, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 interface ProfileViewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
+  currentUserId?: string;
+  onConversationCreated?: () => void;
 }
 
 interface Profile {
@@ -18,9 +23,11 @@ interface Profile {
   status_message: string | null;
 }
 
-export const ProfileViewDialog = ({ open, onOpenChange, userId }: ProfileViewDialogProps) => {
+export const ProfileViewDialog = ({ open, onOpenChange, userId, currentUserId, onConversationCreated }: ProfileViewDialogProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creatingDM, setCreatingDM] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!open || !userId) return;
@@ -41,6 +48,82 @@ export const ProfileViewDialog = ({ open, onOpenChange, userId }: ProfileViewDia
 
     fetchProfile();
   }, [open, userId]);
+
+  const handleStartDM = async () => {
+    if (!currentUserId || !userId || creatingDM) return;
+
+    setCreatingDM(true);
+    try {
+      // Check if DM already exists
+      const { data: existingConvs } = await supabase
+        .from("conversations")
+        .select(`
+          id,
+          type,
+          conversation_participants!inner(user_id)
+        `)
+        .eq("type", "dm");
+
+      // Find a DM where both users are participants
+      let existingDmId: string | null = null;
+      if (existingConvs) {
+        for (const conv of existingConvs) {
+          const participantIds = (conv.conversation_participants as any[]).map(p => p.user_id);
+          if (participantIds.length === 2 && 
+              participantIds.includes(currentUserId) && 
+              participantIds.includes(userId)) {
+            existingDmId = conv.id;
+            break;
+          }
+        }
+      }
+
+      if (existingDmId) {
+        toast({
+          title: "Opening existing conversation",
+        });
+        onConversationCreated?.();
+        onOpenChange(false);
+        return;
+      }
+
+      // Create new conversation
+      const { data: conversation, error: convError } = await supabase
+        .from("conversations")
+        .insert({
+          type: "dm",
+          created_by: currentUserId,
+        })
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Add participants
+      const { error: partError } = await supabase
+        .from("conversation_participants")
+        .insert([
+          { conversation_id: conversation.id, user_id: currentUserId },
+          { conversation_id: conversation.id, user_id: userId },
+        ]);
+
+      if (partError) throw partError;
+
+      toast({
+        title: "DM created successfully",
+      });
+      onConversationCreated?.();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        title: "Error creating DM",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingDM(false);
+    }
+  };
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -97,6 +180,26 @@ export const ProfileViewDialog = ({ open, onOpenChange, userId }: ProfileViewDia
                   {profile.bio}
                 </p>
               </div>
+            )}
+
+            {currentUserId && currentUserId !== userId && (
+              <Button 
+                onClick={handleStartDM}
+                disabled={creatingDM}
+                className="w-full"
+              >
+                {creatingDM ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Send Direct Message
+                  </>
+                )}
+              </Button>
             )}
           </div>
         ) : (
