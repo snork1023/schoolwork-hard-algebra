@@ -56,7 +56,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         id="game-container"
-        className={`p-0 gap-0 bg-background border-border ${
+        className={`p-0 gap-0 bg-background border-border [&>button[class*="absolute"]]:hidden ${
           isFullscreen 
             ? 'w-screen h-screen max-w-none' 
             : 'max-w-[95vw] w-[95vw] h-[90vh]'
