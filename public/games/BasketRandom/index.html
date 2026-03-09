@@ -9,8 +9,29 @@
 	<link rel="stylesheet"
 		href="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/style.css"
 		type="text/css">
+	<style>
+		/* Hide ads */
+		.ad, .ads, .adsbygoogle, [class*="ad-"], [id*="ad-"],
+		iframe[src*="ads"], iframe[src*="doubleclick"],
+		div[id*="google_ads"], div[class*="advertisement"] {
+			display: none !important;
+			visibility: hidden !important;
+			width: 0 !important;
+			height: 0 !important;
+		}
+	</style>
 	<script>
-		window.addEventListener("keydown", function(e) { // space and arrow keys if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) { e.preventDefault(); } }, false); 
+		window.addEventListener("keydown", function(e) { // space and arrow keys if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) { e.preventDefault(); } }, false);
+		
+		// Block ad elements
+		document.addEventListener("DOMContentLoaded", function() {
+			setInterval(function() {
+				const adSelectors = ['.ad', '.ads', '.adsbygoogle', '[class*="ad-"]', '[id*="ad-"]', 'iframe[src*="ads"]', 'iframe[src*="doubleclick"]'];
+				adSelectors.forEach(selector => {
+					document.querySelectorAll(selector).forEach(el => el.remove());
+				});
+			}, 1000);
+		});
 	</script>
 </head>
 
