@@ -174,15 +174,21 @@
           fetchArrayBuffer(remoteBase + "GeometryDashLite.wasm.framework.unityweb.part1"),
         ]);
 
-        const dataUrl = URL.createObjectURL(
+        const dataBlobUrl = URL.createObjectURL(
           new Blob([concatArrayBuffers([data1, data2])], { type: "application/octet-stream" })
         );
-        const wasmCodeUrl = URL.createObjectURL(
+        const wasmCodeBlobUrl = URL.createObjectURL(
           new Blob([wasmCode1], { type: "application/octet-stream" })
         );
-        const wasmFrameworkUrl = URL.createObjectURL(
+        const wasmFrameworkBlobUrl = URL.createObjectURL(
           new Blob([wasmFramework1], { type: "application/octet-stream" })
         );
+
+        // UnityLoader decides whether it needs to decompress based on the URL string.
+        // Add a fragment that contains the original filename so it behaves like a real .unityweb request.
+        const dataUrl = dataBlobUrl + "#GeometryDashLite.data.unityweb";
+        const wasmCodeUrl = wasmCodeBlobUrl + "#GeometryDashLite.wasm.code.unityweb";
+        const wasmFrameworkUrl = wasmFrameworkBlobUrl + "#GeometryDashLite.wasm.framework.unityweb";
 
         const configRes = await fetch("Build/GeometryDashLite.json", { cache: "no-cache" });
         if (!configRes.ok) throw new Error("Failed to load local GeometryDashLite.json");
