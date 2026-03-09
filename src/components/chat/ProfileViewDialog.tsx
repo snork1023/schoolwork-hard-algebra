@@ -23,9 +23,11 @@ interface Profile {
   status_message: string | null;
 }
 
-export const ProfileViewDialog = ({ open, onOpenChange, userId }: ProfileViewDialogProps) => {
+export const ProfileViewDialog = ({ open, onOpenChange, userId, currentUserId, onConversationCreated }: ProfileViewDialogProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creatingDM, setCreatingDM] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!open || !userId) return;
