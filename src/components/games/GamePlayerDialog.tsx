@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Maximize, Minimize, Home } from "lucide-react";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface GamePlayerDialogProps {
   open: boolean;
