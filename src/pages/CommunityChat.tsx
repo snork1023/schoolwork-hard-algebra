@@ -20,6 +20,7 @@ import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
 import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
 import { CreatePollDialog } from "@/components/chat/CreatePollDialog";
 import { PollCard } from "@/components/chat/PollCard";
+import { ProfileViewDialog } from "@/components/chat/ProfileViewDialog";
 import { useAutoIdle } from "@/hooks/useAutoIdle";
 import { Send, FileText, Loader2 } from "lucide-react";
 import { getUserFriendlyError } from "@/lib/error-utils";
@@ -108,6 +109,8 @@ const CommunityChat = () => {
   const [createPollOpen, setCreatePollOpen] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
@@ -766,9 +769,15 @@ const CommunityChat = () => {
                           <div key={message.id} className={`group flex flex-col ${message.user_id === user?.id ? "items-end" : "items-start"} ${showExtraSpacing ? "mt-4" : ""}`}>
                             {showHeader && (
                               <div className="flex items-baseline gap-2 mb-1">
-                                <span className="text-sm font-medium">
+                                <button
+                                  onClick={() => {
+                                    setSelectedUserId(message.user_id);
+                                    setProfileDialogOpen(true);
+                                  }}
+                                  className="text-sm font-medium hover:underline cursor-pointer"
+                                >
                                   {message.profiles?.username || "Anonymous"}
-                                </span>
+                                </button>
                                 <span className="text-xs text-muted-foreground">
                                   {new Date(message.created_at).toLocaleTimeString()}
                                   {message.edited_at && " (edited)"}
@@ -943,6 +952,8 @@ const CommunityChat = () => {
       <ImagePreviewDialog imageUrl={previewImage?.url || null} imageName={previewImage?.name} onClose={() => setPreviewImage(null)} />
 
       <CreatePollDialog open={createPollOpen} onOpenChange={setCreatePollOpen} conversationId={selectedConversationId || ""} userId={user?.id || ""} />
+
+      <ProfileViewDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} userId={selectedUserId} />
     </div>;
 };
 export default CommunityChat;
