@@ -62,6 +62,10 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
             : 'max-w-[95vw] w-[95vw] h-[90vh]'
         }`}
       >
+        <VisuallyHidden>
+          <DialogTitle>{gameName}</DialogTitle>
+        </VisuallyHidden>
+        
         {/* Control Bar */}
         <div className={`flex items-center justify-between px-4 py-2 border-b border-border bg-card ${
           isFullscreen ? 'hidden' : ''
