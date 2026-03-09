@@ -6,32 +6,120 @@
 	<meta name="viewport"
 		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 	<meta name="generator" content="Construct 3">
+
+	<!-- Block common ad networks used by GameMonetize without breaking the game runtime -->
+	<meta http-equiv="Content-Security-Policy" content="
+		default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+		script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+		style-src   'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+		img-src     'self' data: https://cdn.jsdelivr.net;
+		font-src    'self' data: https://cdn.jsdelivr.net;
+		media-src   'self' blob: data:;
+		connect-src 'self' https://cdn.jsdelivr.net;
+		frame-src   'self';
+		object-src  'none';
+		base-uri    'self';
+	">
+
 	<link rel="stylesheet"
 		href="https://cdn.jsdelivr.net/gh/bubbls/ruffle@1520d90d7b2994737acd8f7a633d018f63c22ca7/style.css"
 		type="text/css">
 	<style>
-		/* Hide ads */
-		.ad, .ads, .adsbygoogle, [class*="ad-"], [id*="ad-"],
-		iframe[src*="ads"], iframe[src*="doubleclick"],
-		div[id*="google_ads"], div[class*="advertisement"] {
+		/* Hide GameMonetize/ad containers immediately */
+		#gmLoading, #gmLoadingText,
+		[id^="gm"], [class^="gm"], [class*=" gm"],
+		iframe[title="Advertisement"],
+		iframe[src*="doubleclick"], iframe[src*="googlesyndication"], iframe[src*="googleads"],
+		video[src*="creativecdn"], source[src*="creativecdn"],
+		a[href*="gamemonetize"], img[alt*="GameMonetize"],
+		.ad, .ads, .adsbygoogle, [class*="ad-"], [id*="ad-"] {
 			display: none !important;
 			visibility: hidden !important;
 			width: 0 !important;
 			height: 0 !important;
+			opacity: 0 !important;
+			pointer-events: none !important;
 		}
 	</style>
 	<script>
-		window.addEventListener("keydown", function(e) { // space and arrow keys if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) { e.preventDefault(); } }, false);
-		
-		// Block ad elements
-		document.addEventListener("DOMContentLoaded", function() {
-			setInterval(function() {
-				const adSelectors = ['.ad', '.ads', '.adsbygoogle', '[class*="ad-"]', '[id*="ad-"]', 'iframe[src*="ads"]', 'iframe[src*="doubleclick"]'];
-				adSelectors.forEach(selector => {
-					document.querySelectorAll(selector).forEach(el => el.remove());
+		// Prevent page scrolling with gameplay keys
+		window.addEventListener('keydown', function (e) {
+			if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) e.preventDefault();
+		}, false);
+
+		(function () {
+			const BLOCKED_HOST_PARTS = [
+				'gamemonetize',
+				'googlesyndication',
+				'doubleclick',
+				'googleads',
+				'creativecdn',
+				'adsystem',
+				'adservice',
+				'omniture',
+				'omsdk',
+				'omweb',
+			];
+
+			const isBlockedUrl = (url) => {
+				if (!url || typeof url !== 'string') return false;
+				const u = url.toLowerCase();
+				return BLOCKED_HOST_PARTS.some((p) => u.includes(p));
+			};
+
+			const shouldRemoveEl = (el) => {
+				if (!el || el.nodeType !== 1) return false;
+				const id = (el.id || '').toLowerCase();
+				const cls = (el.className || '').toString().toLowerCase();
+				if (id.startsWith('gmloading') || id === 'gmloading' || id === 'gmloadingtext') return true;
+				if (id.startsWith('gm') || cls.includes('gamemonetize') || cls.includes('gm')) return true;
+
+				const tag = (el.tagName || '').toLowerCase();
+				if (tag === 'iframe') {
+					const src = el.getAttribute('src') || '';
+					const title = (el.getAttribute('title') || '').toLowerCase();
+					if (title === 'advertisement') return true;
+					if (isBlockedUrl(src)) return true;
+				}
+				if (tag === 'script' || tag === 'img' || tag === 'video' || tag === 'source') {
+					const src = el.getAttribute('src') || '';
+					if (isBlockedUrl(src)) return true;
+				}
+				return false;
+			};
+
+			const nukeAds = (root) => {
+				const scope = root && root.querySelectorAll ? root : document;
+
+				// Known GameMonetize containers
+				scope.querySelectorAll('#gmLoading, #gmLoadingText, [id^="gmLoading"], [id^="gm"]').forEach((el) => el.remove());
+
+				// Known ad iframes/videos
+				scope.querySelectorAll('iframe, script, img, video, source, a').forEach((el) => {
+					if (shouldRemoveEl(el)) el.remove();
 				});
-			}, 1000);
-		});
+			};
+
+			document.addEventListener('DOMContentLoaded', function () {
+				// Initial pass + periodic cleanup (some ads re-inject)
+				nukeAds(document);
+				setInterval(() => nukeAds(document), 500);
+
+				// React instantly to injected ad nodes
+				const obs = new MutationObserver((mutations) => {
+					for (const m of mutations) {
+						m.addedNodes && m.addedNodes.forEach((n) => {
+							if (n && n.nodeType === 1) {
+								const el = /** @type {Element} */ (n);
+								if (shouldRemoveEl(el)) el.remove();
+								nukeAds(el);
+							}
+						});
+					}
+				});
+				obs.observe(document.documentElement, { childList: true, subtree: true });
+			});
+		})();
 	</script>
 </head>
 
