@@ -5,7 +5,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Maximize, Minimize, Home } from "lucide-react";
+import { RefreshCw, Maximize, Minimize, X } from "lucide-react";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface GamePlayerDialogProps {
@@ -94,7 +94,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
               onClick={handleHome}
               title="Close"
             >
-              <Home className="h-4 w-4" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
