@@ -94,7 +94,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
               onClick={handleHome}
               title="Close"
             >
-              <Home className="h-4 w-4" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
