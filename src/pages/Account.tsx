@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useState, useEffect, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Loader2, Camera, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +27,11 @@ const Account = () => {
   const [userEmail, setUserEmail] = useState("");
   const [discoverable, setDiscoverable] = useState(true);
   const [discoverableLoading, setDiscoverableLoading] = useState(false);
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -32,12 +39,14 @@ const Account = () => {
   const fetchProfile = useCallback(async (uid: string) => {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, discoverable")
+      .select("username, discoverable, bio, avatar_url")
       .eq("id", uid)
       .single();
     if (profile) {
       setUsername(profile.username || "");
       setDiscoverable(profile.discoverable ?? true);
+      setBio(profile.bio || "");
+      setAvatarUrl(profile.avatar_url);
     }
   }, []);
 
@@ -196,6 +205,119 @@ const Account = () => {
     navigate("/auth");
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!userId || !e.target.files || e.target.files.length === 0) return;
+
+    const file = e.target.files[0];
+    
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Error",
+        description: "Please select an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Image must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAvatarLoading(true);
+
+    try {
+      // Delete old avatar if exists
+      if (avatarUrl) {
+        const oldPath = avatarUrl.split("/").pop();
+        if (oldPath) {
+          await supabase.storage.from("avatars").remove([`${userId}/${oldPath}`]);
+        }
+      }
+
+      // Upload new avatar
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(publicUrl);
+      toast({
+        title: "Success",
+        description: "Profile picture updated",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setAvatarLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleUpdateBio = async () => {
+    if (!userId) return;
+
+    if (bio.length > 500) {
+      toast({
+        title: "Error",
+        description: "Bio must be 500 characters or less",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBioLoading(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ bio: bio.trim() })
+      .eq("id", userId);
+
+    setBioLoading(false);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Bio updated successfully",
+      });
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (!userId) return;
     
@@ -257,9 +379,50 @@ const Account = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <Label>Profile Picture</Label>
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-20 w-20">
+                      {avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={username} />
+                      ) : (
+                        <AvatarFallback>
+                          <User className="h-10 w-10" />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarLoading}
+                      >
+                        {avatarLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Camera className="h-4 w-4 mr-2" />
+                        )}
+                        Upload Picture
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Max 5MB • JPG, PNG, GIF
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
                   <Label>Email</Label>
                   <Input value={userEmail} disabled />
                 </div>
+                
                 <div className="space-y-2">
                   <Label htmlFor="username">Nickname</Label>
                   <div className="flex gap-2">
@@ -271,6 +434,33 @@ const Account = () => {
                     />
                     <Button onClick={handleUpdateUsername} disabled={loading}>
                       Update
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Tell us about yourself..."
+                    className="resize-none min-h-[100px]"
+                    maxLength={500}
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {bio.length}/500 characters
+                    </p>
+                    <Button 
+                      size="sm" 
+                      onClick={handleUpdateBio} 
+                      disabled={bioLoading}
+                    >
+                      {bioLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
+                      Update Bio
                     </Button>
                   </div>
                 </div>

@@ -15,61 +15,6 @@ type GifResult = {
   thumbnail: string;
 };
 
-function decodeHtmlEntities(input: string): string {
-  return input
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'");
-}
-
-function pickGifFromPost(post: any): GifResult | null {
-  const id = String(post?.data?.id ?? "");
-  if (!id) return null;
-
-  const title = String(post?.data?.title ?? "GIF");
-
-  // Prefer Reddit preview's GIF variant (usually a direct .gif URL)
-  const previewImg = post?.data?.preview?.images?.[0];
-  const gifUrlRaw = previewImg?.variants?.gif?.source?.url;
-  const thumbUrlRaw =
-    previewImg?.resolutions?.[2]?.url ??
-    previewImg?.resolutions?.[1]?.url ??
-    previewImg?.resolutions?.[0]?.url ??
-    previewImg?.source?.url ??
-    post?.data?.thumbnail;
-
-  const url = typeof gifUrlRaw === "string" ? decodeHtmlEntities(gifUrlRaw) : "";
-  const thumbnail = typeof thumbUrlRaw === "string" ? decodeHtmlEntities(thumbUrlRaw) : url;
-
-  if (!url || !thumbnail) return null;
-
-  return {
-    id,
-    title,
-    url,
-    thumbnail,
-  };
-}
-
-async function fetchJson(url: string): Promise<any> {
-  const res = await fetch(url, {
-    headers: {
-      // Reddit can 429/deny without a UA
-      "User-Agent": "LovableCloud-GIFPicker/1.0",
-      "Accept": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Upstream error ${res.status}: ${text.slice(0, 200)}`);
-  }
-
-  return await res.json();
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -113,40 +58,44 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const query = typeof body?.query === "string" ? body.query.trim() : "";
 
-    const subreddits = ["gifs", "reactiongifs", "HighQualityGifs"];
-
-    let posts: any[] = [];
-
-    if (!query) {
-      // Trending
-      const url = `https://www.reddit.com/r/gifs/hot.json?limit=50`;
-      const data = await fetchJson(url);
-      posts = Array.isArray(data?.data?.children) ? data.data.children : [];
-    } else {
-      const searches = subreddits.map((sub) => {
-        const url = `https://www.reddit.com/r/${sub}/search.json?q=${encodeURIComponent(query)}&restrict_sr=1&limit=25&sort=relevance&t=all`;
-        return fetchJson(url).catch(() => null);
-      });
-
-      const results = await Promise.all(searches);
-      posts = results
-        .filter(Boolean)
-        .flatMap((r: any) => (Array.isArray(r?.data?.children) ? r.data.children : []));
+    const giphyApiKey = Deno.env.get("GIPHY_API_KEY");
+    if (!giphyApiKey) {
+      throw new Error("GIPHY_API_KEY not configured");
     }
 
-    const gifs = posts
-      .map(pickGifFromPost)
-      .filter((x): x is GifResult => Boolean(x));
+    // Use Giphy SDK endpoint
+    const endpoint = query
+      ? `https://api.giphy.com/v1/gifs/search`
+      : `https://api.giphy.com/v1/gifs/trending`;
 
-    // unique by id, keep first, limit 20
-    const unique = Array.from(new Map(gifs.map((g) => [g.id, g])).values()).slice(0, 20);
+    const params = new URLSearchParams({
+      api_key: giphyApiKey,
+      limit: "20",
+      rating: "g",
+      ...(query && { q: query }),
+    });
 
-    return new Response(JSON.stringify({ gifs: unique, source: "reddit" }), {
+    const url = `${endpoint}?${params}`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Giphy API error ${res.status}: ${text.slice(0, 200)}`);
+    }
+
+    const data = await res.json();
+    const gifs: GifResult[] = (data.data || []).map((item: any) => ({
+      id: item.id,
+      title: item.title || "GIF",
+      url: item.images?.original?.url || item.images?.downsized?.url || "",
+      thumbnail: item.images?.fixed_width_small?.url || item.images?.preview_gif?.url || "",
+    })).filter((g: GifResult) => g.url && g.thumbnail);
+
+    return new Response(JSON.stringify({ gifs, source: "giphy" }), {
       status: 200,
       headers: {
         ...corsHeaders,
         "Content-Type": "application/json",
-        // light caching to keep UI snappy
         "Cache-Control": "public, max-age=60",
       },
     });
