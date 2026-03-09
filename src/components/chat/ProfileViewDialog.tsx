@@ -181,6 +181,26 @@ export const ProfileViewDialog = ({ open, onOpenChange, userId, currentUserId, o
                 </p>
               </div>
             )}
+
+            {currentUserId && currentUserId !== userId && (
+              <Button 
+                onClick={handleStartDM}
+                disabled={creatingDM}
+                className="w-full"
+              >
+                {creatingDM ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Send Direct Message
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center py-12 text-muted-foreground">
