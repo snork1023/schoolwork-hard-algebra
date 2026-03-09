@@ -952,6 +952,8 @@ const CommunityChat = () => {
       <ImagePreviewDialog imageUrl={previewImage?.url || null} imageName={previewImage?.name} onClose={() => setPreviewImage(null)} />
 
       <CreatePollDialog open={createPollOpen} onOpenChange={setCreatePollOpen} conversationId={selectedConversationId || ""} userId={user?.id || ""} />
+
+      <ProfileViewDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} userId={selectedUserId} />
     </div>;
 };
 export default CommunityChat;
