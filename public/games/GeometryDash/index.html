@@ -1,209 +1,219 @@
 <html lang="en-US">
 
 <head>
-  <base href="https://cdn.jsdelivr.net/gh/bubbls/UGS-Assets@main/gdlite/">
-    <title>Geometry Dash</title>
-    <link rel="icon" type="image/png" href="https://e3334afd.cf-nate.pages.dev/0/g/geodash/game/splash.png">
-    <meta name="description" content="Play Geometry Dash Lite Online For Free on Chromebook, PC, Windows, Desktop in Chrome and modern browsers.">
-    <meta name="robots" content="noindex, nofollow">
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="themes/geometrydashlite.io/rs/css/home.css?v=1">
+  <title>Geometry Dash</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <meta name="description" content="Play Geometry Dash Lite Online For Free on Chromebook, PC, Windows, Desktop in Chrome and modern browsers.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 
 <body>
-    <style>
-        html {
-            box-sizing: border-box;
-        }
-        
-        *,
-        *:before,
-        *:after {
-            box-sizing: inherit;
-        }
-        
-        body {
-            margin: 0;
-            background-image: linear-gradient(rgb(0, 0, 0), rgb(0, 102, 255));
-            overflow: hidden;
-        }
-        
-        #gameContainer {
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-        
-        canvas+* {
-            z-index: 2;
-        }
-        
-        .container {
-            max-width: 1600px;
-            position: relative;
-        }
-        
-        .posImg {
-            position: absolute;
-            top: 0;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .logo {
-            position: absolute;
-            display: block;
-            max-width: 100vw;
-            max-height: 70vh;
-            top: 300px;
-        }
-        
-        .pos_progress {
-            position: absolute;
-            bottom: 15%;
-            width: 100%;
-        }
-        
-        .progress {
-            margin: 1.5em auto;
-            max-width: 436px;
-            height: auto;
-            display: none;
-            position: relative;
-        }
-        
-        .full {
-            width: 97%;
-            transform-origin: top left;
-        }
-        
-        .box_process {
-            width: 100%;
-        }
-        
-        .process {
-            width: 98%;
-        }
-        
-        .progress .posfull,
-        .progress .posbox {
-            position: absolute;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .progress .posfull {
-            top: 8px;
-            z-index: 1;
-        }
-        
-        .progress .posbox {
-            top: 0;
-            z-index: 2;
-        }
-        
-        #loader {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background-image: linear-gradient(rgb(0, 0, 0), rgb(0, 102, 255));
-        }
-        
-        .pos_spinner {
-            position: absolute;
-            top: 70%;
-            left: 50%;
-            transform: translate(-30%, -50%);
-        }
-        
-        .spinner,
-        .spinner:after {
-            display: none;
-            border-radius: 50%;
-            width: 5em;
-            height: 5em;
-        }
-        
-        .spinner {
-            margin: 10px;
-            font-size: 10px;
-            position: relative;
-            text-indent: -9999em;
-            border-top: 1.1em solid rgba(255, 255, 255, 0.2);
-            border-right: 1.1em solid rgba(255, 255, 255, 0.2);
-            border-bottom: 1.1em solid rgba(255, 255, 255, 0.2);
-            border-left: 1.1em solid #ffffff;
-            transform: translateZ(0);
-            animation: spinner-spin 1.1s infinite linear;
-        }
-        
-        @keyframes spinner-spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
+  <style>
+    html {
+      box-sizing: border-box;
+    }
 
-    <div id="gameContainer">
-        <div id="loader">
-            <div class="pos_progress">
-                <div class="progress">
-                    <div class="posfull">
-                        <img class="full" src="TemplateData/progressFull.Dark.png" />
-                    </div>
-                    <div class="posbox">
-                        <img class="box_process" src="TemplateData/progressEmpty.Dark.png" />
-                    </div>
-                </div>
-            </div>
-            <div class="pos_spinner">
-                <div class="spinner"></div>
-            </div>
-        </div>
+    *,
+    *:before,
+    *:after {
+      box-sizing: inherit;
+    }
+
+    body {
+      margin: 0;
+      background-image: linear-gradient(rgb(0, 0, 0), rgb(0, 102, 255));
+      overflow: hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    #gameContainer {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: linear-gradient(rgb(0, 0, 0), rgb(0, 102, 255));
+      z-index: 10;
+      padding: 24px;
+    }
+
+    .loader-inner {
+      width: min(520px, 92vw);
+      text-align: center;
+      color: #fff;
+    }
+
+    .loader-title {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      font-size: 20px;
+      margin-bottom: 14px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    .loader-bar {
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    #progressFill {
+      height: 100%;
+      width: 100%;
+      transform: scaleX(0);
+      transform-origin: left center;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.45));
+      transition: transform 120ms linear;
+    }
+
+    #progressText {
+      margin-top: 10px;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    #loaderError {
+      margin-top: 14px;
+      font-size: 12px;
+      opacity: 0.85;
+      line-height: 1.4;
+    }
+  </style>
+
+  <div id="gameContainer"></div>
+
+  <div id="loader" role="status" aria-live="polite">
+    <div class="loader-inner">
+      <div class="loader-title">Loading Geometry Dash…</div>
+      <div class="loader-bar" aria-hidden="true">
+        <div id="progressFill"></div>
+      </div>
+      <div id="progressText">0%</div>
+      <div id="loaderError" hidden></div>
     </div>
+  </div>
 
-        <script src="Build/UnityLoader.js"></script>
-        <script>
-            var gameInstance = UnityLoader.instantiate("gameContainer", "Build/GeometryDashLite.json", {
-                onProgress: UnityProgress
-            });
+  <script src="Build/UnityLoader.js"></script>
+  <script>
+    (function () {
+      const loader = document.getElementById("loader");
+      const progressFill = document.getElementById("progressFill");
+      const progressText = document.getElementById("progressText");
+      const loaderError = document.getElementById("loaderError");
 
-            function UnityProgress(gameInstance, progress) {
-                if (!gameInstance.Module) {
-                    return;
-                }
-                const loader = document.querySelector("#loader");
-                if (!gameInstance.progress) {
-                    const progress = document.querySelector("#loader .progress");
-                    progress.style.display = "block";
-                    gameInstance.progress = progress.querySelector(".full");
-                    loader.querySelector(".spinner").style.display = "none";
-                }
-                gameInstance.progress.style.transform = `scaleX(${progress})`;
-                if (progress === 1 && !gameInstance.removeTimeout) {
-                    gameInstance.removeTimeout = setTimeout(function() {
-                        loader.style.display = "none";
-                    }, 2000);
-                }
-            }
-        </script>
+      function showError(message) {
+        if (!loaderError) return;
+        loaderError.hidden = false;
+        loaderError.textContent = message;
+      }
+
+      function setStageText(message) {
+        if (progressText) progressText.textContent = message;
+      }
+
+      function UnityProgress(gameInstance, progress) {
+        if (progressFill) progressFill.style.transform = `scaleX(${progress})`;
+        if (progressText) progressText.textContent = `${Math.round(progress * 100)}%`;
+
+        if (progress === 1 && !gameInstance.removeTimeout) {
+          gameInstance.removeTimeout = setTimeout(function () {
+            if (loader) loader.style.display = "none";
+          }, 800);
+        }
+      }
+
+      async function fetchArrayBuffer(url) {
+        const res = await fetch(url, { mode: "cors" });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText} - ${url}`);
+        return await res.arrayBuffer();
+      }
+
+      function concatArrayBuffers(buffers) {
+        const total = buffers.reduce((sum, b) => sum + b.byteLength, 0);
+        const out = new Uint8Array(total);
+        let offset = 0;
+        for (const b of buffers) {
+          out.set(new Uint8Array(b), offset);
+          offset += b.byteLength;
+        }
+        return out.buffer;
+      }
+
+      async function start() {
+        if (typeof UnityLoader === "undefined" || !UnityLoader.instantiate) {
+          showError("UnityLoader failed to load.");
+          return;
+        }
+
+        // jsDelivr blocks these .unityweb files (>50MB). We rebuild them from the GitHub split parts.
+        const remoteBase = "https://raw.githubusercontent.com/bubbls/UGS-Assets/main/gdlite/Build/";
+
+        setStageText("Preparing game files…");
+
+        const [data1, data2, wasmCode1, wasmFramework1] = await Promise.all([
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.data.unityweb.part1"),
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.data.unityweb.part2"),
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.wasm.code.unityweb.part1"),
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.wasm.framework.unityweb.part1"),
+        ]);
+
+        const dataBlobUrl = URL.createObjectURL(
+          new Blob([concatArrayBuffers([data1, data2])], { type: "application/octet-stream" })
+        );
+        const wasmCodeBlobUrl = URL.createObjectURL(
+          new Blob([wasmCode1], { type: "application/octet-stream" })
+        );
+        const wasmFrameworkBlobUrl = URL.createObjectURL(
+          new Blob([wasmFramework1], { type: "application/octet-stream" })
+        );
+
+        // UnityLoader decides whether it needs to decompress based on the URL string.
+        // Add a fragment that contains the original filename so it behaves like a real .unityweb request.
+        const dataUrl = dataBlobUrl + "#GeometryDashLite.data.unityweb";
+        const wasmCodeUrl = wasmCodeBlobUrl + "#GeometryDashLite.wasm.code.unityweb";
+        const wasmFrameworkUrl = wasmFrameworkBlobUrl + "#GeometryDashLite.wasm.framework.unityweb";
+
+        const configRes = await fetch("Build/GeometryDashLite.json", { cache: "no-cache" });
+        if (!configRes.ok) throw new Error("Failed to load local GeometryDashLite.json");
+        const config = await configRes.json();
+        config.dataUrl = dataUrl;
+        config.wasmCodeUrl = wasmCodeUrl;
+        config.wasmFrameworkUrl = wasmFrameworkUrl;
+
+        const configBlobUrl = URL.createObjectURL(
+          new Blob([JSON.stringify(config)], { type: "application/json" })
+        );
+
+        // Keep the loader outside #gameContainer so UnityLoader doesn't wipe it.
+        UnityLoader.instantiate("gameContainer", configBlobUrl, {
+          onProgress: UnityProgress,
+        });
+      }
+
+      start().catch((err) => {
+        console.error(err);
+        showError(String(err?.message || err));
+        setStageText("Failed");
+      });
+    })();
+  </script>
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 let buttondiv = document.getElementsByTagName('button');
