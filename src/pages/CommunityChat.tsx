@@ -270,8 +270,14 @@ const CommunityChat = () => {
     }, async payload => {
       // Fetch the profile for the new message
       const {
-        data: profile
+        data: profile,
+        error: profileError
       } = await supabase.from("profiles").select("username").eq("id", payload.new.user_id).single();
+
+      // Log error if profile fetch fails
+      if (profileError) {
+        console.error("Failed to fetch profile for message:", profileError);
+      }
 
       // Normalize attachments (can arrive as JSON, stringified JSON, or null)
       let parsedAttachments: any = (payload.new as any).attachments;
@@ -286,7 +292,7 @@ const CommunityChat = () => {
       setMessages(current => [...current, {
         ...payload.new,
         attachments: Array.isArray(parsedAttachments) ? parsedAttachments : [],
-        profiles: profile,
+        profiles: profile || { username: "Unknown" },
         message_read_receipts: []
       } as Message]);
     }).subscribe();
