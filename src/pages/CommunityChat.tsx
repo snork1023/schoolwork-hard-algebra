@@ -953,7 +953,13 @@ const CommunityChat = () => {
 
       <CreatePollDialog open={createPollOpen} onOpenChange={setCreatePollOpen} conversationId={selectedConversationId || ""} userId={user?.id || ""} />
 
-      <ProfileViewDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} userId={selectedUserId} />
+      <ProfileViewDialog 
+        open={profileDialogOpen} 
+        onOpenChange={setProfileDialogOpen} 
+        userId={selectedUserId}
+        currentUserId={user?.id}
+        onConversationCreated={fetchConversations}
+      />
     </div>;
 };
 export default CommunityChat;
