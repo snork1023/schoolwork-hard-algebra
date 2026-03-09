@@ -39,12 +39,14 @@ const Account = () => {
   const fetchProfile = useCallback(async (uid: string) => {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, discoverable")
+      .select("username, discoverable, bio, avatar_url")
       .eq("id", uid)
       .single();
     if (profile) {
       setUsername(profile.username || "");
       setDiscoverable(profile.discoverable ?? true);
+      setBio(profile.bio || "");
+      setAvatarUrl(profile.avatar_url);
     }
   }, []);
 
