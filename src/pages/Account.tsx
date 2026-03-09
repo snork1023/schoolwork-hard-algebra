@@ -379,9 +379,50 @@ const Account = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
+                  <Label>Profile Picture</Label>
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-20 w-20">
+                      {avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={username} />
+                      ) : (
+                        <AvatarFallback>
+                          <User className="h-10 w-10" />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarLoading}
+                      >
+                        {avatarLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Camera className="h-4 w-4 mr-2" />
+                        )}
+                        Upload Picture
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Max 5MB • JPG, PNG, GIF
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
                   <Label>Email</Label>
                   <Input value={userEmail} disabled />
                 </div>
+                
                 <div className="space-y-2">
                   <Label htmlFor="username">Nickname</Label>
                   <div className="flex gap-2">
@@ -393,6 +434,33 @@ const Account = () => {
                     />
                     <Button onClick={handleUpdateUsername} disabled={loading}>
                       Update
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Tell us about yourself..."
+                    className="resize-none min-h-[100px]"
+                    maxLength={500}
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {bio.length}/500 characters
+                    </p>
+                    <Button 
+                      size="sm" 
+                      onClick={handleUpdateBio} 
+                      disabled={bioLoading}
+                    >
+                      {bioLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
+                      Update Bio
                     </Button>
                   </div>
                 </div>

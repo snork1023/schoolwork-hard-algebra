@@ -141,7 +141,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
           )}
         </ScrollArea>
 
-        <p className="text-xs text-muted-foreground text-center">GIFs from Reddit</p>
+        <p className="text-xs text-muted-foreground text-center">Powered by GIPHY</p>
       </DialogContent>
     </Dialog>
   );
