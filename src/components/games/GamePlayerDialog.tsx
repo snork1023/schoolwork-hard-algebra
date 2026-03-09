@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Maximize, Minimize, Home } from "lucide-react";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface GamePlayerDialogProps {
   open: boolean;
@@ -31,14 +33,18 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
     setKey(prev => prev + 1);
   };
 
-  const handleFullscreen = () => {
-    const container = document.getElementById("game-container");
-    if (container) {
+  const handleFullscreen = async () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    try {
       if (!document.fullscreenElement) {
-        container.requestFullscreen();
+        await iframe.requestFullscreen();
       } else {
-        document.exitFullscreen();
+        await document.exitFullscreen();
       }
+    } catch (err) {
+      console.error("Fullscreen error:", err);
     }
   };
 
@@ -56,6 +62,10 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
             : 'max-w-[95vw] w-[95vw] h-[90vh]'
         }`}
       >
+        <VisuallyHidden>
+          <DialogTitle>{gameName}</DialogTitle>
+        </VisuallyHidden>
+        
         {/* Control Bar */}
         <div className={`flex items-center justify-between px-4 py-2 border-b border-border bg-card ${
           isFullscreen ? 'hidden' : ''
@@ -100,9 +110,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
             ref={iframeRef}
             src={gameUrl}
             className="w-full h-full border-0"
-            {...(gameName === 'Spacewaves' ? {} : {
-              sandbox: "allow-same-origin allow-scripts allow-popups allow-pointer-lock allow-orientation-lock allow-forms allow-downloads"
-            })}
+            sandbox="allow-same-origin allow-scripts allow-popups allow-pointer-lock allow-orientation-lock allow-forms allow-downloads allow-modals"
             allow="fullscreen; autoplay; clipboard-write; accelerometer; gyroscope; gamepad"
             allowFullScreen
           />
