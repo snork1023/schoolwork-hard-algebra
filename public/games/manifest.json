@@ -16,6 +16,18 @@
     "name": "Five Nights At Freddy's"
   },
   {
+    "folder": "FNAF2",
+    "name": "Five Nights At Freddy's 2"
+  },
+  {
+    "folder": "FNAF3",
+    "name": "Five Nights At Freddy's 3"
+  },
+  {
+    "folder": "FNAF4",
+    "name": "Five Nights At Freddy's 4"
+  },
+  {
     "folder": "BasketRandom",
     "name": "Basket Random"
   },
