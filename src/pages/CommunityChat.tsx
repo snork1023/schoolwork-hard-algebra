@@ -769,9 +769,15 @@ const CommunityChat = () => {
                           <div key={message.id} className={`group flex flex-col ${message.user_id === user?.id ? "items-end" : "items-start"} ${showExtraSpacing ? "mt-4" : ""}`}>
                             {showHeader && (
                               <div className="flex items-baseline gap-2 mb-1">
-                                <span className="text-sm font-medium">
+                                <button
+                                  onClick={() => {
+                                    setSelectedUserId(message.user_id);
+                                    setProfileDialogOpen(true);
+                                  }}
+                                  className="text-sm font-medium hover:underline cursor-pointer"
+                                >
                                   {message.profiles?.username || "Anonymous"}
-                                </span>
+                                </button>
                                 <span className="text-xs text-muted-foreground">
                                   {new Date(message.created_at).toLocaleTimeString()}
                                   {message.edited_at && " (edited)"}
