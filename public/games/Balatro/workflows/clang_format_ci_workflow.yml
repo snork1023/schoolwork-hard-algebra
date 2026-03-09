@@ -1,0 +1,20 @@
+name: Run Clang Format Test
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  run-test:
+    name: Verify code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run clang-format
+        run: clang-format --dry-run -Werror include/*.h source/*.c
