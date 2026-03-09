@@ -33,14 +33,18 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
     setKey(prev => prev + 1);
   };
 
-  const handleFullscreen = () => {
-    const container = document.getElementById("game-container");
-    if (container) {
+  const handleFullscreen = async () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    try {
       if (!document.fullscreenElement) {
-        container.requestFullscreen();
+        await iframe.requestFullscreen();
       } else {
-        document.exitFullscreen();
+        await document.exitFullscreen();
       }
+    } catch (err) {
+      console.error("Fullscreen error:", err);
     }
   };
 
