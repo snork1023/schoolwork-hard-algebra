@@ -124,19 +124,9 @@
         loaderError.textContent = message;
       }
 
-      if (typeof UnityLoader === "undefined" || !UnityLoader.instantiate) {
-        showError("UnityLoader failed to load. This is usually caused by network/content blocking.");
-        return;
+      function setStageText(message) {
+        if (progressText) progressText.textContent = message;
       }
-
-      // Keep the loader outside #gameContainer so UnityLoader doesn't wipe it.
-      const gameInstance = UnityLoader.instantiate(
-        "gameContainer",
-        "Build/GeometryDashLite.json",
-        {
-          onProgress: UnityProgress,
-        }
-      );
 
       function UnityProgress(gameInstance, progress) {
         if (progressFill) progressFill.style.transform = `scaleX(${progress})`;
@@ -148,6 +138,74 @@
           }, 800);
         }
       }
+
+      async function fetchArrayBuffer(url) {
+        const res = await fetch(url, { mode: "cors" });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText} - ${url}`);
+        return await res.arrayBuffer();
+      }
+
+      function concatArrayBuffers(buffers) {
+        const total = buffers.reduce((sum, b) => sum + b.byteLength, 0);
+        const out = new Uint8Array(total);
+        let offset = 0;
+        for (const b of buffers) {
+          out.set(new Uint8Array(b), offset);
+          offset += b.byteLength;
+        }
+        return out.buffer;
+      }
+
+      async function start() {
+        if (typeof UnityLoader === "undefined" || !UnityLoader.instantiate) {
+          showError("UnityLoader failed to load.");
+          return;
+        }
+
+        // jsDelivr blocks these .unityweb files (>50MB). We rebuild them from the GitHub split parts.
+        const remoteBase = "https://raw.githubusercontent.com/bubbls/UGS-Assets/main/gdlite/Build/";
+
+        setStageText("Preparing game files…");
+
+        const [data1, data2, wasmCode1, wasmFramework1] = await Promise.all([
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.data.unityweb.part1"),
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.data.unityweb.part2"),
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.wasm.code.unityweb.part1"),
+          fetchArrayBuffer(remoteBase + "GeometryDashLite.wasm.framework.unityweb.part1"),
+        ]);
+
+        const dataUrl = URL.createObjectURL(
+          new Blob([concatArrayBuffers([data1, data2])], { type: "application/octet-stream" })
+        );
+        const wasmCodeUrl = URL.createObjectURL(
+          new Blob([wasmCode1], { type: "application/octet-stream" })
+        );
+        const wasmFrameworkUrl = URL.createObjectURL(
+          new Blob([wasmFramework1], { type: "application/octet-stream" })
+        );
+
+        const configRes = await fetch("Build/GeometryDashLite.json", { cache: "no-cache" });
+        if (!configRes.ok) throw new Error("Failed to load local GeometryDashLite.json");
+        const config = await configRes.json();
+        config.dataUrl = dataUrl;
+        config.wasmCodeUrl = wasmCodeUrl;
+        config.wasmFrameworkUrl = wasmFrameworkUrl;
+
+        const configBlobUrl = URL.createObjectURL(
+          new Blob([JSON.stringify(config)], { type: "application/json" })
+        );
+
+        // Keep the loader outside #gameContainer so UnityLoader doesn't wipe it.
+        UnityLoader.instantiate("gameContainer", configBlobUrl, {
+          onProgress: UnityProgress,
+        });
+      }
+
+      start().catch((err) => {
+        console.error(err);
+        showError(String(err?.message || err));
+        setStageText("Failed");
+      });
     })();
   </script>
         <script>
