@@ -20,6 +20,7 @@ import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
 import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
 import { CreatePollDialog } from "@/components/chat/CreatePollDialog";
 import { PollCard } from "@/components/chat/PollCard";
+import { ProfileViewDialog } from "@/components/chat/ProfileViewDialog";
 import { useAutoIdle } from "@/hooks/useAutoIdle";
 import { Send, FileText, Loader2 } from "lucide-react";
 import { getUserFriendlyError } from "@/lib/error-utils";
