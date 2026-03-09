@@ -31,14 +31,18 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
     setLoading(true);
     setError(null);
 
-    const { data, error: fnError } = await supabase.functions.invoke("gif-search", {
-      body: { query },
-    });
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("gif-search", {
+        body: { query },
+      });
 
-    if (fnError) throw new Error(fnError.message);
+      if (fnError) throw new Error(fnError.message);
 
-    const list = (data?.gifs ?? []) as GifItem[];
-    setGifs(list);
+      const list = (data?.gifs ?? []) as GifItem[];
+      setGifs(list);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadTrending = async () => {
