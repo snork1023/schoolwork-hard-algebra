@@ -27,6 +27,11 @@ const Account = () => {
   const [userEmail, setUserEmail] = useState("");
   const [discoverable, setDiscoverable] = useState(true);
   const [discoverableLoading, setDiscoverableLoading] = useState(false);
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const navigate = useNavigate();
   const { toast } = useToast();
