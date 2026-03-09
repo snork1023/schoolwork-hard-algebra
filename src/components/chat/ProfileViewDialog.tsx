@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { User, Loader2, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 interface ProfileViewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
+  currentUserId?: string;
+  onConversationCreated?: () => void;
 }
 
 interface Profile {
