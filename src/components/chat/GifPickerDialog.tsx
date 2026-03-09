@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 
 interface GifPickerDialogProps {
   open: boolean;
@@ -11,16 +10,16 @@ interface GifPickerDialogProps {
   onGifSelect: (gifUrl: string, gifName: string) => void;
 }
 
-interface GiphyGif {
+interface RedditGif {
   id: string;
   title: string;
-  preview_url: string;
-  full_url: string;
+  url: string;
+  thumbnail: string;
 }
 
 export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDialogProps) => {
   const [search, setSearch] = useState("");
-  const [gifs, setGifs] = useState<GiphyGif[]>([]);
+  const [gifs, setGifs] = useState<RedditGif[]>([]);
   const [loading, setLoading] = useState(false);
   const [trendingLoaded, setTrendingLoaded] = useState(false);
 
@@ -33,11 +32,26 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
   const loadTrending = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("giphy-proxy", {
-        body: { trending: true },
-      });
-      if (error) throw error;
-      setGifs(data?.results || []);
+      // Fetch trending GIFs from Reddit's r/gifs
+      const response = await fetch(
+        'https://www.reddit.com/r/gifs/hot.json?limit=30'
+      );
+      const data = await response.json();
+      
+      const gifResults = data.data.children
+        .filter((post: any) => {
+          const url = post.data.url?.toLowerCase() || '';
+          return url.endsWith('.gif') || url.endsWith('.gifv') || url.includes('i.imgur.com');
+        })
+        .map((post: any) => ({
+          id: post.data.id,
+          title: post.data.title,
+          url: post.data.url.replace('.gifv', '.gif'),
+          thumbnail: post.data.thumbnail !== 'default' ? post.data.thumbnail : post.data.url,
+        }))
+        .slice(0, 20);
+
+      setGifs(gifResults);
       setTrendingLoaded(true);
     } catch (error) {
       console.error("Failed to load trending GIFs:", error);
@@ -54,11 +68,36 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("giphy-proxy", {
-        body: { query },
-      });
-      if (error) throw error;
-      setGifs(data?.results || []);
+      // Search across multiple GIF subreddits
+      const subreddits = ['gifs', 'reactiongifs', 'HighQualityGifs'];
+      const searches = subreddits.map(sub =>
+        fetch(`https://www.reddit.com/r/${sub}/search.json?q=${encodeURIComponent(query)}&restrict_sr=1&limit=10`)
+          .then(r => r.json())
+          .catch(() => ({ data: { children: [] } }))
+      );
+
+      const results = await Promise.all(searches);
+      
+      const allGifs = results.flatMap(data => 
+        data.data.children
+          .filter((post: any) => {
+            const url = post.data.url?.toLowerCase() || '';
+            return url.endsWith('.gif') || url.endsWith('.gifv') || url.includes('i.imgur.com');
+          })
+          .map((post: any) => ({
+            id: post.data.id,
+            title: post.data.title,
+            url: post.data.url.replace('.gifv', '.gif'),
+            thumbnail: post.data.thumbnail !== 'default' ? post.data.thumbnail : post.data.url,
+          }))
+      );
+
+      // Remove duplicates and limit to 20
+      const uniqueGifs = Array.from(
+        new Map(allGifs.map(gif => [gif.id, gif])).values()
+      ).slice(0, 20);
+
+      setGifs(uniqueGifs);
     } catch (error) {
       console.error("Failed to search GIFs:", error);
     } finally {
@@ -75,9 +114,9 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
     return () => clearTimeout(timer);
   }, [search]);
 
-  const handleGifClick = (gif: GiphyGif) => {
-    if (gif.full_url) {
-      onGifSelect(gif.full_url, gif.title || "GIF");
+  const handleGifClick = (gif: RedditGif) => {
+    if (gif.url) {
+      onGifSelect(gif.url, gif.title || "GIF");
       onOpenChange(false);
       setSearch("");
     }
@@ -119,7 +158,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
                   className="relative aspect-video rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all"
                 >
                   <img
-                    src={gif.preview_url}
+                    src={gif.thumbnail}
                     alt={gif.title}
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -131,7 +170,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
         </ScrollArea>
 
         <p className="text-xs text-muted-foreground text-center">
-          Powered by GIPHY
+          GIFs from Reddit
         </p>
       </DialogContent>
     </Dialog>
