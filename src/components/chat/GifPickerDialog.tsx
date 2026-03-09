@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Search } from "lucide-react";
 
 interface GifPickerDialogProps {
@@ -10,7 +11,7 @@ interface GifPickerDialogProps {
   onGifSelect: (gifUrl: string, gifName: string) => void;
 }
 
-interface RedditGif {
+interface GifItem {
   id: string;
   title: string;
   url: string;
@@ -19,107 +20,73 @@ interface RedditGif {
 
 export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDialogProps) => {
   const [search, setSearch] = useState("");
-  const [gifs, setGifs] = useState<RedditGif[]>([]);
+  const [gifs, setGifs] = useState<GifItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [trendingLoaded, setTrendingLoaded] = useState(false);
+
+  const trimmed = useMemo(() => search.trim(), [search]);
+
+  const fetchGifs = async (query: string) => {
+    setLoading(true);
+    setError(null);
+
+    const { data, error: fnError } = await supabase.functions.invoke("gif-search", {
+      body: { query },
+    });
+
+    if (fnError) throw new Error(fnError.message);
+
+    const list = (data?.gifs ?? []) as GifItem[];
+    setGifs(list);
+  };
+
+  const loadTrending = async () => {
+    await fetchGifs("");
+    setTrendingLoaded(true);
+  };
 
   useEffect(() => {
     if (open && !trendingLoaded) {
-      loadTrending();
+      setSearch("");
+      loadTrending().catch((e) => {
+        console.error("Failed to load trending GIFs:", e);
+        setError("Couldn’t load GIFs. Please try again.");
+        setGifs([]);
+      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const loadTrending = async () => {
-    setLoading(true);
-    try {
-      // Fetch trending GIFs from Reddit's r/gifs
-      const response = await fetch(
-        'https://www.reddit.com/r/gifs/hot.json?limit=30'
-      );
-      const data = await response.json();
-      
-      const gifResults = data.data.children
-        .filter((post: any) => {
-          const url = post.data.url?.toLowerCase() || '';
-          return url.endsWith('.gif') || url.endsWith('.gifv') || url.includes('i.imgur.com');
-        })
-        .map((post: any) => ({
-          id: post.data.id,
-          title: post.data.title,
-          url: post.data.url.replace('.gifv', '.gif'),
-          thumbnail: post.data.thumbnail !== 'default' ? post.data.thumbnail : post.data.url,
-        }))
-        .slice(0, 20);
-
-      setGifs(gifResults);
-      setTrendingLoaded(true);
-    } catch (error) {
-      console.error("Failed to load trending GIFs:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const searchGifs = async (query: string) => {
-    if (!query.trim()) {
-      loadTrending();
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Search across multiple GIF subreddits
-      const subreddits = ['gifs', 'reactiongifs', 'HighQualityGifs'];
-      const searches = subreddits.map(sub =>
-        fetch(`https://www.reddit.com/r/${sub}/search.json?q=${encodeURIComponent(query)}&restrict_sr=1&limit=10`)
-          .then(r => r.json())
-          .catch(() => ({ data: { children: [] } }))
-      );
-
-      const results = await Promise.all(searches);
-      
-      const allGifs = results.flatMap(data => 
-        data.data.children
-          .filter((post: any) => {
-            const url = post.data.url?.toLowerCase() || '';
-            return url.endsWith('.gif') || url.endsWith('.gifv') || url.includes('i.imgur.com');
-          })
-          .map((post: any) => ({
-            id: post.data.id,
-            title: post.data.title,
-            url: post.data.url.replace('.gifv', '.gif'),
-            thumbnail: post.data.thumbnail !== 'default' ? post.data.thumbnail : post.data.url,
-          }))
-      );
-
-      // Remove duplicates and limit to 20
-      const uniqueGifs = Array.from(
-        new Map(allGifs.map(gif => [gif.id, gif])).values()
-      ).slice(0, 20);
-
-      setGifs(uniqueGifs);
-    } catch (error) {
-      console.error("Failed to search GIFs:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (search) {
-        searchGifs(search);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+    if (!open) return;
 
-  const handleGifClick = (gif: RedditGif) => {
-    if (gif.url) {
-      onGifSelect(gif.url, gif.title || "GIF");
-      onOpenChange(false);
-      setSearch("");
-    }
+    const t = setTimeout(() => {
+      if (!trimmed) {
+        loadTrending().catch((e) => {
+          console.error("Failed to load trending GIFs:", e);
+          setError("Couldn’t load GIFs. Please try again.");
+          setGifs([]);
+        });
+        return;
+      }
+
+      fetchGifs(trimmed).catch((e) => {
+        console.error("Failed to search GIFs:", e);
+        setError("Search failed. Please try again.");
+        setGifs([]);
+      });
+    }, 350);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trimmed, open]);
+
+  const handleGifClick = (gif: GifItem) => {
+    if (!gif.url) return;
+    onGifSelect(gif.url, gif.title || "GIF");
+    onOpenChange(false);
+    setSearch("");
   };
 
   return (
@@ -145,10 +112,12 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
             <div className="flex items-center justify-center h-40">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : gifs.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-muted-foreground">
-              No GIFs found
+          ) : error ? (
+            <div className="flex items-center justify-center h-40 text-muted-foreground text-center px-4">
+              {error}
             </div>
+          ) : gifs.length === 0 ? (
+            <div className="flex items-center justify-center h-40 text-muted-foreground">No GIFs found</div>
           ) : (
             <div className="grid grid-cols-2 gap-2 p-1 pr-3">
               {gifs.map((gif) => (
@@ -162,6 +131,9 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
                     alt={gif.title}
                     className="w-full h-full object-cover"
                     loading="lazy"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
                   />
                 </button>
               ))}
@@ -169,9 +141,7 @@ export const GifPickerDialog = ({ open, onOpenChange, onGifSelect }: GifPickerDi
           )}
         </ScrollArea>
 
-        <p className="text-xs text-muted-foreground text-center">
-          GIFs from Reddit
-        </p>
+        <p className="text-xs text-muted-foreground text-center">GIFs from Reddit</p>
       </DialogContent>
     </Dialog>
   );
