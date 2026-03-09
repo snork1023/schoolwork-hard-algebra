@@ -49,6 +49,82 @@ export const ProfileViewDialog = ({ open, onOpenChange, userId, currentUserId, o
     fetchProfile();
   }, [open, userId]);
 
+  const handleStartDM = async () => {
+    if (!currentUserId || !userId || creatingDM) return;
+
+    setCreatingDM(true);
+    try {
+      // Check if DM already exists
+      const { data: existingConvs } = await supabase
+        .from("conversations")
+        .select(`
+          id,
+          type,
+          conversation_participants!inner(user_id)
+        `)
+        .eq("type", "dm");
+
+      // Find a DM where both users are participants
+      let existingDmId: string | null = null;
+      if (existingConvs) {
+        for (const conv of existingConvs) {
+          const participantIds = (conv.conversation_participants as any[]).map(p => p.user_id);
+          if (participantIds.length === 2 && 
+              participantIds.includes(currentUserId) && 
+              participantIds.includes(userId)) {
+            existingDmId = conv.id;
+            break;
+          }
+        }
+      }
+
+      if (existingDmId) {
+        toast({
+          title: "Opening existing conversation",
+        });
+        onConversationCreated?.();
+        onOpenChange(false);
+        return;
+      }
+
+      // Create new conversation
+      const { data: conversation, error: convError } = await supabase
+        .from("conversations")
+        .insert({
+          type: "dm",
+          created_by: currentUserId,
+        })
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Add participants
+      const { error: partError } = await supabase
+        .from("conversation_participants")
+        .insert([
+          { conversation_id: conversation.id, user_id: currentUserId },
+          { conversation_id: conversation.id, user_id: userId },
+        ]);
+
+      if (partError) throw partError;
+
+      toast({
+        title: "DM created successfully",
+      });
+      onConversationCreated?.();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        title: "Error creating DM",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingDM(false);
+    }
+  };
+
   const getStatusColor = (status: string | null) => {
     switch (status) {
       case "online": return "bg-green-500";
