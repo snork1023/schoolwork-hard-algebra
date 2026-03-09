@@ -5,7 +5,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Maximize, Minimize, Home } from "lucide-react";
+import { RefreshCw, Maximize, Minimize, X } from "lucide-react";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface GamePlayerDialogProps {
