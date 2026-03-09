@@ -11,10 +11,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="HandheldFriendly" content="true" />
     <title>Five Nights at Freddy's 3</title>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center; }
+        #game-wrapper { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        #MMFCanvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #progress-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-family: sans-serif; width: 300px; }
+    </style>
 </head>
 
 <body>
-    <div style="display: inline-block; -webkit-user-select: none; text-align: left">
+    <div id="game-wrapper">
         <canvas id="MMFCanvas" width="1280" height="720"> Your browser does not support Canvas, Please try again. </canvas>
     </div>
     <div id="progress-container">
@@ -29,6 +35,17 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="main.js"></script>
+    <script>
+        function resizeCanvas() {
+            var canvas = document.getElementById('MMFCanvas');
+            var wrapper = document.getElementById('game-wrapper');
+            var scale = Math.min(wrapper.clientWidth / 1280, wrapper.clientHeight / 720);
+            canvas.style.width = (1280 * scale) + 'px';
+            canvas.style.height = (720 * scale) + 'px';
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+    </script>
 </body>
 
 </html>
