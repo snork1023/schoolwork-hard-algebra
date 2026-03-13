@@ -41,21 +41,46 @@
         </div>
         <div id="unity-mobile-warning"> WebGL builds are not supported on mobile devices. </div>
     </div>
+    <style>
+        /* Hide injected popup overlays */
+        div[style*="position: fixed"], div[style*="position:fixed"] {
+            display: none !important;
+        }
+    </style>
     <script>
         // Remove any injected popups/overlays
         const observer = new MutationObserver((mutations) => {
             for (const m of mutations) {
                 for (const node of m.addedNodes) {
                     if (node.nodeType === 1) {
-                        const text = node.textContent || '';
-                        if (text.includes('gn-math') || text.includes('is better')) {
-                            node.remove();
+                        const el = node;
+                        const text = el.textContent || '';
+                        const style = el.getAttribute && el.getAttribute('style') || '';
+                        if (text.includes('gn-math') || text.includes('is better') || text.includes('truffled') || text.includes('game site')) {
+                            el.remove();
+                        }
+                        // Also check for fixed/absolute positioned overlays
+                        if (style.includes('position') && (style.includes('fixed') || style.includes('absolute'))) {
+                            if (text.includes('OK') || text.includes('gn-math') || text.includes('truffled')) {
+                                el.remove();
+                            }
                         }
                     }
                 }
             }
         });
         observer.observe(document.body, { childList: true, subtree: true });
+
+        // Periodically scan and remove popup
+        setInterval(() => {
+            document.querySelectorAll('div').forEach(el => {
+                const text = el.textContent || '';
+                if ((text.includes('gn-math') || text.includes('truffled is not')) && el.querySelector('a, button')) {
+                    el.remove();
+                }
+            });
+        }, 500);
+
         window.alert = function(){};
         window.confirm = function(){ return false; };
 
