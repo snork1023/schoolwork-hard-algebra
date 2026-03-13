@@ -42,6 +42,23 @@
         <div id="unity-mobile-warning"> WebGL builds are not supported on mobile devices. </div>
     </div>
     <script>
+        // Remove any injected popups/overlays
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                for (const node of m.addedNodes) {
+                    if (node.nodeType === 1) {
+                        const text = node.textContent || '';
+                        if (text.includes('gn-math') || text.includes('is better')) {
+                            node.remove();
+                        }
+                    }
+                }
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        window.alert = function(){};
+        window.confirm = function(){ return false; };
+
         var loadingText = document.querySelector("#loading-text");
         let totalBytes = 0;
         let loadedBytes = 0;
