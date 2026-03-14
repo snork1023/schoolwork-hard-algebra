@@ -37,13 +37,13 @@ const Index = () => {
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto animate-fade-in">
           {features.map((feature, index) => {
           const Icon = feature.icon;
-          return;
-
-
-
-
-
-
+          return (
+            <div key={index} className="p-6 rounded-xl border border-border bg-card text-card-foreground">
+              <Icon className="w-8 h-8 text-primary mb-3" />
+              <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+              <p className="text-muted-foreground">{feature.description}</p>
+            </div>
+          );
         })}
         </div>
       </main>
