@@ -8,6 +8,10 @@
     "name": "Among Us"
   },
   {
+    "folder": "BasketRandom",
+    "name": "Basket Random"
+  },
+  {
     "folder": "BitLife",
     "name": "BitLife"
   },
@@ -66,10 +70,6 @@
   {
     "folder": "FruitNinja",
     "name": "Fruit Ninja"
-  },
-  {
-    "folder": "BasketRandom",
-    "name": "Basket Random"
   },
   {
     "folder": "GeometryDash",
