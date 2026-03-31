@@ -24,7 +24,7 @@ const Index = () => {
       <main className="container mx-auto px-4 pt-32 pb-12">
         <div className="text-center mb-16 animate-fade-in">
           <h1 className="text-5xl font-bold mb-4 glow-text">
-            Totally Schoolwork and Not Games
+            Kepler
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">made by snorkthedork</p>
           

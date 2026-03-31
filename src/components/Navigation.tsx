@@ -42,7 +42,7 @@ const Navigation = () => {
               <span className="text-white font-bold text-sm">T</span>
             </div>
             <span className="text-lg sm:text-xl font-bold glow-text">
-              TSNG
+              Kepler
             </span>
           </div>
           
