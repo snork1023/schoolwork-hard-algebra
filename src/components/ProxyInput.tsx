@@ -4,11 +4,22 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserSettings } from "@/hooks/useUserSettings";
+
+const SEARCH_ENGINES: Record<string, string> = {
+  google: "https://www.google.com/search?q=",
+  bing: "https://www.bing.com/search?q=",
+  duckduckgo: "https://duckduckgo.com/?q=",
+  brave: "https://search.brave.com/search?q=",
+};
+
+const SCRAMJET_BASE = "https://scramjet.mercurywork.shop/";
 
 const ProxyInput = () => {
   const [query, setQuery] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { settings } = useUserSettings();
 
   const handleSearch = () => {
     if (!query.trim()) {
@@ -20,8 +31,11 @@ const ProxyInput = () => {
       return;
     }
 
-    const searchUrl = `https://www.startpage.com/do/search?q=${encodeURIComponent(query.trim())}`;
-    navigate(`/browser?url=${encodeURIComponent(searchUrl)}`);
+    const engineBase = SEARCH_ENGINES[settings.searchEngine] || SEARCH_ENGINES.google;
+    const searchUrl = engineBase + encodeURIComponent(query.trim());
+    const scramjetUrl = SCRAMJET_BASE + encodeURIComponent(searchUrl);
+
+    navigate(`/browser?url=${encodeURIComponent(scramjetUrl)}`);
     setQuery("");
   };
 
@@ -34,10 +48,10 @@ const ProxyInput = () => {
       <div className="flex gap-3">
         <Input
           type="text"
-          placeholder="Search with Startpage..."
+          placeholder={`Search with ${settings.searchEngine.charAt(0).toUpperCase() + settings.searchEngine.slice(1)}...`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyPress}
           className="flex-1 h-14 text-lg bg-card border-border focus:border-primary transition-all"
         />
         <Button
