@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useUserSettings } from "@/hooks/useUserSettings";
+
+const SCRAMJET_BASE = "https://scramjet.mercurywork.shop/";
 
 const BrowserView = () => {
   const [searchParams] = useSearchParams();
@@ -12,6 +15,23 @@ const BrowserView = () => {
   const browserType = settings.browserType;
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [addressBar, setAddressBar] = useState("");
+
+  // Try to extract the original URL from the scramjet URL for display
+  const displayUrl = (() => {
+    try {
+      if (url.startsWith(SCRAMJET_BASE)) {
+        return decodeURIComponent(url.slice(SCRAMJET_BASE.length));
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  })();
+
+  const hostname = (() => {
+    try { return new URL(displayUrl).hostname; } catch { return displayUrl; }
+  })();
 
   const getBrowserStyles = () => {
     switch (browserType) {
@@ -26,8 +46,20 @@ const BrowserView = () => {
     }
   };
 
+  const handleAddressBarNavigate = () => {
+    if (!addressBar.trim()) return;
+    let targetUrl = addressBar.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = "https://" + targetUrl;
+    }
+    const scramjetUrl = SCRAMJET_BASE + encodeURIComponent(targetUrl);
+    navigate(`/browser?url=${encodeURIComponent(scramjetUrl)}`);
+    setAddressBar("");
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  };
+
   const styles = getBrowserStyles();
-  const hostname = (() => { try { return new URL(url).hostname; } catch { return url; } })();
 
   return (
     <div className="h-screen flex flex-col">
@@ -54,8 +86,18 @@ const BrowserView = () => {
             </Button>
           </div>
           <div className={`${styles.urlBar} flex-1 rounded-full px-4 py-2 flex items-center gap-2`}>
-            <Lock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm flex-1 truncate">{url}</span>
+            <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              className="flex-1 bg-transparent text-sm outline-none truncate"
+              placeholder="Enter URL..."
+              defaultValue={displayUrl}
+              value={addressBar || undefined}
+              onChange={(e) => setAddressBar(e.target.value)}
+              onFocus={(e) => { if (!addressBar) setAddressBar(displayUrl); }}
+              onBlur={() => { if (!addressBar.trim()) setAddressBar(""); }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddressBarNavigate(); }}
+            />
           </div>
         </div>
       </div>
