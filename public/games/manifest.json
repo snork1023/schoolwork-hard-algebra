@@ -1,5 +1,9 @@
 [
   {
+    "folder": "8BallClassic",
+    "name": "8 Ball Classic"
+  },
+  {
     "folder": "2048",
     "name": "2048"
   },
@@ -122,6 +126,22 @@
   {
     "folder": "Vex3",
     "name": "Vex 3"
+  },
+  {
+    "folder": "Vex4",
+    "name": "Vex 4"
+  },
+  {
+    "folder": "Vex5",
+    "name": "Vex 5"
+  },
+  {
+    "folder": "Vex6",
+    "name": "Vex 6"
+  },
+  {
+    "folder": "Vex7",
+    "name": "Vex 7"
   },
   {
     "folder": "yohoho",
