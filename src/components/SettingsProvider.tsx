@@ -46,6 +46,7 @@ const syncToLocalStorage = (s: UserSettings) => {
   localStorage.setItem('autoOpen', String(s.autoOpen));
   localStorage.setItem('developerMode', s.developerMode ? 'true' : 'false');
   localStorage.setItem('simpleMode', s.simpleMode ? 'true' : 'false');
+  localStorage.setItem('showStars', s.showStars ? 'true' : 'false');
 };
 
 const applyAccentColor = (color: string) => {
