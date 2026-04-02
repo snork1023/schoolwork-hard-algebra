@@ -50,6 +50,7 @@ const Index = () => {
         })}
         </div>
       </main>
+      </div>
     </div>;
 };
 export default Index;
