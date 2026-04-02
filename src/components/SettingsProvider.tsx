@@ -31,6 +31,7 @@ const loadFromLocalStorage = (): UserSettings => ({
   autoOpen: localStorage.getItem('autoOpen') !== 'false',
   developerMode: localStorage.getItem('developerMode') === 'true',
   simpleMode: localStorage.getItem('simpleMode') === 'true',
+  showStars: localStorage.getItem('showStars') !== 'false',
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
