@@ -19,9 +19,6 @@ import BrowserView from "./components/BrowserView";
 const queryClient = new QueryClient();
 
 const GlobalStars = () => {
-  const location = useLocation();
-  const hiddenRoutes = ["/chat", "/community-chat"];
-  if (hiddenRoutes.includes(location.pathname)) return null;
   return <ShootingStars />;
 };
 
