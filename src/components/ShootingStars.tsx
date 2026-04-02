@@ -25,17 +25,19 @@ const ShootingStars = () => {
         y: -10,
         speed: 8 + Math.random() * 12,
         size: 1 + Math.random() * 2,
-        opacity: 0.5 + Math.random() * 0.5,
+        opacity: 0.4 + Math.random() * 0.4,
         tail: 20 + Math.random() * 40,
       });
     };
 
     const animate = () => {
-      const isDark = document.body.classList.contains("dark");
+      const isDark = document.documentElement.classList.contains("dark");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Spawn stars
-      if (Math.random() < 0.4) spawnStar();
+      // Spawn more stars — higher probability
+      for (let j = 0; j < 3; j++) {
+        if (Math.random() < 0.5) spawnStar();
+      }
 
       for (let i = stars.length - 1; i >= 0; i--) {
         const s = stars[i];
@@ -77,7 +79,8 @@ const ShootingStars = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
+      className="fixed inset-0 pointer-events-none"
+      style={{ zIndex: 0 }}
     />
   );
 };
