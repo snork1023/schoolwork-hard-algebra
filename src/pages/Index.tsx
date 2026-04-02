@@ -20,6 +20,7 @@ const Index = () => {
     description: "Instant access to educational resources with just one click"
   }];
   return <div className="min-h-screen bg-background">
+      <ShootingStars />
       <Navigation />
       
       <main className="container mx-auto px-4 pt-32 pb-12">
