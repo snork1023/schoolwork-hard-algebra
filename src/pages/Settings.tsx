@@ -175,6 +175,19 @@ const Settings = () => {
                     onCheckedChange={(checked) => updateSettings({ simpleMode: checked })}
                   />
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Shooting Stars</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Animated star background effect
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.showStars}
+                    onCheckedChange={(checked) => updateSettings({ showStars: checked })}
+                  />
+                </div>
               </CardContent>
             </Card>
 

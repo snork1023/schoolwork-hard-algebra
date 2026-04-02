@@ -9,6 +9,7 @@ export interface UserSettings {
   autoOpen: boolean;
   developerMode: boolean;
   simpleMode: boolean;
+  showStars: boolean;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   autoOpen: true,
   developerMode: false,
   simpleMode: false,
+  showStars: true,
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
@@ -29,6 +31,7 @@ const loadFromLocalStorage = (): UserSettings => ({
   autoOpen: localStorage.getItem('autoOpen') !== 'false',
   developerMode: localStorage.getItem('developerMode') === 'true',
   simpleMode: localStorage.getItem('simpleMode') === 'true',
+  showStars: localStorage.getItem('showStars') !== 'false',
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
@@ -43,6 +46,7 @@ const syncToLocalStorage = (s: UserSettings) => {
   localStorage.setItem('autoOpen', String(s.autoOpen));
   localStorage.setItem('developerMode', s.developerMode ? 'true' : 'false');
   localStorage.setItem('simpleMode', s.simpleMode ? 'true' : 'false');
+  localStorage.setItem('showStars', s.showStars ? 'true' : 'false');
 };
 
 const applyAccentColor = (color: string) => {
