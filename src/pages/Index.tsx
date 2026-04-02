@@ -1,5 +1,6 @@
 import Navigation from "@/components/Navigation";
 import ProxyInput from "@/components/ProxyInput";
+import ShootingStars from "@/components/ShootingStars";
 import { Shield, Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +20,7 @@ const Index = () => {
     description: "Instant access to educational resources with just one click"
   }];
   return <div className="min-h-screen bg-background">
+      <ShootingStars />
       <Navigation />
       
       <main className="container mx-auto px-4 pt-32 pb-12">
