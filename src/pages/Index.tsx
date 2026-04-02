@@ -21,6 +21,7 @@ const Index = () => {
   }];
   return <div className="min-h-screen bg-background">
       <ShootingStars />
+      <div className="relative z-10">
       <Navigation />
       
       <main className="container mx-auto px-4 pt-32 pb-12">
