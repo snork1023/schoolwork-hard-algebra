@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   autoOpen: true,
   developerMode: false,
   simpleMode: false,
+  showStars: true,
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
