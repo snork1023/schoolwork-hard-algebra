@@ -1,5 +1,6 @@
 import Navigation from "@/components/Navigation";
 import ProxyInput from "@/components/ProxyInput";
+import ShootingStars from "@/components/ShootingStars";
 import { Shield, Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
