@@ -9,6 +9,7 @@ export interface UserSettings {
   autoOpen: boolean;
   developerMode: boolean;
   simpleMode: boolean;
+  showStars: boolean;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
