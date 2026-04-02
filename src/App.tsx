@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { SettingsProvider } from "@/components/SettingsProvider";
+import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
 import ShootingStars from "@/components/ShootingStars";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
@@ -19,6 +19,8 @@ import BrowserView from "./components/BrowserView";
 const queryClient = new QueryClient();
 
 const GlobalStars = () => {
+  const { settings } = useSettingsContext();
+  if (!settings.showStars) return null;
   return <ShootingStars />;
 };
 
