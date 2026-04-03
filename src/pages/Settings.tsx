@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Code } from "lucide-react";
+import { Moon, Sun, Code, ExternalLink } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
