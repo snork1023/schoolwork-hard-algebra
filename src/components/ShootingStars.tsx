@@ -1,7 +1,10 @@
 import { useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 
 const ShootingStars = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -19,11 +22,12 @@ const ShootingStars = () => {
     resize();
     window.addEventListener("resize", resize);
 
+    // Spawn chance: higher on home, lower elsewhere
+    const spawnChance = isHomePage ? 0.5 : 0.12;
+
     const spawnStar = () => {
-      // Angle between 0-8 degrees converted to radians
       const angleDeg = Math.random() * 8;
       const angleRad = (angleDeg * Math.PI) / 180;
-      // Randomly go left or right
       const direction = Math.random() < 0.5 ? 1 : -1;
 
       stars.push({
@@ -42,22 +46,19 @@ const ShootingStars = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let j = 0; j < 3; j++) {
-        if (Math.random() < 0.5) spawnStar();
+        if (Math.random() < spawnChance) spawnStar();
       }
 
       for (let i = stars.length - 1; i >= 0; i--) {
         const s = stars[i];
-        // Move along the angle
         s.x += Math.sin(s.angle) * s.speed;
         s.y += Math.cos(s.angle) * s.speed;
 
         const color = isDark ? "255,255,255" : "0,0,0";
 
-        // Tail end position (opposite direction of travel)
         const tailX = s.x - Math.sin(s.angle) * s.tail;
         const tailY = s.y - Math.cos(s.angle) * s.tail;
 
-        // Draw tail
         const gradient = ctx.createLinearGradient(s.x, s.y, tailX, tailY);
         gradient.addColorStop(0, `rgba(${color},${s.opacity})`);
         gradient.addColorStop(1, `rgba(${color},0)`);
@@ -68,7 +69,6 @@ const ShootingStars = () => {
         ctx.lineTo(tailX, tailY);
         ctx.stroke();
 
-        // Draw star head
         ctx.fillStyle = `rgba(${color},${s.opacity})`;
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
@@ -88,13 +88,13 @@ const ShootingStars = () => {
       cancelAnimationFrame(animationId);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [isHomePage]);
 
   return (
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: -1 }}
+      style={{ zIndex: 0 }}
     />
   );
 };
