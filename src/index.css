@@ -96,11 +96,11 @@ All colors MUST be HSL.
     min-height: 100vh;
   }
 
-  body.dark {
+  .dark body {
     background: hsl(0 0% 0%) !important;
   }
 
-  body:not(.dark) {
+  html:not(.dark) body {
     background: linear-gradient(135deg, hsl(210 40% 98%), hsl(214 31.8% 91.4%));
   }
   
