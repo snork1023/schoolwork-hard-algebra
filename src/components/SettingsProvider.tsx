@@ -93,7 +93,19 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  // Apply accent color on mount
+  // Global panic key listener
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const key = settingsRef.current.panicKey;
+      if (!key) return;
+      if (e.key.toLowerCase() === key.toLowerCase()) {
+        window.location.href = settingsRef.current.panicUrl;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   useEffect(() => {
     applyAccentColor(settings.accentColor);
   }, []);
