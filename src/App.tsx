@@ -33,6 +33,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <GlobalStars />
+            <div className="relative" style={{ zIndex: 1 }}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/games" element={<Games />} />
