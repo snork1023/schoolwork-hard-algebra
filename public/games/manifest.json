@@ -60,6 +60,10 @@
     "name": "Dadish 3"
   },
   {
+    "folder": "DoodleJump",
+    "name": "Doodle Jump"
+  },
+  {
     "folder": "DriveMad",
     "name": "Drive Mad"
   },
@@ -110,6 +114,10 @@
   {
     "folder": "HollowKnight",
     "name": "Hollow Knight"
+  },
+  {
+    "folder": "HouseOfHazards",
+    "name": "House of Hazards"
   },
   {
     "folder": "InfiniteCraft",
