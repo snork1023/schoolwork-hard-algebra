@@ -709,12 +709,12 @@ const CommunityChat = () => {
     navigate("/auth");
   };
   if (loading) {
-    return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 animate-fade-in">
+    return <div className="min-h-screen flex flex-col items-center justify-center gap-4 animate-fade-in">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground text-sm">Loading your conversations…</p>
       </div>;
   }
-  return <div className="h-screen bg-background flex flex-col">
+  return <div className="h-screen flex flex-col">
       <Navigation />
       <div className="flex-1 pt-16 flex overflow-hidden">
         <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />

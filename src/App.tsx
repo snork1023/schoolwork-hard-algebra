@@ -33,6 +33,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <GlobalStars />
+            <div className="relative" style={{ zIndex: 1 }}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/games" element={<Games />} />
@@ -45,6 +46,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </div>
           </BrowserRouter>
         </TooltipProvider>
       </SettingsProvider>
