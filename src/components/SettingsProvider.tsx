@@ -10,6 +10,8 @@ export interface UserSettings {
   developerMode: boolean;
   simpleMode: boolean;
   showStars: boolean;
+  panicKey: string | null;
+  panicUrl: string;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -21,6 +23,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   developerMode: false,
   simpleMode: false,
   showStars: true,
+  panicKey: null,
+  panicUrl: 'https://google.com',
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
