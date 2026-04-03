@@ -114,7 +114,7 @@ const Chat = () => {
   const formatMessage = (text: string) => {
     return text.split(/(\*\*.*?\*\*)/g).map((part, i) => part.startsWith("**") && part.endsWith("**") ? <strong key={i} className="font-bold">{part.slice(2, -2)}</strong> : <span key={i}>{part}</span>);
   };
-  return <div className="min-h-screen flex flex-col bg-background">
+  return <div className="min-h-screen flex flex-col">
       <Navigation />
       <main className="flex-1 container mx-auto px-4 pt-24 pb-6 flex flex-col">
         <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">

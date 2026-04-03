@@ -75,7 +75,7 @@ const Settings = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Navigation />
         <main className="container mx-auto px-4 pt-24 pb-12">
           <div className="max-w-2xl mx-auto">
@@ -104,7 +104,7 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Navigation />
       
       <main className="container mx-auto px-4 pt-24 pb-12">

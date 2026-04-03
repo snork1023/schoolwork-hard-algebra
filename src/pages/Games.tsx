@@ -27,7 +27,7 @@ const Games = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Navigation />
 
       <main className="container mx-auto px-4 pt-24 pb-12">
