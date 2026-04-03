@@ -709,7 +709,7 @@ const CommunityChat = () => {
     navigate("/auth");
   };
   if (loading) {
-    return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 animate-fade-in">
+    return <div className="min-h-screen flex flex-col items-center justify-center gap-4 animate-fade-in">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground text-sm">Loading your conversations…</p>
       </div>;
