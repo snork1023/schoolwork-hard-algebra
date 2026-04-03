@@ -53,6 +53,12 @@ const syncToLocalStorage = (s: UserSettings) => {
   localStorage.setItem('developerMode', s.developerMode ? 'true' : 'false');
   localStorage.setItem('simpleMode', s.simpleMode ? 'true' : 'false');
   localStorage.setItem('showStars', s.showStars ? 'true' : 'false');
+  if (s.panicKey) {
+    localStorage.setItem('panicKey', s.panicKey);
+  } else {
+    localStorage.removeItem('panicKey');
+  }
+  localStorage.setItem('panicUrl', s.panicUrl);
 };
 
 const applyAccentColor = (color: string) => {
