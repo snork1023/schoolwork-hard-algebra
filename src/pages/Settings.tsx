@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Code } from "lucide-react";
+import { Moon, Sun, Code, ExternalLink } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
@@ -279,6 +279,39 @@ const Settings = () => {
                     </p>
                   </div>
                   <Switch checked disabled />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>About:Blank Cloaking</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Opens the site in an about:blank tab to hide the URL
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      const win = window.open('about:blank', '_blank');
+                      if (win) {
+                        const iframe = win.document.createElement('iframe');
+                        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
+                        iframe.src = window.location.href;
+                        win.document.body.style.margin = '0';
+                        win.document.body.style.overflow = 'hidden';
+                        win.document.body.appendChild(iframe);
+                        win.document.title = 'Google';
+                        const link = win.document.createElement('link');
+                        link.rel = 'icon';
+                        link.href = 'https://www.google.com/favicon.ico';
+                        win.document.head.appendChild(link);
+                      }
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Launch
+                  </Button>
                 </div>
               </CardContent>
             </Card>
