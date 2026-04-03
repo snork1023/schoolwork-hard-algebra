@@ -326,6 +326,48 @@ const Settings = () => {
                     Launch
                   </Button>
                 </div>
+
+                <div className="space-y-3 border-t border-border pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Keyboard className="h-4 w-4 text-muted-foreground" />
+                    <Label>Panic Key</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Press a key to instantly navigate away to a safe webpage
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={isListeningForKey ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsListeningForKey(!isListeningForKey)}
+                      className="min-w-[140px]"
+                    >
+                      {isListeningForKey
+                        ? "Press any key..."
+                        : settings.panicKey
+                          ? `Key: ${settings.panicKey.length === 1 ? settings.panicKey.toUpperCase() : settings.panicKey}`
+                          : "Set Key"}
+                    </Button>
+                    {settings.panicKey && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => updateSettings({ panicKey: null })}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center mt-2">
+                    <Label className="text-sm whitespace-nowrap">Redirect URL</Label>
+                    <Input
+                      value={settings.panicUrl}
+                      onChange={(e) => updateSettings({ panicUrl: e.target.value })}
+                      placeholder="https://google.com"
+                      className="bg-background"
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
