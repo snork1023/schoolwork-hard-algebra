@@ -36,6 +36,8 @@ const loadFromLocalStorage = (): UserSettings => ({
   developerMode: localStorage.getItem('developerMode') === 'true',
   simpleMode: localStorage.getItem('simpleMode') === 'true',
   showStars: localStorage.getItem('showStars') !== 'false',
+  panicKey: localStorage.getItem('panicKey') || null,
+  panicUrl: localStorage.getItem('panicUrl') || DEFAULT_SETTINGS.panicUrl,
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
