@@ -5,9 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Code, ExternalLink } from "lucide-react";
+import { Moon, Sun, Code, ExternalLink, Keyboard } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
@@ -29,6 +29,19 @@ const Settings = () => {
   const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);
+  const [isListeningForKey, setIsListeningForKey] = useState(false);
+
+  // Listen for panic key binding
+  useEffect(() => {
+    if (!isListeningForKey) return;
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault();
+      updateSettings({ panicKey: e.key });
+      setIsListeningForKey(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isListeningForKey, updateSettings]);
 
   const isCustomColor = settings.customAccentColor && settings.accentColor === settings.customAccentColor;
 
@@ -312,6 +325,48 @@ const Settings = () => {
                     <ExternalLink className="h-4 w-4" />
                     Launch
                   </Button>
+                </div>
+
+                <div className="space-y-3 border-t border-border pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Keyboard className="h-4 w-4 text-muted-foreground" />
+                    <Label>Panic Key</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Press a key to instantly navigate away to a safe webpage
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={isListeningForKey ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsListeningForKey(!isListeningForKey)}
+                      className="min-w-[140px]"
+                    >
+                      {isListeningForKey
+                        ? "Press any key..."
+                        : settings.panicKey
+                          ? `Key: ${settings.panicKey.length === 1 ? settings.panicKey.toUpperCase() : settings.panicKey}`
+                          : "Set Key"}
+                    </Button>
+                    {settings.panicKey && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => updateSettings({ panicKey: null })}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center mt-2">
+                    <Label className="text-sm whitespace-nowrap">Redirect URL</Label>
+                    <Input
+                      value={settings.panicUrl}
+                      onChange={(e) => updateSettings({ panicUrl: e.target.value })}
+                      placeholder="https://google.com"
+                      className="bg-background"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

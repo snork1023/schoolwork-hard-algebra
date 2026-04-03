@@ -10,6 +10,8 @@ export interface UserSettings {
   developerMode: boolean;
   simpleMode: boolean;
   showStars: boolean;
+  panicKey: string | null;
+  panicUrl: string;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -21,6 +23,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   developerMode: false,
   simpleMode: false,
   showStars: true,
+  panicKey: null,
+  panicUrl: 'https://google.com',
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
@@ -32,6 +36,8 @@ const loadFromLocalStorage = (): UserSettings => ({
   developerMode: localStorage.getItem('developerMode') === 'true',
   simpleMode: localStorage.getItem('simpleMode') === 'true',
   showStars: localStorage.getItem('showStars') !== 'false',
+  panicKey: localStorage.getItem('panicKey') || null,
+  panicUrl: localStorage.getItem('panicUrl') || DEFAULT_SETTINGS.panicUrl,
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
@@ -47,6 +53,12 @@ const syncToLocalStorage = (s: UserSettings) => {
   localStorage.setItem('developerMode', s.developerMode ? 'true' : 'false');
   localStorage.setItem('simpleMode', s.simpleMode ? 'true' : 'false');
   localStorage.setItem('showStars', s.showStars ? 'true' : 'false');
+  if (s.panicKey) {
+    localStorage.setItem('panicKey', s.panicKey);
+  } else {
+    localStorage.removeItem('panicKey');
+  }
+  localStorage.setItem('panicUrl', s.panicUrl);
 };
 
 const applyAccentColor = (color: string) => {
@@ -81,7 +93,19 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  // Apply accent color on mount
+  // Global panic key listener
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const key = settingsRef.current.panicKey;
+      if (!key) return;
+      if (e.key.toLowerCase() === key.toLowerCase()) {
+        window.location.href = settingsRef.current.panicUrl;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   useEffect(() => {
     applyAccentColor(settings.accentColor);
   }, []);
