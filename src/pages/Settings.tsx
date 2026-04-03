@@ -29,6 +29,19 @@ const Settings = () => {
   const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);
+  const [isListeningForKey, setIsListeningForKey] = useState(false);
+
+  // Listen for panic key binding
+  useEffect(() => {
+    if (!isListeningForKey) return;
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault();
+      updateSettings({ panicKey: e.key });
+      setIsListeningForKey(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isListeningForKey, updateSettings]);
 
   const isCustomColor = settings.customAccentColor && settings.accentColor === settings.customAccentColor;
 
