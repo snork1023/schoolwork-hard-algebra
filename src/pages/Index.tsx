@@ -3,21 +3,29 @@ import ProxyInput from "@/components/ProxyInput";
 import { Shield, Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+
 const Index = () => {
   const navigate = useNavigate();
-  const features = [{
-    icon: Shield,
-    title: "Browser Privacy",
-    description: "Access educational content with customizable browser interfaces"
-  }, {
-    icon: Lock,
-    title: "Secure Access",
-    description: "Your browsing activity stays private and protected"
-  }, {
-    icon: Zap,
-    title: "Fast & Simple",
-    description: "Instant access to educational resources with just one click"
-  }];
+  const features = [];
+
+  const [messageIndex, setMessageIndex] = useState(0);
+  const messages = [
+    "made by snorkthedork",
+    "click me (｡˃ ᵕ ˂ )",
+    "this message is super rare",
+    "if it doesn't work ur not worthy",
+    "do it again",
+    "snorkthedork was never real",
+    "how bored must you be",
+    "click me for a secret coin!",
+    "good luck finding that coin",
+    "ok thats enough",
+    ":>",
+    "ctrl + shift + qq",
+    "UwU",
+  ];
+
   return <div className="min-h-screen">
       <Navigation />
       
@@ -26,7 +34,12 @@ const Index = () => {
           <h1 className="text-5xl font-bold mb-4 glow-text">
             Kepler
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">made by snorkthedork</p>
+          <p
+            onClick={() => setMessageIndex(Math.floor(Math.random() * messages.length))}
+            className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6 cursor-pointer select-none"
+          >
+            {messages[messageIndex]}
+          </p>
           
         </div>
 
