@@ -294,37 +294,52 @@ const Settings = () => {
                   <Switch checked disabled />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>About:Blank Cloaking</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Opens the site in an about:blank tab to hide the URL
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>About:Blank Cloaking</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Opens the site in an about:blank tab to hide the URL
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => {
+                        const win = window.open('about:blank', '_blank');
+                        if (win) {
+                          const iframe = win.document.createElement('iframe');
+                          iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
+                          iframe.src = window.location.href;
+                          win.document.body.style.margin = '0';
+                          win.document.body.style.overflow = 'hidden';
+                          win.document.body.appendChild(iframe);
+                          win.document.title = 'Google';
+                          const link = win.document.createElement('link');
+                          link.rel = 'icon';
+                          link.href = 'https://www.google.com/favicon.ico';
+                          win.document.head.appendChild(link);
+                          window.location.href = 'https://google.com';
+                        }
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Launch
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => {
-                      const win = window.open('about:blank', '_blank');
-                      if (win) {
-                        const iframe = win.document.createElement('iframe');
-                        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
-                        iframe.src = window.location.href;
-                        win.document.body.style.margin = '0';
-                        win.document.body.style.overflow = 'hidden';
-                        win.document.body.appendChild(iframe);
-                        win.document.title = 'Google';
-                        const link = win.document.createElement('link');
-                        link.rel = 'icon';
-                        link.href = 'https://www.google.com/favicon.ico';
-                        win.document.head.appendChild(link);
-                      }
-                    }}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Launch
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Auto-Cloak on Startup</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically open in about:blank tab when you visit the site
+                      </p>
+                    </div>
+                    <Switch
+                      checked={settings.autoAboutBlank}
+                      onCheckedChange={(checked) => updateSettings({ autoAboutBlank: checked })}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-3 border-t border-border pt-4">
