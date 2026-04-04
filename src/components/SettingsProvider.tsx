@@ -104,7 +104,25 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       if (!key) return;
       if (e.key.toLowerCase() === key.toLowerCase()) {
         e.preventDefault();
-        window.location.href = settingsRef.current.panicUrl;
+        const panicUrl = settingsRef.current.panicUrl;
+        const win = window.open('about:blank', '_blank');
+        if (win) {
+          const iframe = win.document.createElement('iframe');
+          iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
+          iframe.src = panicUrl;
+          win.document.body.style.margin = '0';
+          win.document.body.style.overflow = 'hidden';
+          win.document.body.appendChild(iframe);
+          try {
+            const url = new URL(panicUrl);
+            win.document.title = url.hostname;
+            const link = win.document.createElement('link');
+            link.rel = 'icon';
+            link.href = `${url.origin}/favicon.ico`;
+            win.document.head.appendChild(link);
+          } catch {}
+        }
+        window.location.replace(panicUrl);
       }
     };
     window.addEventListener('keydown', handler);
