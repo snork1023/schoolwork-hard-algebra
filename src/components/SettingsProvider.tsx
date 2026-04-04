@@ -12,6 +12,7 @@ export interface UserSettings {
   showStars: boolean;
   panicKey: string | null;
   panicUrl: string;
+  autoAboutBlank: boolean;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -25,6 +26,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   showStars: true,
   panicKey: null,
   panicUrl: 'https://google.com',
+  autoAboutBlank: false,
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
@@ -38,6 +40,7 @@ const loadFromLocalStorage = (): UserSettings => ({
   showStars: localStorage.getItem('showStars') !== 'false',
   panicKey: localStorage.getItem('panicKey') || null,
   panicUrl: localStorage.getItem('panicUrl') || DEFAULT_SETTINGS.panicUrl,
+  autoAboutBlank: localStorage.getItem('autoAboutBlank') === 'true',
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
@@ -59,6 +62,7 @@ const syncToLocalStorage = (s: UserSettings) => {
     localStorage.removeItem('panicKey');
   }
   localStorage.setItem('panicUrl', s.panicUrl);
+  localStorage.setItem('autoAboutBlank', s.autoAboutBlank ? 'true' : 'false');
 };
 
 const applyAccentColor = (color: string) => {
@@ -93,17 +97,60 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  // Global panic key listener
+  // Global panic key listener – overlays panic URL on top of the page
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const key = settingsRef.current.panicKey;
       if (!key) return;
       if (e.key.toLowerCase() === key.toLowerCase()) {
-        window.location.href = settingsRef.current.panicUrl;
+        e.preventDefault();
+        // Replace the page content with the panic URL in an iframe
+        const panicUrl = settingsRef.current.panicUrl;
+        document.title = 'Google';
+        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+        link.rel = 'icon';
+        link.href = 'https://www.google.com/favicon.ico';
+        document.head.appendChild(link);
+        document.body.innerHTML = '';
+        document.body.style.margin = '0';
+        document.body.style.overflow = 'hidden';
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
+        iframe.src = panicUrl;
+        document.body.appendChild(iframe);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Auto about:blank cloaking on startup
+  useEffect(() => {
+    // Only run on the top-level window (not inside an iframe) and if enabled
+    if (window.self !== window.top) return;
+    if (!settingsRef.current.autoAboutBlank) return;
+    // Mark so we don't loop
+    const alreadyCloaked = sessionStorage.getItem('aboutBlankCloaked');
+    if (alreadyCloaked) return;
+    sessionStorage.setItem('aboutBlankCloaked', 'true');
+
+    const currentUrl = window.location.href;
+    const win = window.open('about:blank', '_blank');
+    if (win) {
+      const iframe = win.document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
+      iframe.src = currentUrl;
+      win.document.body.style.margin = '0';
+      win.document.body.style.overflow = 'hidden';
+      win.document.body.appendChild(iframe);
+      win.document.title = 'Google';
+      const link = win.document.createElement('link');
+      link.rel = 'icon';
+      link.href = 'https://www.google.com/favicon.ico';
+      win.document.head.appendChild(link);
+      // Redirect the original tab to Google
+      window.location.href = 'https://google.com';
+    }
   }, []);
 
   useEffect(() => {
