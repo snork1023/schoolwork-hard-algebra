@@ -124,6 +124,35 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  // Auto about:blank cloaking on startup
+  useEffect(() => {
+    // Only run on the top-level window (not inside an iframe) and if enabled
+    if (window.self !== window.top) return;
+    if (!settingsRef.current.autoAboutBlank) return;
+    // Mark so we don't loop
+    const alreadyCloaked = sessionStorage.getItem('aboutBlankCloaked');
+    if (alreadyCloaked) return;
+    sessionStorage.setItem('aboutBlankCloaked', 'true');
+
+    const currentUrl = window.location.href;
+    const win = window.open('about:blank', '_blank');
+    if (win) {
+      const iframe = win.document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
+      iframe.src = currentUrl;
+      win.document.body.style.margin = '0';
+      win.document.body.style.overflow = 'hidden';
+      win.document.body.appendChild(iframe);
+      win.document.title = 'Google';
+      const link = win.document.createElement('link');
+      link.rel = 'icon';
+      link.href = 'https://www.google.com/favicon.ico';
+      win.document.head.appendChild(link);
+      // Redirect the original tab to Google
+      window.location.href = 'https://google.com';
+    }
+  }, []);
+
   useEffect(() => {
     applyAccentColor(settings.accentColor);
   }, []);
