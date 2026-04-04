@@ -12,6 +12,7 @@ export interface UserSettings {
   showStars: boolean;
   panicKey: string | null;
   panicUrl: string;
+  autoAboutBlank: boolean;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
