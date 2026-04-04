@@ -62,6 +62,7 @@ const syncToLocalStorage = (s: UserSettings) => {
     localStorage.removeItem('panicKey');
   }
   localStorage.setItem('panicUrl', s.panicUrl);
+  localStorage.setItem('autoAboutBlank', s.autoAboutBlank ? 'true' : 'false');
 };
 
 const applyAccentColor = (color: string) => {
@@ -96,13 +97,27 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  // Global panic key listener
+  // Global panic key listener – overlays panic URL on top of the page
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const key = settingsRef.current.panicKey;
       if (!key) return;
       if (e.key.toLowerCase() === key.toLowerCase()) {
-        window.location.href = settingsRef.current.panicUrl;
+        e.preventDefault();
+        // Replace the page content with the panic URL in an iframe
+        const panicUrl = settingsRef.current.panicUrl;
+        document.title = 'Google';
+        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+        link.rel = 'icon';
+        link.href = 'https://www.google.com/favicon.ico';
+        document.head.appendChild(link);
+        document.body.innerHTML = '';
+        document.body.style.margin = '0';
+        document.body.style.overflow = 'hidden';
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
+        iframe.src = panicUrl;
+        document.body.appendChild(iframe);
       }
     };
     window.addEventListener('keydown', handler);
