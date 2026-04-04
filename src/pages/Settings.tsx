@@ -214,26 +214,6 @@ const Settings = () => {
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="browser-type">Browser Type</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Choose which browser interface to display
-                    </p>
-                  </div>
-                  <Select value={settings.browserType} onValueChange={(value) => updateSettings({ browserType: value })}>
-                    <SelectTrigger className="w-[180px] bg-background">
-                      <SelectValue placeholder="Select browser" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="chrome">Chrome</SelectItem>
-                      <SelectItem value="firefox">Firefox</SelectItem>
-                      <SelectItem value="safari">Safari</SelectItem>
-                      <SelectItem value="edge">Edge</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
                     <Label htmlFor="auto-open">Auto-open in new tab</Label>
                     <p className="text-sm text-muted-foreground">
                       Automatically open links in new tabs
