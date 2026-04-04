@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   showStars: true,
   panicKey: null,
   panicUrl: 'https://google.com',
+  autoAboutBlank: false,
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
@@ -39,6 +40,7 @@ const loadFromLocalStorage = (): UserSettings => ({
   showStars: localStorage.getItem('showStars') !== 'false',
   panicKey: localStorage.getItem('panicKey') || null,
   panicUrl: localStorage.getItem('panicUrl') || DEFAULT_SETTINGS.panicUrl,
+  autoAboutBlank: localStorage.getItem('autoAboutBlank') === 'true',
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
