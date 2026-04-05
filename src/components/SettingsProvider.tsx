@@ -104,10 +104,15 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       if (!key) return;
       if (e.key.toLowerCase() === key.toLowerCase()) {
         e.preventDefault();
+        const rawPanicUrl = settingsRef.current.panicUrl.trim();
+        const absolutePanicUrl = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(rawPanicUrl)
+          ? rawPanicUrl
+          : `https://${rawPanicUrl.replace(/^\/+/, '')}`;
+
         try {
-          (window.top || window).location.replace(settingsRef.current.panicUrl);
+          (window.top || window).location.replace(absolutePanicUrl);
         } catch {
-          window.location.replace(settingsRef.current.panicUrl);
+          window.location.replace(absolutePanicUrl);
         }
       }
     };
