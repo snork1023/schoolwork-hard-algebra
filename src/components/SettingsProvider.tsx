@@ -104,7 +104,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       if (!key) return;
       if (e.key.toLowerCase() === key.toLowerCase()) {
         e.preventDefault();
-        window.location.replace(settingsRef.current.panicUrl);
+        try {
+          (window.top || window).location.replace(settingsRef.current.panicUrl);
+        } catch {
+          window.location.replace(settingsRef.current.panicUrl);
+        }
       }
     };
     window.addEventListener('keydown', handler);
