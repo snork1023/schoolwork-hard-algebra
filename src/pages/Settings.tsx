@@ -274,7 +274,7 @@ const Settings = () => {
                   <Switch checked disabled />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 border-t border-border pt-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>About:Blank Cloaking</Label>
@@ -324,7 +324,6 @@ const Settings = () => {
 
                 <div className="space-y-3 border-t border-border pt-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Keyboard className="h-4 w-4 text-muted-foreground" />
                     <Label>Panic Key</Label>
                   </div>
                   <p className="text-sm text-muted-foreground">
