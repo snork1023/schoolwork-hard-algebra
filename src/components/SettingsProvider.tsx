@@ -110,10 +110,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           : `https://${rawPanicUrl.replace(/^\/+/, '')}`;
 
         try {
-          (window.top || window).location.replace(absolutePanicUrl);
-        } catch {
-          window.location.replace(absolutePanicUrl);
-        }
+          if (window.top && window.top !== window) {
+            window.open(absolutePanicUrl, '_top');
+            return;
+          }
+        } catch {}
+
+        window.location.replace(absolutePanicUrl);
       }
     };
     window.addEventListener('keydown', handler);
