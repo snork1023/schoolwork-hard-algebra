@@ -97,32 +97,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
-  // Global panic key listener – redirects to the panic URL
+  // Global panic key listener – directly navigates to the panic URL
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const key = settingsRef.current.panicKey;
       if (!key) return;
       if (e.key.toLowerCase() === key.toLowerCase()) {
         e.preventDefault();
-        const panicUrl = settingsRef.current.panicUrl;
-        const win = window.open('about:blank', '_blank');
-        if (win) {
-          const iframe = win.document.createElement('iframe');
-          iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
-          iframe.src = panicUrl;
-          win.document.body.style.margin = '0';
-          win.document.body.style.overflow = 'hidden';
-          win.document.body.appendChild(iframe);
-          try {
-            const url = new URL(panicUrl);
-            win.document.title = url.hostname;
-            const link = win.document.createElement('link');
-            link.rel = 'icon';
-            link.href = `${url.origin}/favicon.ico`;
-            win.document.head.appendChild(link);
-          } catch {}
-        }
-        window.location.replace(panicUrl);
+        window.location.replace(settingsRef.current.panicUrl);
       }
     };
     window.addEventListener('keydown', handler);
@@ -154,7 +136,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       link.href = 'https://www.google.com/favicon.ico';
       win.document.head.appendChild(link);
       // Redirect the original tab to Google
-      window.location.href = 'https://google.com';
+      window.location.replace('https://google.com');
     }
   }, []);
 
