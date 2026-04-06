@@ -216,7 +216,8 @@ const CommunityChat = () => {
     const conversationsChannel = supabase.channel("conversations_changes").on("postgres_changes", {
       event: "*",
       schema: "public",
-      table: "conversations"
+      table: "conversation_participants",
+      filter: `user_id=eq.${user.id}`
     }, () => {
       fetchConversations();
     }).subscribe();
