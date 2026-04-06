@@ -345,9 +345,9 @@ const CommunityChat = () => {
         event: "*",
         schema: "public",
         table: "poll_votes"
-      }, (payload) => {
-        // Only refresh if the vote belongs to a poll in this conversation
+      }, (payload: any) => {
         const pollId = payload.new?.poll_id || payload.old?.poll_id;
+        if (!pollId || polls.some(p => p.id === pollId)) {
         if (polls.some(p => p.id === pollId)) {
           fetchPollVotesForConversation();
         }
