@@ -348,7 +348,6 @@ const CommunityChat = () => {
       }, (payload: any) => {
         const pollId = payload.new?.poll_id || payload.old?.poll_id;
         if (!pollId || polls.some(p => p.id === pollId)) {
-        if (polls.some(p => p.id === pollId)) {
           fetchPollVotesForConversation();
         }
       })
