@@ -337,15 +337,20 @@ const CommunityChat = () => {
       })
       .subscribe();
 
+    // Poll votes subscription - we refresh votes when polls change
+    // The polls channel already filters by conversation_id
     const votesChannel = supabase
       .channel(`poll_votes_${selectedConversationId}`)
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "poll_votes"
-      }, () => {
-        // Refresh votes immediately
-        fetchPollVotesForConversation();
+      }, (payload) => {
+        // Only refresh if the vote belongs to a poll in this conversation
+        const pollId = payload.new?.poll_id || payload.old?.poll_id;
+        if (polls.some(p => p.id === pollId)) {
+          fetchPollVotesForConversation();
+        }
       })
       .subscribe();
 
