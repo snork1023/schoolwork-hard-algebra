@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,26 +7,61 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const {
-    toast
-  } = useToast();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // Auth guard
+  useEffect(() => {
+    let active = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setAuthReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setAuthReady(true);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth"
     });
   }, [messages]);
+
   const sendMessage = useCallback(async () => {
     if (!input.trim() || isLoading) return;
     const userMessage: Message = {
@@ -34,14 +70,24 @@ const Chat = () => {
     };
     setMessages(prev => [...prev, userMessage]);
     setInput("");
+    setIsLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({
+          title: "Not signed in",
+          description: "Please sign in to use the AI assistant.",
+          variant: "destructive"
+        });
+        navigate("/auth");
+        return;
+      }
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+          Authorization: `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           messages: [...messages, userMessage]
@@ -66,14 +112,9 @@ const Chat = () => {
         content: ""
       }]);
       while (true) {
-        const {
-          done,
-          value
-        } = await reader.read();
+        const { done, value } = await reader.read();
         if (done) break;
-        buffer += decoder.decode(value, {
-          stream: true
-        });
+        buffer += decoder.decode(value, { stream: true });
         let newlineIndex: number;
         while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
           const line = buffer.slice(0, newlineIndex).replace(/\r$/, "");
@@ -107,16 +148,28 @@ const Chat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, messages, toast]);
+  }, [input, isLoading, messages, toast, navigate]);
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
+
   const formatMessage = (text: string) => {
     return text.split(/(\*\*.*?\*\*)/g).map((part, i) => part.startsWith("**") && part.endsWith("**") ? <strong key={i} className="font-bold">{part.slice(2, -2)}</strong> : <span key={i}>{part}</span>);
   };
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 animate-fade-in">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground text-sm">Loading…</p>
+      </div>
+    );
+  }
+
   return <div className="min-h-screen flex flex-col">
       <Navigation />
       <main className="flex-1 container mx-auto px-4 pt-24 pb-6 flex flex-col">
