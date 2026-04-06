@@ -216,7 +216,8 @@ const CommunityChat = () => {
     const conversationsChannel = supabase.channel("conversations_changes").on("postgres_changes", {
       event: "*",
       schema: "public",
-      table: "conversations"
+      table: "conversation_participants",
+      filter: `user_id=eq.${user.id}`
     }, () => {
       fetchConversations();
     }).subscribe();
@@ -336,15 +337,19 @@ const CommunityChat = () => {
       })
       .subscribe();
 
+    // Poll votes subscription - we refresh votes when polls change
+    // The polls channel already filters by conversation_id
     const votesChannel = supabase
       .channel(`poll_votes_${selectedConversationId}`)
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "poll_votes"
-      }, () => {
-        // Refresh votes immediately
-        fetchPollVotesForConversation();
+      }, (payload: any) => {
+        const pollId = payload.new?.poll_id || payload.old?.poll_id;
+        if (!pollId || polls.some(p => p.id === pollId)) {
+          fetchPollVotesForConversation();
+        }
       })
       .subscribe();
 
