@@ -48,10 +48,14 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
     const uploadedFiles: Array<{ path: string; type: string; name: string }> = [];
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) throw new Error("Not authenticated");
+
       for (const { file } of selectedFiles) {
         const fileExt = file.name.split(".").pop();
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `${conversationId}/${Date.now()}_${fileName}`;
+        const filePath = `${conversationId}/${userId}/${Date.now()}_${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat-attachments")

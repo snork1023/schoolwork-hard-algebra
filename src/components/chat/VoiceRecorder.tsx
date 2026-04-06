@@ -256,8 +256,12 @@ export const VoiceRecorderInline = ({
 
     setIsUploading(true);
 
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Not authenticated");
+
     const fileName = `voice_${Date.now()}.${recordingExt}`;
-    const filePath = `${conversationId}/${fileName}`;
+    const filePath = `${conversationId}/${userId}/${fileName}`;
 
     // Storage expects a standard MIME type; strip codecs params like ";codecs=opus".
     const baseMimeType = recordingMimeType.split(";")[0] || "audio/webm";
