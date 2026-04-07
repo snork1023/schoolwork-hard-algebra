@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { SEARCH_ENGINES, SEARCH_PROXY_FUNCTION } from "@/lib/searchProxy";
+import { SEARCH_ENGINES } from "@/lib/searchProxy";
 
 const ProxyInput = () => {
   const [query, setQuery] = useState("");

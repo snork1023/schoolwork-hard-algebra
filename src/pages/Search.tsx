@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { SEARCH_PROXY_FUNCTION } from "@/lib/searchProxy";
+import { SEARCH_PROXY_URL } from "@/lib/searchProxy";
 
 const Search = () => {
   const [searchParams] = useSearchParams();
@@ -28,7 +28,7 @@ const Search = () => {
     const run = async () => {
       try {
         setStatus("Creating secure search proxy...");
-        const response = await fetch(SEARCH_PROXY_FUNCTION, {
+        const response = await fetch(SEARCH_PROXY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ query, engine }),
@@ -72,7 +72,7 @@ const Search = () => {
     };
 
     run();
-  }, [navigate, searchParams, toast]);
+  }, [navigate, searchParams, toast, settings]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
