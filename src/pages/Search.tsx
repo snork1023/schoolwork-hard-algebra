@@ -37,6 +37,16 @@ const Search = () => {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           const backendMessage = errorData?.error || `${response.status} ${response.statusText}`;
+          
+          // Handle function not deployed - fall back to direct URL
+          if (response.status === 404 && (backendMessage.includes('not found') || backendMessage.includes('NOT_FOUND'))) {
+            console.warn('Search proxy function not deployed, falling back to direct search URL');
+            const engineBase = { google: "https://www.google.com/search?q=", bing: "https://www.bing.com/search?q=", duckduckgo: "https://duckduckgo.com/?q=", brave: "https://search.brave.com/search?q=" }[engine] || "https://duckduckgo.com/?q=";
+            const searchUrl = engineBase + encodeURIComponent(query);
+            navigate(`/browser?url=${encodeURIComponent(searchUrl)}`);
+            return;
+          }
+          
           throw new Error(backendMessage);
         }
 
