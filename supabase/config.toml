@@ -3,3 +3,6 @@ project_id = "fsblsudfvtlwwzipheow"
 [functions.chat]
 verify_jwt = false
 
+[functions.search-proxy]
+verify_jwt = false
+

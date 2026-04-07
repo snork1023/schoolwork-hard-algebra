@@ -240,7 +240,7 @@ const Settings = () => {
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
-                    Search engine used for quick searches
+                    Search engine used for quick searches. Results are routed through the Scramjet bare proxy and use DuckDuckGo by default.
                   </p>
                 </div>
               </CardContent>

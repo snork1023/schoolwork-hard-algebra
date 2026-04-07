@@ -38,12 +38,15 @@ serve(async (req) => {
 
     const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SCRAMJET_PROXY_URL = "https://aluu.xyz/bare/";
+    const targetApiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const proxyUrl = `${SCRAMJET_PROXY_URL}${encodeURIComponent(targetApiUrl)}`;
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(proxyUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,

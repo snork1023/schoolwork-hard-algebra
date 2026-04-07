@@ -1,27 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUserSettings } from "@/hooks/useUserSettings";
-
-const SCRAMJET_BASE = "https://scramjet.mercurywork.shop/";
+import { SCRAMJET_PROXY_URL } from "@/lib/searchProxy";
 
 const BrowserView = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { settings } = useUserSettings();
   const url = searchParams.get("url") || "";
+  const originalUrl = searchParams.get("original") || "";
   const browserType = settings.browserType;
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [addressBar, setAddressBar] = useState("");
 
-  // Try to extract the original URL from the scramjet URL for display
+  // Clean up blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, [url]);
+
+  // Try to extract the original URL from the scramjet URL or use the original param for display
   const displayUrl = (() => {
     try {
-      if (url.startsWith(SCRAMJET_BASE)) {
-        return decodeURIComponent(url.slice(SCRAMJET_BASE.length));
+      if (originalUrl) {
+        return originalUrl;
+      }
+      if (url.startsWith(SCRAMJET_PROXY_URL)) {
+        return decodeURIComponent(url.slice(SCRAMJET_PROXY_URL.length));
+      }
+      if (url.startsWith('blob:') || url.startsWith('data:')) {
+        return 'Proxied Content';
       }
       return url;
     } catch {
@@ -52,7 +67,7 @@ const BrowserView = () => {
     if (!/^https?:\/\//i.test(targetUrl)) {
       targetUrl = "https://" + targetUrl;
     }
-    const scramjetUrl = SCRAMJET_BASE + encodeURIComponent(targetUrl);
+    const scramjetUrl = SCRAMJET_PROXY_URL + encodeURIComponent(targetUrl);
     navigate(`/browser?url=${encodeURIComponent(scramjetUrl)}`);
     setAddressBar("");
     setLoading(true);
@@ -94,9 +109,10 @@ const BrowserView = () => {
               defaultValue={displayUrl}
               value={addressBar || undefined}
               onChange={(e) => setAddressBar(e.target.value)}
-              onFocus={(e) => { if (!addressBar) setAddressBar(displayUrl); }}
+              onFocus={(e) => { if (!addressBar && !url.startsWith('blob:')) setAddressBar(displayUrl); }}
               onBlur={() => { if (!addressBar.trim()) setAddressBar(""); }}
               onKeyDown={(e) => { if (e.key === "Enter") handleAddressBarNavigate(); }}
+              disabled={url.startsWith('blob:')}
             />
           </div>
         </div>
