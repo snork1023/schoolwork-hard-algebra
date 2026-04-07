@@ -13,6 +13,7 @@ import Auth from "./pages/Auth";
 import CommunityChat from "./pages/CommunityChat";
 import Account from "./pages/Account";
 import Games from "./pages/Games";
+import Search from "./pages/Search";
 import NotFound from "./pages/NotFound";
 import BrowserView from "./components/BrowserView";
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/browser" element={<BrowserView />} />
+              <Route path="/search" element={<Search />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

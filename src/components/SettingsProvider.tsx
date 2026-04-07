@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   accentColor: '263 70% 50%',
   customAccentColor: null,
   browserType: 'chrome',
-  searchEngine: 'google',
+  searchEngine: 'duckduckgo',
   autoOpen: true,
   developerMode: false,
   simpleMode: false,
