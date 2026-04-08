@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
 import ShootingStars from "@/components/ShootingStars";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Chat from "./pages/Chat";
@@ -32,6 +33,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <SpeedInsights />
           <BrowserRouter>
             <GlobalStars />
             <div className="relative" style={{ zIndex: 1 }}>
