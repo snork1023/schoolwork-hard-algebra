@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
 import ShootingStars from "@/components/ShootingStars";
+import { Analytics } from "@vercel/analytics/react";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Chat from "./pages/Chat";
@@ -50,6 +51,7 @@ const App = () => (
             </Routes>
             </div>
           </BrowserRouter>
+          <Analytics />
         </TooltipProvider>
       </SettingsProvider>
     </ThemeProvider>
