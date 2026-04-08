@@ -1,7 +1,4 @@
-export const SCRAMJET_PROXY_URL = "/scram/";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "http://127.0.0.1:54321";
-export const SEARCH_PROXY_URL = `${SUPABASE_URL}/functions/v1/search-proxy`;
+export const SCRAMJET_PROXY_URL = "/scram/service/";
 
 export const SEARCH_ENGINES: Record<string, string> = {
   google: "https://www.google.com/search?q=",
@@ -9,8 +6,8 @@ export const SEARCH_ENGINES: Record<string, string> = {
   bing: "https://www.bing.com/search?q=",
 };
 
-export const SEARCH_PROXY_FUNCTION = async (query: string, engine: string): Promise<string> => {
+export const buildProxiedSearchUrl = (query: string, engine: string): string => {
   const baseUrl = SEARCH_ENGINES[engine] || SEARCH_ENGINES.duckduckgo;
   const searchUrl = baseUrl + encodeURIComponent(query);
-  return "/scram/" + encodeURIComponent(searchUrl);
+  return SCRAMJET_PROXY_URL + encodeURIComponent(searchUrl);
 };
