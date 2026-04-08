@@ -2,12 +2,19 @@ importScripts("/scram/scramjet.all.js");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker();
 
+// Load config once on SW startup
+scramjet.loadConfig().catch(console.error);
+
 self.addEventListener("fetch", (event) => {
-  event.respondWith((async () => {
-    await scramjet.loadConfig();
-    if (scramjet.route(event)) {
-      return scramjet.fetch(event);
-    }
-    return fetch(event.request);
-  })());
+  if (scramjet.route(event)) {
+    event.respondWith(scramjet.fetch(event));
+  }
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(clients.claim());
+});
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
 });
