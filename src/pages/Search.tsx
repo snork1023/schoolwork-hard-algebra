@@ -19,34 +19,50 @@ const Search = () => {
 
     // Wait for SW to be active before loading proxy URL
     const checkSW = async () => {
-      if (!("serviceWorker" in navigator)) {
-        setError("Service workers are not supported in this browser.");
-        return;
-      }
+  if (!("serviceWorker" in navigator)) {
+    setError("Service workers are not supported in this browser.");
+    return;
+  }
 
-      try {
-        const reg = await navigator.serviceWorker.getRegistration("/");
-        if (reg?.active) {
+  try {
+    // Register (or get existing) SW — this is idempotent
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+
+    // If already active, we're done
+    if (reg.active) {
+      setSwReady(true);
+      return;
+    }
+
+    // Wait for installing/waiting worker to activate
+    const worker = reg.installing || reg.waiting;
+    if (worker) {
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "activated") {
           setSwReady(true);
-          return;
         }
-        // Poll until active
-        const interval = setInterval(async () => {
-          const r = await navigator.serviceWorker.getRegistration("/");
-          if (r?.active) {
-            clearInterval(interval);
-            setSwReady(true);
-          }
-        }, 200);
-        // Give up after 5s
-        setTimeout(() => {
-          clearInterval(interval);
-          setError("Proxy service worker failed to start. Try refreshing.");
-        }, 5000);
-      } catch (err) {
-        setError("Unable to initialize the proxy.");
+      });
+    }
+
+    // Also poll as a fallback
+    const interval = setInterval(async () => {
+      const r = await navigator.serviceWorker.getRegistration("/");
+      if (r?.active) {
+        clearInterval(interval);
+        setSwReady(true);
       }
-    };
+    }, 200);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      if (!swReady) {
+        setError("Proxy service worker failed to start. Try refreshing.");
+      }
+    }, 8000);
+  } catch (err) {
+    setError("Unable to initialize the proxy.");
+  }
+};
 
     checkSW();
   }, [query]);
