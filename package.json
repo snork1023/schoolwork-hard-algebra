@@ -9,7 +9,6 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check-proxy-files": "ls node_modules/@mercuryworkshop/scramjet/dist && ls node_modules/@mercuryworkshop/bare-mux/dist"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
