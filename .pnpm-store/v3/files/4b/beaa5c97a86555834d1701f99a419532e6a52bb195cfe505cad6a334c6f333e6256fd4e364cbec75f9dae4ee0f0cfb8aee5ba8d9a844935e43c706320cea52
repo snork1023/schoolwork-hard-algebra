@@ -1,0 +1,86 @@
+{
+  "name": "parse-domain",
+  "version": "8.3.0",
+  "description": "Splits a hostname into subdomains, domain and (effective) top-level domains",
+  "keywords": [
+    "domain",
+    "url",
+    "sub-domain",
+    "tld",
+    "parse",
+    "sanitize",
+    "top-level"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/peerigon/parse-domain.git"
+  },
+  "license": "MIT",
+  "author": "peerigon <developers@peerigon.com>",
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "bin": {
+    "parse-domain-update": "./bin/update.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "serialized-tries"
+  ],
+  "scripts": {
+    "test": "run-p test:*",
+    "test:suite": "vitest run --coverage",
+    "test:lint": "eslint --max-warnings 0 --cache .",
+    "test:format": "prettier --check .",
+    "test:types": "tsc --noEmit",
+    "build": "run-s build:*",
+    "build:cleanup": "rimraf dist",
+    "build:tsc": "tsc -p ./tsconfig.build.json",
+    "build:update": "./bin/update.js",
+    "prepare": "run-p prepare:*",
+    "prepare:husky": "husky",
+    "prepare:build": "npm run build",
+    "update:psl-fixture": "npm run node -- ./src/scripts/update-psl-fixture.ts",
+    "update:dependencies": "updtr",
+    "node": "node --no-warnings --loader ts-node/esm/transpile-only",
+    "release": "semantic-release"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,cjs,mjs,jsx}": [
+      "eslint --cache --fix",
+      "prettier --write"
+    ],
+    ".github/workflows/*.{yml,yaml}": [
+      "pin-github-action --allow-empty",
+      "prettier --write"
+    ],
+    "*.{json,css,md,yml,yaml}": "prettier --write"
+  },
+  "dependencies": {
+    "is-ip": "^5.0.1"
+  },
+  "devDependencies": {
+    "@peerigon/configs": "^11.0.2",
+    "@types/node": "^24.10.0",
+    "@vitest/coverage-v8": "^4.0.6",
+    "eslint": "9.38.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "nock": "^14.0.10",
+    "npm-run-all": "^4.1.5",
+    "pin-github-action": "^3.4.0",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.1.0",
+    "semantic-release": "^25.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "updtr": "^4.1.0",
+    "vitest": "^4.0.6"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

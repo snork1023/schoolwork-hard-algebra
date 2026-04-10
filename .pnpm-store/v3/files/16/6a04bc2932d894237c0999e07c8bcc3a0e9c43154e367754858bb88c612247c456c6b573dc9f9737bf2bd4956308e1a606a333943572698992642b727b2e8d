@@ -1,0 +1,85 @@
+{
+	"name": "@mercuryworkshop/scramjet",
+	"version": "2.0.0-alpha",
+	"description": "An experimental web proxy that aims to be the successor to Ultraviolet",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/MercuryWorkshop/scramjet"
+	},
+	"scripts": {
+		"build": "rspack build --mode production",
+		"rewriter:build": "cd rewriter/wasm/ && bash build.sh && cd ../../",
+		"dev": "node server.js",
+		"dev:debug": "DEBUG=1 node server.js",
+		"prepack": "RELEASE=1 npm run rewriter:build && tsc && tsc-alias && npm run build",
+		"pub": "npm publish --no-git-checks --access public",
+		"format": "prettier --write .",
+		"lint": "eslint ./src/",
+		"lint:fix": "eslint ./src/ --fix",
+		"test": "npx playwright test",
+		"preinstall": "npx only-allow pnpm"
+	},
+	"exports": {
+		".": {
+			"types": "./lib/types.d.ts",
+			"default": "./lib/noop.js"
+		},
+		"./path": {
+			"types": "./lib/index.d.ts",
+			"default": "./lib/index.cjs"
+		},
+		"./bundled": {
+			"types": "./dist/types/index.d.ts",
+			"default": "./dist/scramjet.bundle.js"
+		}
+	},
+	"files": [
+		"dist/*.js",
+		"dist/*.js.map",
+		"dist/*.wasm",
+		"lib"
+	],
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"@eslint/eslintrc": "^3.3.1",
+		"@eslint/js": "^9.32.0",
+		"@estruyf/github-actions-reporter": "^1.10.0",
+		"@fastify/static": "^8.2.0",
+		"@mercuryworkshop/bare-as-module3": "^2.2.5",
+		"@mercuryworkshop/epoxy-transport": "^2.1.28",
+		"@mercuryworkshop/libcurl-transport": "^1.5.0",
+		"@mercuryworkshop/wisp-js": "^0.3.3",
+		"@nebula-services/bare-server-node": "^2.0.4",
+		"@playwright/test": "^1.54.2",
+		"@rsdoctor/rspack-plugin": "^1.1.5",
+		"@rspack/cli": "^1.4.8",
+		"@rspack/core": "^1.4.8",
+		"@types/eslint": "^9.6.1",
+		"@types/estree": "^1.0.8",
+		"@types/node": "^24.1.0",
+		"@types/serviceworker": "^0.0.148",
+		"@typescript-eslint/eslint-plugin": "^8.38.0",
+		"@typescript-eslint/parser": "^8.38.0",
+		"dotenv": "^17.2.1",
+		"eslint": "^9.32.0",
+		"fastify": "^5.4.0",
+		"playwright": "^1.54.2",
+		"prettier": "^3.6.2",
+		"ts-checker-rspack-plugin": "^1.1.4",
+		"tsc-alias": "^1.8.16",
+		"tslib": "^2.8.1",
+		"typescript": "^5.9.2"
+	},
+	"dependencies": {
+		"@mercuryworkshop/epoxy-tls": "2.1.18-1",
+		"dom-serializer": "^2.0.0",
+		"domhandler": "^5.0.3",
+		"domutils": "^3.2.2",
+		"htmlparser2": "10.0.0",
+		"parse-domain": "^8.2.2",
+		"set-cookie-parser": "^2.7.1"
+	}
+}
