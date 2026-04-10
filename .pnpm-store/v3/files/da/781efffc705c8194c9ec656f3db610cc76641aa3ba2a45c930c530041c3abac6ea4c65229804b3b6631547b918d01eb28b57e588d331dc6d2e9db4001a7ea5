@@ -1,0 +1,1 @@
+{"version":3,"file":"punycode.js","sourceRoot":"","sources":["../src/punycode.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,MAAM,OAAO,GAAG,CAAC,QAAgB,EAAE,EAAE;IAC1C,OAAO,IAAI,GAAG,CAAC,UAAU,QAAQ,EAAE,CAAC,CAAC,QAAQ,CAAC;AAChD,CAAC,CAAC","sourcesContent":["export const toASCII = (hostname: string) => {\n  return new URL(`http://${hostname}`).hostname;\n};\n"]}
