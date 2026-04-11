@@ -4,56 +4,37 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useUserSettings } from "@/hooks/useUserSettings";
-import { SEARCH_ENGINES } from "@/lib/searchProxy";
 
 const ProxyInput = () => {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { settings } = useUserSettings();
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (!query.trim()) {
       toast({
-        title: "Please enter a search query",
-        description: "Enter something to search for",
+        title: "Enter a search term",
+        description: "Type something to search for",
         variant: "destructive",
       });
       return;
     }
-
-    try {
-      setIsLoading(true);
-      navigate(`/search?q=${encodeURIComponent(query.trim())}&engine=${encodeURIComponent(settings.searchEngine)}`);
-      setQuery("");
-    } catch (error) {
-      console.error("Search proxy error:", error);
-      const message = error instanceof Error ? error.message : String(error);
-      toast({
-        title: "Search failed",
-        description: settings.developerMode ? message : "Unable to run the search",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSearch();
+    setIsLoading(true);
+    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    setQuery("");
+    setIsLoading(false);
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-4">
+    <div className="w-full max-w-3xl mx-auto">
       <div className="flex gap-3">
         <Input
           type="text"
-          placeholder={`Search with ${settings.searchEngine.charAt(0).toUpperCase() + settings.searchEngine.slice(1)}...`}
+          placeholder="Search DuckDuckGo..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyPress}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
           className="flex-1 h-14 text-lg bg-card border-border focus:border-primary transition-all"
         />
         <Button

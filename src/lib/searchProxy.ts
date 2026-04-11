@@ -1,13 +1,20 @@
-export const SCRAMJET_PROXY_URL = "/scram/service/";
+export const UV_PREFIX = "/uv/service/";
 
-export const SEARCH_ENGINES: Record<string, string> = {
-  google: "https://www.google.com/search?q=",
-  duckduckgo: "https://duckduckgo.com/?q=",
-  bing: "https://www.bing.com/search?q=",
-};
+// XOR encode — matches Ultraviolet.codec.xor.encode used in uv.config.js
+export function uvEncodeUrl(url: string): string {
+  return encodeURIComponent(
+    url
+      .split("")
+      .map((char) => String.fromCharCode(char.charCodeAt(0) ^ 2))
+      .join("")
+  );
+}
 
-export const buildProxiedSearchUrl = (query: string, engine: string): string => {
-  const baseUrl = SEARCH_ENGINES[engine] || SEARCH_ENGINES.duckduckgo;
-  const searchUrl = baseUrl + encodeURIComponent(query);
-  return SCRAMJET_PROXY_URL + encodeURIComponent(searchUrl);
-};
+export function buildProxiedUrl(url: string): string {
+  return UV_PREFIX + uvEncodeUrl(url);
+}
+
+export function buildSearchUrl(query: string): string {
+  const ddgUrl = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=web`;
+  return buildProxiedUrl(ddgUrl);
+}

@@ -1,20 +1,16 @@
-importScripts("/scram/scramjet.all.js");
-const { ScramjetServiceWorker } = $scramjetLoadWorker();
-const scramjet = new ScramjetServiceWorker();
+importScripts("/uv/uv.bundle.js");
+importScripts("/uv/uv.config.js");
+importScripts("/uv/uv.sw.js");
 
-// Load config once on SW startup
-scramjet.loadConfig().catch(console.error);
+const sw = new UVServiceWorker();
 
 self.addEventListener("fetch", (event) => {
-  if (scramjet.route(event)) {
-    event.respondWith(scramjet.fetch(event));
-  }
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(clients.claim());
-});
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.respondWith(
+    (async () => {
+      if (await sw.route(event)) {
+        return await sw.fetch(event);
+      }
+      return await fetch(event.request);
+    })()
+  );
 });

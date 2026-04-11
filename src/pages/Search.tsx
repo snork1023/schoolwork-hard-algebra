@@ -1,77 +1,77 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
-import { buildProxiedSearchUrl, SEARCH_ENGINES } from "@/lib/searchProxy";
+import { buildSearchUrl } from "@/lib/searchProxy";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 const Search = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const query = searchParams.get("q") || "";
-  const engine = searchParams.get("engine") || "duckduckgo";
   const [proxyUrl, setProxyUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [swReady, setSwReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!query) return;
-
-    // Wait for SW to be active before loading proxy URL
-    const checkSW = async () => {
-  if (!("serviceWorker" in navigator)) {
-    setError("Service workers are not supported in this browser.");
-    return;
-  }
-
-  try {
-    // Register (or get existing) SW — this is idempotent
-    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-
-    // If already active, we're done
-    if (reg.active) {
-      setSwReady(true);
+    if (!("serviceWorker" in navigator)) {
+      setError("Service workers are not supported in this browser.");
       return;
     }
 
-    // Wait for installing/waiting worker to activate
-    const worker = reg.installing || reg.waiting;
-    if (worker) {
-      worker.addEventListener("statechange", () => {
-        if (worker.state === "activated") {
-          setSwReady(true);
+    let resolved = false;
+
+    const activate = async () => {
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+
+        const markReady = () => {
+          if (!resolved) {
+            resolved = true;
+            setSwReady(true);
+          }
+        };
+
+        if (reg.active) {
+          markReady();
+          return;
         }
-      });
-    }
 
-    // Also poll as a fallback
-    const interval = setInterval(async () => {
-      const r = await navigator.serviceWorker.getRegistration("/");
-      if (r?.active) {
-        clearInterval(interval);
-        setSwReady(true);
+        const worker = reg.installing || reg.waiting;
+        worker?.addEventListener("statechange", () => {
+          if ((worker as ServiceWorker).state === "activated") {
+            markReady();
+          }
+        });
+
+        const poll = setInterval(async () => {
+          const r = await navigator.serviceWorker.getRegistration("/");
+          if (r?.active) {
+            clearInterval(poll);
+            markReady();
+          }
+        }, 150);
+
+        setTimeout(() => {
+          clearInterval(poll);
+          if (!resolved) {
+            setError("Proxy failed to start. Try refreshing the page.");
+          }
+        }, 7000);
+      } catch {
+        setError("Could not start the proxy. Try a different browser.");
       }
-    }, 200);
+    };
 
-    setTimeout(() => {
-      clearInterval(interval);
-      if (!swReady) {
-        setError("Proxy service worker failed to start. Try refreshing.");
-      }
-    }, 8000);
-  } catch (err) {
-    setError("Unable to initialize the proxy.");
-  }
-};
-
-    checkSW();
+    activate();
   }, [query]);
 
   useEffect(() => {
-    if (!swReady || !query) return;
-    const url = buildProxiedSearchUrl(query, engine);
-    setProxyUrl(url);
-  }, [swReady, query, engine]);
+    if (swReady && query) {
+      setProxyUrl(buildSearchUrl(query));
+    }
+  }, [swReady, query]);
 
   if (!query) {
     return (
@@ -93,16 +93,9 @@ const Search = () => {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <span className="text-sm text-muted-foreground truncate flex-1">
-            Searching: <span className="text-foreground font-medium">{query}</span>
-            {" "}via {engine.charAt(0).toUpperCase() + engine.slice(1)}
+            Searching:{" "}
+            <span className="text-foreground font-medium">{query}</span>
           </span>
-          {proxyUrl && (
-            <Button variant="ghost" size="icon" asChild>
-              <a href={proxyUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </Button>
-          )}
         </div>
 
         <div className="flex-1 relative">
@@ -110,7 +103,9 @@ const Search = () => {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center space-y-3 p-6">
                 <p className="text-destructive font-medium">{error}</p>
-                <Button onClick={() => window.location.reload()}>Refresh Page</Button>
+                <Button onClick={() => window.location.reload()}>
+                  Refresh Page
+                </Button>
               </div>
             </div>
           )}
@@ -119,7 +114,9 @@ const Search = () => {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center space-y-2">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-sm text-muted-foreground">Connecting to proxy...</p>
+                <p className="text-sm text-muted-foreground">
+                  Connecting to proxy...
+                </p>
               </div>
             </div>
           )}
