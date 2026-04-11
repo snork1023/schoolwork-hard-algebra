@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { SCRAMJET_PROXY_URL } from "@/lib/searchProxy";
 
 const BrowserView = () => {
   const [searchParams] = useSearchParams();
