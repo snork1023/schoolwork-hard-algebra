@@ -2,11 +2,18 @@ export const UV_PREFIX = "/uv/service/";
 
 export function uvEncodeUrl(url: string): string {
   return btoa(
-  url
+    url
+      .split("")
+      .map((char) => String.fromCharCode(char.charCodeAt(0) ^ 2))
+      .join("")
+  );
+}
+
+export function uvDecodeUrl(encoded: string): string {
+  return atob(encoded)
     .split("")
     .map((char) => String.fromCharCode(char.charCodeAt(0) ^ 2))
-    .join("")
-    );
+    .join("");
 }
 
 export function buildProxiedUrl(url: string): string {
@@ -14,7 +21,6 @@ export function buildProxiedUrl(url: string): string {
 }
 
 export function buildSearchUrl(query: string): string {
-  // Build a valid absolute DuckDuckGo URL first, then encode it for UV
   const ddgUrl = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=web`;
   return buildProxiedUrl(ddgUrl);
 }
