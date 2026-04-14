@@ -1,50 +1,54 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { buildProxiedUrl, uvDecodeUrl } from "@/lib/searchProxy";
+
+const UV_PREFIX = "/uv/service/";
 
 const BrowserView = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { settings } = useUserSettings();
-  const url = searchParams.get("url") || "";
-  const originalUrl = searchParams.get("original") || "";
+
+  const encodedUrl = searchParams.get("url") || "";
   const browserType = settings.browserType;
+
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [addressBar, setAddressBar] = useState("");
 
-  // Clean up blob URLs when component unmounts
-  useEffect(() => {
-    return () => {
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    };
-  }, [url]);
+  const historyRef = useRef<string[]>([]);
+  const historyIndexRef = useRef<number>(-1);
 
-  // Try to extract the original URL from the scramjet URL or use the original param for display
+  const decodedParam = decodeURIComponent(encodedUrl);
+
+  useEffect(() => {
+    if (decodedParam && historyIndexRef.current === -1) {
+      historyRef.current.push(decodedParam);
+      historyIndexRef.current = 0;
+    }
+  }, [decodedParam]);
+
   const displayUrl = (() => {
     try {
-      if (originalUrl) {
-        return originalUrl;
+      if (decodedParam.startsWith(UV_PREFIX)) {
+        const encodedPart = decodedParam.replace(UV_PREFIX, "");
+        return uvDecodeUrl(encodedPart);
       }
-      if (url.startsWith(SCRAMJET_PROXY_URL)) {
-        return decodeURIComponent(url.slice(SCRAMJET_PROXY_URL.length));
-      }
-      if (url.startsWith('blob:') || url.startsWith('data:')) {
-        return 'Proxied Content';
-      }
-      return url;
+      return decodedParam;
     } catch {
-      return url;
+      return decodedParam;
     }
   })();
 
   const hostname = (() => {
-    try { return new URL(displayUrl).hostname; } catch { return displayUrl; }
+    try {
+      return new URL(displayUrl).hostname;
+    } catch {
+      return displayUrl;
+    }
   })();
 
   const getBrowserStyles = () => {
@@ -60,17 +64,41 @@ const BrowserView = () => {
     }
   };
 
-  const handleAddressBarNavigate = () => {
-    if (!addressBar.trim()) return;
-    let targetUrl = addressBar.trim();
-    if (!/^https?:\/\//i.test(targetUrl)) {
-      targetUrl = "https://" + targetUrl;
+  const goToUrl = (rawUrl: string) => {
+    let target = rawUrl.trim();
+    if (!/^https?:\/\//i.test(target)) {
+      target = "https://" + target;
     }
-    const scramjetUrl = SCRAMJET_PROXY_URL + encodeURIComponent(targetUrl);
-    navigate(`/browser?url=${encodeURIComponent(scramjetUrl)}`);
-    setAddressBar("");
+
+    const proxied = buildProxiedUrl(target);
+
+    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+    historyRef.current.push(proxied);
+    historyIndexRef.current++;
+
+    navigate(`/browser?url=${encodeURIComponent(proxied)}`);
     setLoading(true);
     setReloadKey((k) => k + 1);
+  };
+
+  const goBack = () => {
+    if (historyIndexRef.current > 0) {
+      historyIndexRef.current--;
+      const prev = historyRef.current[historyIndexRef.current];
+      navigate(`/browser?url=${encodeURIComponent(prev)}`);
+      setLoading(true);
+      setReloadKey((k) => k + 1);
+    }
+  };
+
+  const goForward = () => {
+    if (historyIndexRef.current < historyRef.current.length - 1) {
+      historyIndexRef.current++;
+      const next = historyRef.current[historyIndexRef.current];
+      navigate(`/browser?url=${encodeURIComponent(next)}`);
+      setLoading(true);
+      setReloadKey((k) => k + 1);
+    }
   };
 
   const styles = getBrowserStyles();
@@ -90,28 +118,49 @@ const BrowserView = () => {
 
         <div className="flex items-center gap-2 px-2">
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled><ArrowLeft className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled><ArrowRight className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goBack} disabled={historyIndexRef.current <= 0}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goForward}
+              disabled={historyIndexRef.current >= historyRef.current.length - 1}
+            >
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                setLoading(true);
+                setReloadKey((k) => k + 1);
+              }}
+            >
               <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/")}>
               <Home className="w-4 h-4" />
             </Button>
           </div>
+
           <div className={`${styles.urlBar} flex-1 rounded-full px-4 py-2 flex items-center gap-2`}>
             <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
             <input
               type="text"
               className="flex-1 bg-transparent text-sm outline-none truncate"
               placeholder="Enter URL..."
-              defaultValue={displayUrl}
-              value={addressBar || undefined}
+              value={addressBar || displayUrl}
               onChange={(e) => setAddressBar(e.target.value)}
-              onFocus={(e) => { if (!addressBar && !url.startsWith('blob:')) setAddressBar(displayUrl); }}
-              onBlur={() => { if (!addressBar.trim()) setAddressBar(""); }}
-              onKeyDown={(e) => { if (e.key === "Enter") handleAddressBarNavigate(); }}
-              disabled={url.startsWith('blob:')}
+              onFocus={() => setAddressBar(displayUrl)}
+              onBlur={() => {
+                if (!addressBar.trim()) setAddressBar("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") goToUrl(addressBar);
+              }}
             />
           </div>
         </div>
@@ -126,9 +175,10 @@ const BrowserView = () => {
             </div>
           </div>
         )}
+
         <iframe
           key={reloadKey}
-          src={url}
+          src={`${window.location.origin}${decodedParam}`}
           className="w-full h-full border-0"
           title="Browser"
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
