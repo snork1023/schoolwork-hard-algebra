@@ -1,10 +1,12 @@
 export const UV_PREFIX = "/uv/service/";
 
 export function uvEncodeUrl(url: string): string {
-  return url
+  return btoa(
+  url
     .split("")
     .map((char) => String.fromCharCode(char.charCodeAt(0) ^ 2))
-    .join("");
+    .join("")
+    );
 }
 
 export function buildProxiedUrl(url: string): string {
