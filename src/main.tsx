@@ -4,7 +4,7 @@ import "./index.css";
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
-    .register("/uv/sw.js", { scope: "/uv/" })
+    .register("/uv/uv.sw.js", { scope: "/uv/" })
     .catch((err) => console.warn("[UV] SW registration failed:", err));
 }
 
