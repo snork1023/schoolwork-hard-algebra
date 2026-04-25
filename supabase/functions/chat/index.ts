@@ -3,8 +3,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
+
+// ── Rate limit config ──────────────────────────────────────────────────────
+const RATE_LIMIT = 30;
+const WINDOW_MINUTES = 60;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,87 +17,138 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate the user
+    // ── Auth ────────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ error: "Authentication required" }, 401);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data, error: authError } = await supabase.auth.getClaims(token);
-    if (authError || !data?.claims) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return json({ error: "Invalid or expired token" }, 401);
+    }
+
+    // ── Rate limiting ────────────────────────────────────────────────────────
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
+
+    const { count, error: countError } = await adminClient
+      .from("chat_rate_limits")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", windowStart);
+
+    if (countError) {
+      console.error("Rate limit count error:", countError);
+    }
+
+    const messageCount = count ?? 0;
+
+    if (messageCount >= RATE_LIMIT) {
+      const { data: oldest } = await adminClient
+        .from("chat_rate_limits")
+        .select("created_at")
+        .eq("user_id", user.id)
+        .gte("created_at", windowStart)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .single();
+
+      const resetsAt = oldest
+        ? new Date(new Date(oldest.created_at).getTime() + WINDOW_MINUTES * 60 * 1000).toISOString()
+        : null;
+
+      return json(
+        {
+          error: "rate_limited",
+          message: `You've used all ${RATE_LIMIT} messages for this hour. Try again when the limit resets.`,
+          resetsAt,
+          used: messageCount,
+          limit: RATE_LIMIT,
+        },
+        429
       );
     }
 
+    // ── Parse request ────────────────────────────────────────────────────────
     const { messages } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const SCRAMJET_PROXY_URL = "https://aluu.xyz/bare/";
-    const targetApiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-    const proxyUrl = `${SCRAMJET_PROXY_URL}${encodeURIComponent(targetApiUrl)}`;
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return json({ error: "messages array is required" }, 400);
     }
 
-    const response = await fetch(proxyUrl, {
+    // ── Call OpenRouter ──────────────────────────────────────────────────────
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not configured");
+    }
+
+    const openrouterResp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "deepseek/deepseek-chat", // free + high quality
         messages: [
-          { 
-            role: "system", 
-            content: "You are a helpful AI assistant. Keep answers clear, concise, and helpful."
-          },
+          { role: "system", content: "You are a helpful AI assistant." },
           ...messages,
         ],
         stream: true,
+        max_tokens: 1024,
+        temperature: 0.7,
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    if (!openrouterResp.ok) {
+      const errText = await openrouterResp.text();
+      console.error("OpenRouter API error:", openrouterResp.status, errText);
+
+      if (openrouterResp.status === 429) {
+        return json({ error: "OpenRouter rate limit hit. Please wait a moment." }, 429);
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      console.error("AI gateway error:", response.status, await response.text());
-      return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+
+      return json({ error: "AI service error. Please try again." }, 500);
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    // ── Record usage AFTER successful call ───────────────────────────────────
+    adminClient
+      .from("chat_rate_limits")
+      .insert({ user_id: user.id })
+      .then(({ error }) => {
+        if (error) console.error("Failed to record rate limit entry:", error);
+      });
+
+    // ── Stream OpenRouter SSE → client (already OpenAI format) ───────────────
+    return new Response(openrouterResp.body, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
     });
-  } catch (e) {
-    console.error("chat error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+
+  } catch (err) {
+    console.error("chat function error:", err);
+    return json(
+      { error: err instanceof Error ? err.message : "Unknown error" },
+      500
     );
   }
 });
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
