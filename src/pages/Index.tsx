@@ -9,8 +9,6 @@ const Index = () => {
   const navigate = useNavigate();
   const features = [];
 
-  const [messageIndex, setMessageIndex] = useState(Math.floor(Math.random() * messages.length));
-
   const messages = [
     "dont click me",
     "click me (｡˃ ᵕ ˂ )",
@@ -28,9 +26,16 @@ const Index = () => {
     "v1 was trash",
     "+1 cookie",
     "bet on red",
-    "#Japan is turning footsteps into electricity! Using piezoelectric tiles, every step you take generates a small amount of energy.",
+    "Japan is turning footsteps into electricity! Using piezoelectric tiles, every step you take generates a small amount of energy.",
     "who reads these anyway",
   ];
+
+  const [messageIndex, setMessageIndex] = useState(() =>
+  messages.length > 0
+    ? Math.floor(Math.random() * messages.length)
+    : 0
+);
+
 
   return <div className="min-h-screen">
       <Navigation />
