@@ -29,7 +29,7 @@ const Index = () => {
     "+1 cookie",
     "bet on red",
     "#Japan is turning footsteps into electricity! Using piezoelectric tiles, every step you take generates a small amount of energy.",
-    "who reads these anyway"
+    "who reads these anyway",
   ];
 
   return <div className="min-h-screen">
