@@ -228,7 +228,7 @@ const Chat = () => {
 
           {/* Usage indicator */}
           <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground px-1">
-            <span>Powered by Google Gemini</span>
+            <span>Kepler AI Chat</span>
             <span className={remaining <= 5 ? "text-destructive font-medium" : ""}>
               {rateLimited
                 ? `Rate limited — resets in ${countdown}`
