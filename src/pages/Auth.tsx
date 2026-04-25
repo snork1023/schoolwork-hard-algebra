@@ -245,8 +245,13 @@ const Auth = () => {
           data: { username: validation.data.username || validation.data.email.split("@")[0] },
         },
       });
+      if (error && error.code === "user_already_exists") {
+    toast({ title: "Email already registered", description: "An account with this email already exists. Try signing in instead.", variant: "destructive",
+    });
+    return;  
+    }
       if (error) throw error;
-      toast({ title: "Account created!", description: "You can now sign in with your credentials." });
+      toast({ title: "Account created!", description: "Please verify your email" });
     } catch (error: any) {
       toast({ title: "Error", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
