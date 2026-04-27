@@ -204,55 +204,40 @@ const Auth = () => {
     }
   };
 
-  // ── Sign Up ────────────────────────────────────────────────────────────────
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const validation = signUpSchema.safeParse({
-      username: signUpUsername,
-      email: signUpEmail,
-      password: signUpPassword,
+ // ── Sign Up ────────────────────────────────────────────────────────────────
+const handleSignUp = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const validation = signUpSchema.safeParse({
+    username: signUpUsername,
+    email: signUpEmail,
+    password: signUpPassword,
+  });
+  if (!validation.success) {
+    toast({
+      title: "Validation error",
+      description: validation.error.errors[0].message,
+      variant: "destructive",
     });
-    if (!validation.success) {
-      toast({ title: "Validation error", description: validation.error.errors[0].message, variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-    try {
-      // Check if email is already registered before calling signUp.
-      // We do this by attempting to sign in with a dummy password and checking
-      // the specific error code. If Supabase returns anything other than
-      // "Invalid login credentials" it means the email doesn't exist yet.
-      // More reliably: just attempt signUp and handle the duplicate error.
-      const { data, error } = await supabase.auth.signUp({
-        email: validation.data.email,
-        password: validation.data.password,
-        options: {
-          data: { username: validation.data.username },
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
+    return;
+  }
 
-      if (error) {
-        // Supabase returns "User already registered" for duplicate emails
-        // when email confirmation is disabled in the dashboard.
-        if (
-          error.message?.toLowerCase().includes("already registered") ||
-          error.message?.toLowerCase().includes("already exists") ||
-          error.status === 422
-        ) {
-          toast({
-            title: "Email already in use",
-            description: "An account with that email already exists. Please sign in instead.",
-            variant: "destructive",
-          });
-          return;
-        }
-        throw error;
-      }
+  setLoading(true);
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: validation.data.email,
+      password: validation.data.password,
+      options: {
+        data: { username: validation.data.username },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    });
 
-      // When email confirmation is ON, Supabase returns a user with
-      // identities[] empty to signal the email is already taken.
-      if (data.user && data.user.identities && data.user.identities.length === 0) {
+    if (error) {
+      if (
+        error.message?.toLowerCase().includes("already registered") ||
+        error.message?.toLowerCase().includes("already exists") ||
+        error.status === 422
+      ) {
         toast({
           title: "Email already in use",
           description: "An account with that email already exists. Please sign in instead.",
@@ -260,21 +245,56 @@ const Auth = () => {
         });
         return;
       }
-
-      toast({
-        title: "Account created!",
-        description: "You can now sign in with your credentials.",
-      });
-      // Clear sign-up fields
-      setSignUpUsername("");
-      setSignUpEmail("");
-      setSignUpPassword("");
-    } catch (error: any) {
-      toast({ title: "Error", description: getUserFriendlyError(error), variant: "destructive" });
-    } finally {
-      setLoading(false);
+      throw error;
     }
-  };
+
+    // Duplicate email detection when email confirmation is ON
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      toast({
+        title: "Email already in use",
+        description: "An account with that email already exists. Please sign in instead.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Insert profile row so username actually exists
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          id: data.user.id,
+          username: validation.data.username,
+        });
+
+      if (profileError) {
+        console.error("Profile insert error:", profileError);
+        toast({
+          title: "Profile error",
+          description: "Your account was created, but we couldn't set up your profile.",
+          variant: "destructive",
+        });
+      }
+    }
+
+    toast({
+      title: "Account created!",
+      description: "Check your email to verify your account.",
+    });
+
+    setSignUpUsername("");
+    setSignUpEmail("");
+    setSignUpPassword("");
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: getUserFriendlyError(error),
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Password Reset ─────────────────────────────────────────────────────────
   const handlePasswordReset = async (e: React.FormEvent) => {
