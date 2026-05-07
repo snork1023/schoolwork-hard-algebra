@@ -3,9 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { buildProxiedUrl, uvDecodeUrl } from "@/lib/searchProxy";
-
-const UV_PREFIX = "/uv/service/";
+import { buildProxiedUrl, decodeProxiedUrl, PROXY_PREFIX } from "@/lib/searchProxy";
 
 const BrowserView = () => {
   const [searchParams] = useSearchParams();
@@ -23,6 +21,8 @@ const BrowserView = () => {
   const historyIndexRef = useRef<number>(-1);
 
   const decodedParam = decodeURIComponent(encodedUrl);
+  const [displayUrl, setDisplayUrl] = useState(decodedParam);
+  const [browserError, setBrowserError] = useState<string | null>(null);
 
   useEffect(() => {
     if (decodedParam && historyIndexRef.current === -1) {
@@ -31,17 +31,29 @@ const BrowserView = () => {
     }
   }, [decodedParam]);
 
-  const displayUrl = (() => {
-    try {
-      if (decodedParam.startsWith(UV_PREFIX)) {
-        const encodedPart = decodedParam.replace(UV_PREFIX, "");
-        return uvDecodeUrl(encodedPart);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const isProxyUrl =
+          decodedParam.startsWith(PROXY_PREFIX) ||
+          decodedParam.startsWith(`${window.location.origin}${PROXY_PREFIX}`);
+
+        if (decodedParam && isProxyUrl) {
+          const decoded = await decodeProxiedUrl(decodedParam);
+          if (!cancelled) setDisplayUrl(decoded);
+        } else {
+          if (!cancelled) setDisplayUrl(decodedParam);
+        }
+      } catch {
+        if (!cancelled) setDisplayUrl(decodedParam);
       }
-      return decodedParam;
-    } catch {
-      return decodedParam;
-    }
-  })();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [decodedParam]);
 
   const hostname = (() => {
     try {
@@ -64,21 +76,25 @@ const BrowserView = () => {
     }
   };
 
-  const goToUrl = (rawUrl: string) => {
+  const goToUrl = async (rawUrl: string) => {
     let target = rawUrl.trim();
     if (!/^https?:\/\//i.test(target)) {
       target = "https://" + target;
     }
 
-    const proxied = buildProxiedUrl(target);
+    try {
+      const proxied = await buildProxiedUrl(target);
+      historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+      historyRef.current.push(proxied);
+      historyIndexRef.current++;
 
-    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
-    historyRef.current.push(proxied);
-    historyIndexRef.current++;
-
-    navigate(`/browser?url=${encodeURIComponent(proxied)}`);
-    setLoading(true);
-    setReloadKey((k) => k + 1);
+      navigate(`/browser?url=${encodeURIComponent(proxied)}`);
+      setLoading(true);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      console.error("[browser] proxy init failed:", err);
+      setBrowserError("Could not start the proxy. Try refreshing the page.");
+    }
   };
 
   const goBack = () => {
@@ -178,7 +194,7 @@ const BrowserView = () => {
 
         <iframe
           key={reloadKey}
-          src={`${window.location.origin}${decodedParam}`}
+          src={/^(https?:\/\/)/i.test(decodedParam) ? decodedParam : `${window.location.origin}${decodedParam}`}
           className="w-full h-full border-0"
           title="Browser"
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups"

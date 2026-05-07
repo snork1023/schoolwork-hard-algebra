@@ -12,7 +12,8 @@ const ProxyInput = () => {
   const navigate = useNavigate();
 
   const handleSearch = () => {
-    if (!query.trim()) {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
       toast({
         title: "Enter a search term",
         description: "Type something to search for",
@@ -21,7 +22,7 @@ const ProxyInput = () => {
       return;
     }
     setIsLoading(true);
-    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+    navigate("/search", { state: { query: trimmedQuery } });
     setQuery("");
     setIsLoading(false);
   };

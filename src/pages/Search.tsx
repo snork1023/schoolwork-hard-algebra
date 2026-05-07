@@ -1,82 +1,56 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import Navigation from "@/components/Navigation";
-import { buildSearchUrl } from "@/lib/searchProxy";
+import { useNavigate, useLocation } from "react-router-dom";
+import { buildSearchUrl, buildSearchTarget } from "@/lib/searchProxy";
+import { getScramjetLogs } from "@/lib/scramjet";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowLeft, ArrowRight, Home, Terminal } from "lucide-react";
 
 const Search = () => {
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
-  const query = searchParams.get("q") || "";
+  const state = (location.state as { query?: string } | null) ?? null;
+  const searchParams = new URLSearchParams(location.search);
+  const query = state?.query || searchParams.get("q") || "";
   const [proxyUrl, setProxyUrl] = useState<string | null>(null);
-  const [swReady, setSwReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logRefresh, setLogRefresh] = useState(0);
 
   useEffect(() => {
     if (!query) return;
-    if (!("serviceWorker" in navigator)) {
-      setError("Service workers are not supported in this browser.");
-      return;
-    }
 
-    let resolved = false;
+    let cancelled = false;
+    setError(null);
+    setProxyUrl(null);
 
-    const activate = async () => {
+    (async () => {
       try {
-        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-
-        const markReady = () => {
-          if (!resolved) {
-            resolved = true;
-            setSwReady(true);
-          }
-        };
-
-        if (reg.active) {
-          markReady();
-          return;
+        const url = await buildSearchUrl(query);
+        if (!cancelled) {
+          setProxyUrl(url);
         }
-
-        const worker = reg.installing || reg.waiting;
-        worker?.addEventListener("statechange", () => {
-          if ((worker as ServiceWorker).state === "activated") {
-            markReady();
-          }
-        });
-
-        const poll = setInterval(async () => {
-          const r = await navigator.serviceWorker.getRegistration("/");
-          if (r?.active) {
-            clearInterval(poll);
-            markReady();
-          }
-        }, 150);
-
-        setTimeout(() => {
-          clearInterval(poll);
-          if (!resolved) {
-            setError("Proxy failed to start. Try refreshing the page.");
-          }
-        }, 7000);
-      } catch {
-        setError("Could not start the proxy. Try a different browser.");
+      } catch (err) {
+        console.error("[search] proxy init failed:", err);
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not start the proxy.");
+        }
       }
-    };
+    })();
 
-    activate();
+    return () => {
+      cancelled = true;
+    };
   }, [query]);
 
   useEffect(() => {
-    if (swReady && query) {
-      setProxyUrl(buildSearchUrl(query));
-    }
-  }, [swReady, query]);
+    if (!proxyUrl) return;
+    const interval = window.setInterval(() => setLogRefresh((value) => value + 1), 2000);
+    return () => window.clearInterval(interval);
+  }, [proxyUrl]);
 
   if (!query) {
     return (
       <div className="min-h-screen bg-background">
-        <Navigation />
         <div className="pt-20 flex items-center justify-center">
           <p className="text-muted-foreground">No search query provided.</p>
         </div>
@@ -84,28 +58,64 @@ const Search = () => {
     );
   }
 
+  const logs = getScramjetLogs();
+  const targetUrl = buildSearchTarget(query);
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navigation />
-      <div className="pt-16 flex flex-col flex-1">
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card/80">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground truncate flex-1">
-            Searching:{" "}
-            <span className="text-foreground font-medium">{query}</span>
-          </span>
+    <div className="h-screen bg-background flex flex-col">
+      <div className="flex flex-col flex-1 h-full">
+        <div className="flex flex-col gap-3 px-4 py-3 border-b border-border bg-slate-900/85 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate(1)}>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+              <Home className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="truncate rounded-full border border-border bg-slate-800/70 px-4 py-2 text-sm text-slate-100 shadow-inner">
+              {targetUrl}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Terminal className="w-4 h-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Scramjet logs</DialogTitle>
+                  <DialogDescription>Runtime log output captured from Scramjet.</DialogDescription>
+                </DialogHeader>
+                <div className="mt-4 space-y-3 text-sm">
+                  <pre className="max-h-64 overflow-auto rounded-md border border-border bg-slate-950/90 p-3 text-xs text-slate-100">
+                    {logs.length > 0 ? logs.join("\n") : "No Scramjet logs captured yet."}
+                  </pre>
+                  <p className="text-muted-foreground">
+                    These are the actual Scramjet console logs captured during the search session.
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative h-full">
           {error && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center space-y-3 p-6">
+              <div className="max-w-xl text-center p-6 rounded-xl border border-border bg-card/80">
                 <p className="text-destructive font-medium">{error}</p>
-                <Button onClick={() => window.location.reload()}>
-                  Refresh Page
-                </Button>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Configure Scramjet with <code>VITE_SCRAMJET_HOST</code> and restart the app.
+                </p>
               </div>
             </div>
           )}
@@ -114,9 +124,7 @@ const Search = () => {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center space-y-2">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-sm text-muted-foreground">
-                  Connecting to proxy...
-                </p>
+                <p className="text-sm text-muted-foreground">Preparing search...</p>
               </div>
             </div>
           )}
