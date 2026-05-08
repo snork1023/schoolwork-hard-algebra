@@ -1,5 +1,5 @@
 import { server as wisp, logging } from "@mercuryworkshop/wisp-js/server";
-logging.set_level(logging.WARN);
+logging.set_level(logging.ERROR);
 export default function wispPlugin(options = {}) {
   const path = options.path || "/wisp/";
   return {

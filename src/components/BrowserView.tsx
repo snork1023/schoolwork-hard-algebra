@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { buildProxiedUrl, decodeProxiedUrl, PROXY_PREFIX } from "@/lib/searchProxy";
+import { initScramjet } from "@/lib/scramjet";
 
 const BrowserView = () => {
   const [searchParams] = useSearchParams();
@@ -16,9 +17,33 @@ const BrowserView = () => {
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [addressBar, setAddressBar] = useState("");
+  const [scramjetReady, setScramjetReady] = useState(false);
 
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number>(-1);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Ensure Scramjet is initialized on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await initScramjet();
+        if (!cancelled) {
+          setScramjetReady(true);
+          console.log("[browser] Scramjet initialized successfully");
+        }
+      } catch (err) {
+        console.error("[browser] Scramjet init failed:", err);
+        if (!cancelled) {
+          setBrowserError("Failed to initialize proxy. Please refresh the page.");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const decodedParam = decodeURIComponent(encodedUrl);
   const [displayUrl, setDisplayUrl] = useState(decodedParam);
@@ -32,28 +57,23 @@ const BrowserView = () => {
   }, [decodedParam]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const isProxyUrl =
-          decodedParam.startsWith(PROXY_PREFIX) ||
-          decodedParam.startsWith(`${window.location.origin}${PROXY_PREFIX}`);
+    if (!iframeRef.current?.contentWindow || loading) return;
 
-        if (decodedParam && isProxyUrl) {
-          const decoded = await decodeProxiedUrl(decodedParam);
-          if (!cancelled) setDisplayUrl(decoded);
-        } else {
-          if (!cancelled) setDisplayUrl(decodedParam);
+    const checkUrl = () => {
+      try {
+        const currentUrl = iframeRef.current?.contentWindow?.location.href;
+        if (currentUrl && currentUrl !== displayUrl) {
+          setDisplayUrl(currentUrl);
+          setAddressBar(currentUrl);
         }
       } catch {
-        if (!cancelled) setDisplayUrl(decodedParam);
+        // Ignore errors accessing location
       }
-    })();
-
-    return () => {
-      cancelled = true;
     };
-  }, [decodedParam]);
+
+    const interval = setInterval(checkUrl, 500);
+    return () => clearInterval(interval);
+  }, [displayUrl, loading]);
 
   const hostname = (() => {
     try {
@@ -83,6 +103,11 @@ const BrowserView = () => {
     }
 
     try {
+      // Ensure Scramjet is ready
+      if (!scramjetReady) {
+        await initScramjet();
+      }
+      
       const proxied = await buildProxiedUrl(target);
       historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
       historyRef.current.push(proxied);
@@ -147,9 +172,7 @@ const BrowserView = () => {
               <ArrowRight className="w-4 h-4" />
             </Button>
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 px-0"
               onClick={() => {
                 setLoading(true);
                 setReloadKey((k) => k + 1);
@@ -157,7 +180,12 @@ const BrowserView = () => {
             >
               <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => navigate("/")}
+            >
               <Home className="w-4 h-4" />
             </Button>
           </div>
@@ -183,7 +211,25 @@ const BrowserView = () => {
       </div>
 
       <div className="flex-1 relative bg-background">
-        {loading && (
+        {!scramjetReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background z-20">
+            <div className="text-center space-y-2">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-sm text-muted-foreground">Initializing proxy...</p>
+            </div>
+          </div>
+        )}
+
+        {browserError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background z-20">
+            <div className="text-center space-y-4 max-w-md">
+              <p className="text-red-500 font-semibold">{browserError}</p>
+              <Button onClick={() => window.location.reload()}>Reload Page</Button>
+            </div>
+          </div>
+        )}
+
+        {loading && scramjetReady && !browserError && (
           <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
             <div className="text-center space-y-2">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -192,15 +238,32 @@ const BrowserView = () => {
           </div>
         )}
 
-        <iframe
-          key={reloadKey}
-          src={/^(https?:\/\/)/i.test(decodedParam) ? decodedParam : `${window.location.origin}${decodedParam}`}
-          className="w-full h-full border-0"
-          title="Browser"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-          onLoad={() => setLoading(false)}
-          onError={() => setLoading(false)}
-        />
+        {scramjetReady && !browserError && (
+          <iframe
+            ref={iframeRef}
+            key={reloadKey}
+            src={/^(https?:\/\/)/i.test(decodedParam) ? decodedParam : `${window.location.origin}${decodedParam}`}
+            className="w-full h-full border-0"
+            title="Browser"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-top-navigation allow-downloads"
+            onLoad={async () => {
+              setLoading(false);
+              if (iframeRef.current?.contentWindow) {
+                try {
+                  const currentUrl = iframeRef.current.contentWindow.location.href;
+                  setDisplayUrl(currentUrl);
+                  setAddressBar(currentUrl);
+                } catch {
+                  // Ignore errors accessing iframe location
+                }
+              }
+            }}
+            onError={() => {
+              console.error("[browser] iframe load error");
+              setLoading(false);
+            }}
+          />
+        )}
       </div>
     </div>
   );

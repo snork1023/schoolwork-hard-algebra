@@ -4,7 +4,7 @@ import { buildSearchUrl, buildSearchTarget } from "@/lib/searchProxy";
 import { getScramjetLogs } from "@/lib/scramjet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, Home, Terminal } from "lucide-react";
+import { ArrowLeft, ArrowRight, Home, Terminal, RotateCw } from "lucide-react";
 
 const Search = () => {
   const location = useLocation();
@@ -15,6 +15,26 @@ const Search = () => {
   const [proxyUrl, setProxyUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logRefresh, setLogRefresh] = useState(0);
+  const [editableUrl, setEditableUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleUrlSearch = async (urlToSearch: string) => {
+    if (!urlToSearch.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+    setProxyUrl(null);
+
+    try {
+      const url = await buildSearchUrl(urlToSearch);
+      setProxyUrl(url);
+    } catch (err) {
+      console.error("[search] proxy init failed:", err);
+      setError(err instanceof Error ? err.message : "Could not start the proxy.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!query) return;
@@ -22,6 +42,7 @@ const Search = () => {
     let cancelled = false;
     setError(null);
     setProxyUrl(null);
+    setIsLoading(true);
 
     (async () => {
       try {
@@ -33,6 +54,10 @@ const Search = () => {
         console.error("[search] proxy init failed:", err);
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Could not start the proxy.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
         }
       }
     })();
@@ -78,30 +103,47 @@ const Search = () => {
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="truncate rounded-full border border-border bg-slate-800/70 px-4 py-2 text-sm text-slate-100 shadow-inner">
-              {targetUrl}
-            </div>
+            <input
+              type="text"
+              className="w-full rounded-full border border-border bg-slate-800/70 px-4 py-2 text-sm text-slate-100 shadow-inner outline-none focus:border-slate-500 focus:bg-slate-800"
+              placeholder="Enter a URL or search query..."
+              value={editableUrl || targetUrl}
+              onChange={(e) => setEditableUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleUrlSearch(editableUrl || targetUrl);
+                  setEditableUrl("");
+                }
+              }}
+            />
           </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleUrlSearch(editableUrl || targetUrl)}
+            disabled={isLoading}
+            title="Reload"
+          >
+            <RotateCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+          </Button>
 
           <div className="flex items-center gap-2">
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" title="Show logs">
                   <Terminal className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
-                  <DialogTitle>Scramjet logs</DialogTitle>
-                  <DialogDescription>Runtime log output captured from Scramjet.</DialogDescription>
+                  <DialogTitle>Search logs</DialogTitle>
+                  <DialogDescription>Runtime log output from the search session.</DialogDescription>
                 </DialogHeader>
-                <div className="mt-4 space-y-3 text-sm">
-                  <pre className="max-h-64 overflow-auto rounded-md border border-border bg-slate-950/90 p-3 text-xs text-slate-100">
-                    {logs.length > 0 ? logs.join("\n") : "No Scramjet logs captured yet."}
+                <div className="mt-4 space-y-3 text-sm overflow-hidden flex flex-col flex-1">
+                  <pre className="flex-1 overflow-auto rounded-md border border-border bg-slate-950/90 p-3 text-xs text-slate-100 whitespace-pre-wrap break-words">
+                    {logs.length > 0 ? logs.join("\n") : "No logs captured yet."}
                   </pre>
-                  <p className="text-muted-foreground">
-                    These are the actual Scramjet console logs captured during the search session.
-                  </p>
                 </div>
               </DialogContent>
             </Dialog>
@@ -114,7 +156,7 @@ const Search = () => {
               <div className="max-w-xl text-center p-6 rounded-xl border border-border bg-card/80">
                 <p className="text-destructive font-medium">{error}</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Configure Scramjet with <code>VITE_SCRAMJET_HOST</code> and restart the app.
+                  Search failed to start. Make sure the backend is running and try again. If the problem persists, check the logs for more details.
                 </p>
               </div>
             </div>
