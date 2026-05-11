@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { buildSearchUrl, buildSearchTarget } from "@/lib/searchProxy";
+import { buildSearchUrl, buildSearchTarget, decodeProxiedUrl } from "@/lib/searchProxy";
 import { getScramjetLogs } from "@/lib/scramjet";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +17,9 @@ const Search = () => {
   const [logRefresh, setLogRefresh] = useState(0);
   const [editableUrl, setEditableUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState("");
+  const [displayUrl, setDisplayUrl] = useState("");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const handleUrlSearch = async (urlToSearch: string) => {
     if (!urlToSearch.trim()) return;
@@ -27,7 +30,9 @@ const Search = () => {
 
     try {
       const url = await buildSearchUrl(urlToSearch);
+      const cleanUrl = buildSearchTarget(urlToSearch);
       setProxyUrl(url);
+      setDisplayUrl(cleanUrl);
     } catch (err) {
       console.error("[search] proxy init failed:", err);
       setError(err instanceof Error ? err.message : "Could not start the proxy.");
@@ -47,8 +52,10 @@ const Search = () => {
     (async () => {
       try {
         const url = await buildSearchUrl(query);
+        const cleanUrl = buildSearchTarget(query);
         if (!cancelled) {
           setProxyUrl(url);
+          setDisplayUrl(cleanUrl);
         }
       } catch (err) {
         console.error("[search] proxy init failed:", err);
@@ -72,6 +79,30 @@ const Search = () => {
     const interval = window.setInterval(() => setLogRefresh((value) => value + 1), 2000);
     return () => window.clearInterval(interval);
   }, [proxyUrl]);
+
+  useEffect(() => {
+    if (!iframeRef.current || !proxyUrl) return;
+
+    const checkUrl = async () => {
+      try {
+        const iframeUrl = iframeRef.current?.contentWindow?.location.href;
+        if (iframeUrl && iframeUrl !== currentUrl) {
+          try {
+            const decodedUrl = await decodeProxiedUrl(iframeUrl);
+            setCurrentUrl(decodedUrl);
+          } catch {
+            // If decoding fails, use the iframe URL as-is
+            setCurrentUrl(iframeUrl);
+          }
+        }
+      } catch {
+        // Ignore errors accessing iframe location
+      }
+    };
+
+    const interval = setInterval(checkUrl, 500);
+    return () => clearInterval(interval);
+  }, [proxyUrl, currentUrl]);
 
   if (!query) {
     return (
@@ -97,6 +128,15 @@ const Search = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate(1)}>
               <ArrowRight className="w-4 h-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleUrlSearch(editableUrl || currentUrl || displayUrl || targetUrl)}
+              disabled={isLoading}
+              title="Reload"
+            >
+              <RotateCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
               <Home className="w-4 h-4" />
             </Button>
@@ -107,26 +147,16 @@ const Search = () => {
               type="text"
               className="w-full rounded-full border border-border bg-slate-800/70 px-4 py-2 text-sm text-slate-100 shadow-inner outline-none focus:border-slate-500 focus:bg-slate-800"
               placeholder="Enter a URL or search query..."
-              value={editableUrl || targetUrl}
+              value={editableUrl || currentUrl || displayUrl || targetUrl}
               onChange={(e) => setEditableUrl(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  handleUrlSearch(editableUrl || targetUrl);
+                  handleUrlSearch(editableUrl || currentUrl || displayUrl || targetUrl);
                   setEditableUrl("");
                 }
               }}
             />
           </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleUrlSearch(editableUrl || targetUrl)}
-            disabled={isLoading}
-            title="Reload"
-          >
-            <RotateCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-          </Button>
 
           <div className="flex items-center gap-2">
             <Dialog>
@@ -173,6 +203,7 @@ const Search = () => {
 
           {proxyUrl && (
             <iframe
+              ref={iframeRef}
               src={proxyUrl}
               className="w-full h-full border-0"
               title="Search Results"

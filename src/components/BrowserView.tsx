@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { getTabCloakMetadata } from "@/components/SettingsProvider";
 import { buildProxiedUrl, decodeProxiedUrl, PROXY_PREFIX } from "@/lib/searchProxy";
 import { initScramjet } from "@/lib/scramjet";
 
@@ -143,6 +144,20 @@ const BrowserView = () => {
   };
 
   const styles = getBrowserStyles();
+
+  useEffect(() => {
+    const cloak = getTabCloakMetadata(settings);
+    document.title = cloak.title;
+    const existingIcon = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    if (existingIcon) {
+      existingIcon.href = cloak.favicon;
+    } else {
+      const link = document.createElement('link');
+      link.rel = 'icon';
+      link.href = cloak.favicon;
+      document.head.appendChild(link);
+    }
+  }, [settings.tabCloak, settings.customTabTitle, settings.customFavicon]);
 
   return (
     <div className="h-screen flex flex-col">

@@ -1,16 +1,18 @@
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun, Code, ExternalLink, Keyboard } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { getTabCloakMetadata, TabCloakOption } from "@/components/SettingsProvider";
 
 const accentColors = [
   { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
@@ -52,6 +54,36 @@ const Settings = () => {
   const handleCustomColorChange = (hsl: string) => {
     updateSettings({ accentColor: hsl, customAccentColor: hsl });
   };
+
+  const handleCustomFaviconUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        updateSettings({ customFavicon: reader.result });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const updateTabCloakMeta = () => {
+    const cloak = getTabCloakMetadata(settings);
+    document.title = cloak.title;
+    const existingIcon = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    if (existingIcon) {
+      existingIcon.href = cloak.favicon;
+    } else {
+      const link = document.createElement('link');
+      link.rel = 'icon';
+      link.href = cloak.favicon;
+      document.head.appendChild(link);
+    }
+  };
+
+  useEffect(() => {
+    updateTabCloakMeta();
+  }, [settings.tabCloak, settings.customTabTitle, settings.customFavicon]);
 
   const handleDeveloperModeToggle = (checked: boolean) => {
     if (checked) {
@@ -206,75 +238,90 @@ const Settings = () => {
 
             <Card className="bg-card border-border shadow-lg hover-glow">
               <CardHeader>
-                <CardTitle>General Settings</CardTitle>
+                <CardTitle>Proxy Behavior</CardTitle>
                 <CardDescription>
-                  Configure basic proxy behavior
+                  Configure basic proxy behavior & apperance
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="auto-open">Auto-open in new tab</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically open links in new tabs
-                    </p>
-                  </div>
-                  <Switch
-                    id="auto-open"
-                    checked={settings.autoOpen}
-                    onCheckedChange={(checked) => updateSettings({ autoOpen: checked })}
-                  />
-                </div>
-
                 <div className="space-y-3">
-                  <Label>Default Search Engine</Label>
-                  <Select value={settings.searchEngine} onValueChange={(value) => updateSettings({ searchEngine: value })}>
-                    <SelectTrigger className="bg-background">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="google">Google</SelectItem>
-                      <SelectItem value="bing">Bing</SelectItem>
-                      <SelectItem value="duckduckgo">DuckDuckGo</SelectItem>
-                      <SelectItem value="brave">Brave Search</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground">
-                    Search engine used for quick searches. Results are routed through the Scramjet bare proxy and use DuckDuckGo by default.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border shadow-lg hover-glow">
-              <CardHeader>
-                <CardTitle>Privacy & Security</CardTitle>
-                <CardDescription>
-                  Manage your privacy settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>URL Masking</Label>
+                  <div className="space-y-3">
+                    <Label>Tab Cloak</Label>
                     <p className="text-sm text-muted-foreground">
-                      Always enabled for maximum privacy
+                      Choose the tab title and favicon used when cloaking the site.
                     </p>
+                    <Select
+                      value={settings.tabCloak}
+                      onValueChange={(value) => updateSettings({ tabCloak: value as TabCloakOption })}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Select a tab cloak" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google-drive">
+                          <div className="flex items-center gap-2">
+                            <img className="h-4 w-4 rounded-sm" src="https://drive.google.com/favicon.ico" alt="Google Drive" />
+                            <span>Google Drive</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="google">
+                          <div className="flex items-center gap-2">
+                            <img className="h-4 w-4 rounded-sm" src="https://www.google.com/favicon.ico" alt="Google" />
+                            <span>Google</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="google-docs">
+                          <div className="flex items-center gap-2">
+                            <img className="h-4 w-4 rounded-sm" src="https://ssl.gstatic.com/docs/doclist/images/mediatype/icon_1_document_x16.png" alt="Google Docs" />
+                            <span>Google Docs</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="outlook">
+                          <div className="flex items-center gap-2">
+                            <img className="h-4 w-4 rounded-sm" src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Microsoft_Outlook_Icon_%282025%E2%80%93present%29.svg" alt="Outlook" />
+                            <span>Outlook</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="custom">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-muted text-[10px]">C</span>
+                            <span>Custom</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Separator className="my-3" />
+                    {settings.tabCloak === 'custom' && (
+                      <div className="space-y-4">
+                        <div className="space-y-0.5">
+                          <Label htmlFor="custom-tab-title">Custom Tab Title</Label>
+                          <Input
+                            id="custom-tab-title"
+                            value={settings.customTabTitle}
+                            onChange={(e) => updateSettings({ customTabTitle: e.target.value })}
+                            placeholder="Enter title"
+                            className="bg-background"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <Label htmlFor="custom-favicon">Custom Favicon</Label>
+                          <Input
+                            id="custom-favicon"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleCustomFaviconUpload}
+                            className="bg-background"
+                          />
+                          {settings.customFavicon && (
+                            <div className="flex items-center gap-2">
+                              <img src={settings.customFavicon} alt="Custom favicon preview" className="h-6 w-6 rounded-sm" />
+                              <span className="text-sm text-muted-foreground">Preview</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <Switch checked disabled />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Secure Connection</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Force HTTPS when possible
-                    </p>
-                  </div>
-                  <Switch checked disabled />
-                </div>
-
-                <div className="space-y-3 border-t border-border pt-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label>About:Blank Cloaking</Label>
@@ -295,10 +342,11 @@ const Settings = () => {
                           win.document.body.style.margin = '0';
                           win.document.body.style.overflow = 'hidden';
                           win.document.body.appendChild(iframe);
-                          win.document.title = 'Google';
+                          const cloak = getTabCloakMetadata(settings);
+                          win.document.title = cloak.title;
                           const link = win.document.createElement('link');
                           link.rel = 'icon';
-                          link.href = 'https://www.google.com/favicon.ico';
+                          link.href = cloak.favicon;
                           win.document.head.appendChild(link);
                           window.location.href = 'https://google.com';
                         }

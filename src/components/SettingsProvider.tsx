@@ -1,6 +1,8 @@
 import { useEffect, createContext, useContext, ReactNode, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export type TabCloakOption = 'google-drive' | 'google' | 'google-docs' | 'outlook' | 'custom';
+
 export interface UserSettings {
   accentColor: string;
   customAccentColor: string | null;
@@ -13,6 +15,9 @@ export interface UserSettings {
   panicKey: string | null;
   panicUrl: string;
   autoAboutBlank: boolean;
+  tabCloak: TabCloakOption;
+  customTabTitle: string;
+  customFavicon: string | null;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -27,6 +32,9 @@ const DEFAULT_SETTINGS: UserSettings = {
   panicKey: null,
   panicUrl: 'https://google.com',
   autoAboutBlank: false,
+  tabCloak: 'google-drive',
+  customTabTitle: 'Google Drive',
+  customFavicon: null,
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
@@ -41,6 +49,9 @@ const loadFromLocalStorage = (): UserSettings => ({
   panicKey: localStorage.getItem('panicKey') || null,
   panicUrl: localStorage.getItem('panicUrl') || DEFAULT_SETTINGS.panicUrl,
   autoAboutBlank: localStorage.getItem('autoAboutBlank') === 'true',
+  tabCloak: (localStorage.getItem('tabCloak') as TabCloakOption) || DEFAULT_SETTINGS.tabCloak,
+  customTabTitle: localStorage.getItem('customTabTitle') || DEFAULT_SETTINGS.customTabTitle,
+  customFavicon: localStorage.getItem('customFavicon') || null,
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
@@ -63,6 +74,48 @@ const syncToLocalStorage = (s: UserSettings) => {
   }
   localStorage.setItem('panicUrl', s.panicUrl);
   localStorage.setItem('autoAboutBlank', s.autoAboutBlank ? 'true' : 'false');
+  localStorage.setItem('tabCloak', s.tabCloak);
+  localStorage.setItem('customTabTitle', s.customTabTitle);
+  if (s.customFavicon) {
+    localStorage.setItem('customFavicon', s.customFavicon);
+  } else {
+    localStorage.removeItem('customFavicon');
+  }
+};
+
+export const getTabCloakMetadata = (settings: UserSettings) => {
+  switch (settings.tabCloak) {
+    case 'google-drive':
+      return {
+        title: 'My Drive - Google Drive',
+        favicon: 'https://drive.google.com/favicon.ico',
+      };
+    case 'google':
+      return {
+        title: 'Google',
+        favicon: 'https://www.google.com/favicon.ico',
+      };
+    case 'google-docs':
+      return {
+        title: 'Google Docs',
+        favicon: 'https://ssl.gstatic.com/docs/doclist/images/mediatype/icon_1_document_x16.png',
+      };
+    case 'outlook':
+      return {
+        title: 'Outlook',
+        favicon: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/Microsoft_Outlook_Icon_%282025%E2%80%93present%29.svg',
+      };
+    case 'custom':
+      return {
+        title: settings.customTabTitle || 'New Tab',
+        favicon: settings.customFavicon || 'https://www.google.com/favicon.ico',
+      };
+    default:
+      return {
+        title: 'My Drive - Google Drive',
+        favicon: 'https://drive.google.com/favicon.ico',
+      };
+  }
 };
 
 const applyAccentColor = (color: string) => {
@@ -142,10 +195,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       win.document.body.style.margin = '0';
       win.document.body.style.overflow = 'hidden';
       win.document.body.appendChild(iframe);
-      win.document.title = 'Google';
+      const cloak = getTabCloakMetadata(settingsRef.current);
+      win.document.title = cloak.title;
       const link = win.document.createElement('link');
       link.rel = 'icon';
-      link.href = 'https://www.google.com/favicon.ico';
+      link.href = cloak.favicon;
       win.document.head.appendChild(link);
       // Redirect the original tab to Google
       window.location.replace('https://google.com');
