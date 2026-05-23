@@ -43,7 +43,7 @@ const Games = () => {
           </div>
 
           {filteredGames.length === 0 &&
-          <p className="text-center text-muted-foreground mt-12">No games found.</p>
+          <p className="text-center text-muted-foreground mt-12">Games are loading or may not exist yet.</p>
           }
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3">
