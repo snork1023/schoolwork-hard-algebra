@@ -8,8 +8,20 @@
     "name": "8 Ball Classic"
   },
   {
+    "folder": "Achilles",
+    "name": "Achilles"
+  },
+  {
     "folder": "Adanceoffireandice",
     "name": "A Dance Of Fire And Ice"
+  },
+  {
+    "folder": "AgeOfWar",
+    "name": "Age of War"
+  },
+  {
+    "folder": "AgeOfWar2",
+    "name": "Age of War 2"
   },
   {
     "folder": "Amongus",
@@ -18,6 +30,10 @@
   {
     "folder": "AngryBirds",
     "name": "Angry Birds"
+  },
+  {
+    "folder": "BaseballBros",
+    "name": "Baseball Bros"
   },
   {
     "folder": "BasketRandom",
@@ -42,6 +58,10 @@
   {
     "folder": "Brotato",
     "name": "Brotato"
+  },
+  {
+    "folder": "BTD5",
+    "name": "Bloons Tower Defense 5"
   },
   {
     "folder": "Chess",
@@ -96,6 +116,10 @@
     "name": "E@glercraft"
   },
   {
+    "folder": "FireboyWatergirl",
+    "name": "Fireboy and Watergirl"
+  },
+  {
     "folder": "FNAF",
     "name": "Five Nights At Freddy's"
   },
@@ -144,6 +168,22 @@
     "name": "Gun Mayhem 2"
   },
   {
+    "folder": "GunMayhemRedux",
+    "name": "Gun Mayhem Redux"
+  },
+  {
+    "folder": "HenryStickminEscapingThePrison",
+    "name": "Henry Stickmin: Escaping the Prison"
+  },
+  {
+    "folder": "HenryStickminFleeingTheComplex",
+    "name": "Henry Stickmin: Fleeing the Complex"
+  },
+  {
+    "folder": "HenryStickminInfiltratingTheAirship",
+    "name": "Henry Stickmin: Infiltrating the Airship"
+  },
+  {
     "folder": "HollowKnight",
     "name": "Hollow Knight"
   },
@@ -152,12 +192,12 @@
     "name": "House of Hazards"
   },
   {
-    "folder": "InfiniteCraft",
-    "name": "Infinite Craft"
+    "folder": "ImpossibleQuiz",
+    "name": "The Impossible Quiz"
   },
   {
-    "folder": "Paperio",
-    "name": "Paper.io"
+    "folder": "InfiniteCraft",
+    "name": "Infinite Craft"
   },
   {
     "folder": "Polytrack",
@@ -170,6 +210,10 @@
   {
     "folder": "RetroBowl",
     "name": "Retro Bowl"
+  },
+  {
+    "folder": "Run3",
+    "name": "Run 3"
   },
   {
     "folder": "Slope",
