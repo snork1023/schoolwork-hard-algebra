@@ -118,4 +118,97 @@ All colors MUST be HSL.
   .hover-glow:hover {
     box-shadow: var(--shadow-glow);
   }
+
+  /* --- Chime utilities (themed to site purple) --- */
+  .bg-mesh {
+    background-image:
+      radial-gradient(at 12% 20%, hsl(var(--primary) / 0.35) 0px, transparent 50%),
+      radial-gradient(at 88% 8%, hsl(var(--accent) / 0.30) 0px, transparent 50%),
+      radial-gradient(at 78% 78%, hsl(var(--primary) / 0.40) 0px, transparent 50%),
+      radial-gradient(at 8% 82%, hsl(var(--accent) / 0.25) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, hsl(var(--primary) / 0.15) 0px, transparent 60%);
+    background-size: 200% 200%;
+    animation: gradientDrift 18s ease infinite;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--foreground) / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+            mask-image: radial-gradient(ellipse at center, black 40%, transparent 75%);
+  }
+
+  .gradient-border {
+    position: relative;
+    background: hsl(var(--card));
+    border-radius: 1.25rem;
+    overflow: hidden;
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+      hsl(var(--primary)),
+      hsl(var(--accent)),
+      hsl(var(--primary-glow)),
+      hsl(var(--primary)));
+    background-size: 300% 300%;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation: gradientDrift 6s linear infinite;
+    pointer-events: none;
+  }
+
+  .text-gradient {
+    background: linear-gradient(120deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--accent)) 50%,
+      hsl(var(--primary-glow)) 100%);
+    -webkit-background-clip: text;
+            background-clip: text;
+    color: transparent;
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  @keyframes gradientDrift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @keyframes pulseBlue {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.6); }
+    50% { box-shadow: 0 0 0 12px hsl(var(--primary) / 0); }
+  }
+  @keyframes floatSlow {
+    0%, 100% { transform: translateY(0) translateX(0); }
+    50% { transform: translateY(-20px) translateX(10px); }
+  }
+  @keyframes chimeFadeIn {
+    0% { opacity: 0; transform: translateY(4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-pulse-blue { animation: pulseBlue 1.5s ease-in-out infinite; }
+  .animate-float-slow { animation: floatSlow 9s ease-in-out infinite; }
+  .animate-fade-in { animation: chimeFadeIn 0.2s ease-in-out; }
+
+  /* Custom scrollbar for the Chime panes */
+  .chime-scope ::-webkit-scrollbar { width: 8px; height: 8px; }
+  .chime-scope ::-webkit-scrollbar-track { background: transparent; }
+  .chime-scope ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+  .chime-scope ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
+  }
 }

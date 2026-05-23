@@ -1,5 +1,7 @@
 import { useEffect, createContext, useContext, ReactNode, useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db, isFirebaseConfigured } from '@/integrations/firebase/client';
 import GoogleDriveFavicon from '@/assets/google-drive-favicon.svg';
 import GoogleFavicon from '@/assets/google-favicon.ico';
 import GoogleDocsFavicon from '@/assets/google-docs-favicon.svg';
@@ -228,42 +230,39 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   // Listen for auth and merge DB settings
   useEffect(() => {
+    if (!isFirebaseConfigured || !auth || !db) return;
     let active = true;
 
     const mergeDbSettings = async (uid: string) => {
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('settings')
-          .eq('id', uid)
-          .maybeSingle();
-
+        const snap = await getDoc(doc(db!, 'userSettings', uid));
         if (!active) return;
-        if (profile?.settings && typeof profile.settings === 'object') {
-          const dbSettings = profile.settings as Partial<UserSettings>;
+        const data = snap.data();
+        if (data?.settings && typeof data.settings === 'object') {
+          const dbSettings = data.settings as Partial<UserSettings>;
           const merged = { ...settingsRef.current, ...dbSettings };
           setSettings(merged);
           syncToLocalStorage(merged);
           if (dbSettings.accentColor) applyAccentColor(dbSettings.accentColor);
         }
       } catch (err) {
-        console.warn('Failed to fetch user settings from DB', err);
+        console.warn('Failed to fetch user settings from Firestore', err);
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!active) return;
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        setUserId(session.user.id);
-        mergeDbSettings(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
+      if (user) {
+        setUserId(user.uid);
+        mergeDbSettings(user.uid);
+      } else {
         setUserId(null);
       }
     });
 
     return () => {
       active = false;
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 
@@ -277,11 +276,16 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const currentUserId = userId;
-    if (currentUserId) {
-      await supabase
-        .from('profiles')
-        .update({ settings: newSettings })
-        .eq('id', currentUserId);
+    if (currentUserId && db) {
+      try {
+        await setDoc(
+          doc(db, 'userSettings', currentUserId),
+          { settings: newSettings, updatedAt: Date.now() },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('Failed to persist settings to Firestore', err);
+      }
     }
   }, [userId]);
 
