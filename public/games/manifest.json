@@ -204,6 +204,34 @@
     "name": "Infinite Craft"
   },
   {
+    "folder": "JetpackJoyride",
+    "name": "Jetpack Joyride"
+  },
+  {
+    "folder": "MonkeyMart",
+    "name": "Monkey Mart"
+  },
+  {
+    "folder": "PokemonEmerald",
+    "name": "Pokemon Emerald"
+  },
+  {
+    "folder": "PokemonFirered",
+    "name": "Pokemon Firered"
+  },
+  {
+    "folder": "PokemonLeafgreen",
+    "name": "Pokemon Leafgreen"
+  },
+  {
+    "folder": "PokemonRuby",
+    "name": "Pokemon Ruby"
+  },
+  {
+    "folder": "PokemonSapphire",
+    "name": "Pokemon Sapphire"
+  },
+  {
     "folder": "Polytrack",
     "name": "Polytrack"
   },
@@ -228,6 +256,10 @@
     "name": "Snowball.io"
   },
   {
+    "folder": "SnowRider3D",
+    "name": "Snow Rider 3D"
+  },
+  {
     "folder": "Spacewaves",
     "name": "Spacewaves"
   },
@@ -238,6 +270,18 @@
   {
     "folder": "Terra",
     "name": "Terra"
+  },
+  {
+    "folder": "TimeShooter2",
+    "name": "Time Shooter 2"
+  },
+  {
+    "folder": "TimeShooter3",
+    "name": "Time Shooter 3"
+  },
+  {
+    "folder": "TinyFishing",
+    "name": "Tiny Fishing"
   },
   {
     "folder": "TombOTMask",

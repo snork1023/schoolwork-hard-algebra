@@ -37,6 +37,7 @@ const ProxyInput = () => {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
           className="flex-1 h-14 text-lg bg-card border-border focus:border-primary transition-all"
+          style={{ fontFamily: "'Orbitron', sans-serif", letterSpacing: "0.05em" }}
         />
         <Button
           onClick={handleSearch}

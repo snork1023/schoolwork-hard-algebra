@@ -29,6 +29,7 @@ const accentColors = [
   { name: "Pink", value: "330 81% 60%", class: "bg-[hsl(330,81%,60%)]" },
 ];
 
+// Dev passcode is simply for debugging, gives no special perms to users
 const DEVELOPER_PASSCODE = "snork";
 
 const Settings = () => {
