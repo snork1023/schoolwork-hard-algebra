@@ -65,9 +65,7 @@ Our platform provides a smooth, reliable experience where users can access a wid
 
 ### Contributors
 
-  <a href="https://github.com/snork1023/schoolwork-hard-algebra/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=snork1023/schoolwork-hard-algebra" />
-  </a>
+<a href="https://github.com/snork1023"><img src="https://github.com/snork1023.png" width="50px" alt="snork1023"/></a>
 
 ---
 
