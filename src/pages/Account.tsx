@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 
-const usernameSchema = z.string().trim().min(1, "Username is required").max(50, "Username must be 50 characters or less");
+const usernameSchema = z.string().trim().min(1, "Username is required").max(20, "Username must be 20 characters or less");
 
 const Account = () => {
   const [username, setUsername] = useState("");
@@ -412,7 +412,7 @@ const Account = () => {
                         Upload Picture
                       </Button>
                       <p className="text-xs text-muted-foreground">
-                        Max 5MB • JPG, PNG, GIF
+                        Max 5MB • JPG, PNG, JPEG, WEBP
                       </p>
                     </div>
                   </div>
@@ -424,13 +424,13 @@ const Account = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="username">Nickname</Label>
+                  <Label htmlFor="username">Username</Label>
                   <div className="flex gap-2">
                     <Input
                       id="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter your nickname"
+                      placeholder="Enter your username"
                     />
                     <Button onClick={handleUpdateUsername} disabled={loading}>
                       Update

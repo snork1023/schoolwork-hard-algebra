@@ -186,7 +186,7 @@ const Search = () => {
               <div className="max-w-xl text-center p-6 rounded-xl border border-border bg-card/80">
                 <p className="text-destructive font-medium">{error}</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Search failed to start. Make sure the backend is running and try again. If the problem persists, check the logs for more details.
+                  Search failed to start. Make sure the transport is running and try again. If the problem persists, check the logs for more details.
                 </p>
               </div>
             </div>

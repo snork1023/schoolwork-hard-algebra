@@ -47,7 +47,7 @@ Our platform provides a smooth, reliable experience where users can access a wid
 <img width="713" height="197" alt="part 5" src="https://github.com/user-attachments/assets/13b8de6c-dfb5-41cd-ad40-a7c54ca8ae20" />
 
 - Press enter
-- Press "Open in Browser on the popup that appears
+- Press "Make Public" on the popup that appears
 <img width="452" height="104" alt="part 6" src="https://github.com/user-attachments/assets/f86feda2-aa04-4431-8be9-ae8db0f0e8a0" />
 
 ---
