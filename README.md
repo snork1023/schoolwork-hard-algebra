@@ -90,9 +90,6 @@ Our platform provides a smooth, reliable experience where users can access a wid
 ---
 ### Suggesting games and changes
 
-https://docs.google.com/forms/d/e/1FAIpQLSebhS_LawxlNeNbHgD6T7CFtv8-avMriEmNwMxONQFlKkHbmw/viewform
+https://forms.gle/QQrKfQjv4KxX1Wtu6
 
 ---
-#### Version
-
-**2.01**: New search ui and more games

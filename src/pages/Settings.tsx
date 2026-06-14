@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Code, ExternalLink, Keyboard } from "lucide-react";
+import { Moon, Sun, Code, ExternalLink, Keyboard, Github, Info } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
@@ -31,6 +32,22 @@ const accentColors = [
 
 // Dev passcode is simply for debugging, gives no special perms to users
 const DEVELOPER_PASSCODE = "snork";
+const appVersion = __APP_VERSION__;
+
+const compareVersions = (current: string, latest: string) => {
+  const currentParts = current.split(".").map((part) => Number(part) || 0);
+  const latestParts = latest.split(".").map((part) => Number(part) || 0);
+  const maxLength = Math.max(currentParts.length, latestParts.length);
+
+  for (let i = 0; i < maxLength; i += 1) {
+    const currentValue = currentParts[i] ?? 0;
+    const latestValue = latestParts[i] ?? 0;
+    if (currentValue > latestValue) return 1;
+    if (currentValue < latestValue) return -1;
+  }
+
+  return 0;
+};
 
 const Settings = () => {
   const { settings, updateSettings, isLoading } = useUserSettings();
@@ -39,6 +56,9 @@ const Settings = () => {
   const [passcodeInput, setPasscodeInput] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);
   const [isListeningForKey, setIsListeningForKey] = useState(false);
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+
+  const isBehind = latestVersion !== null && compareVersions(appVersion, latestVersion) < 0;
 
   // Listen for panic key binding
   useEffect(() => {
@@ -51,6 +71,13 @@ const Settings = () => {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [isListeningForKey, updateSettings]);
+
+  useEffect(() => {
+    fetch('/version.json')
+      .then((res) => res.ok ? res.json() : Promise.reject())
+      .then((data) => setLatestVersion(data.latestVersion))
+      .catch(() => setLatestVersion(null));
+  }, []);
 
   const isCustomColor = settings.customAccentColor && settings.accentColor === settings.customAccentColor;
 
@@ -245,189 +272,196 @@ const Settings = () => {
 
             <Card className="bg-card border-border shadow-lg hover-glow">
               <CardHeader>
-                <CardTitle>Proxy Behavior</CardTitle>
+                <CardTitle>Tab Cloak</CardTitle>
                 <CardDescription>
-                  Configure basic proxy behavior & apperance
+                  Choose the tab title and favicon used when cloaking the site.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  <div className="space-y-3">
-                    <Label>Tab Cloak</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Choose the tab title and favicon used when cloaking the site.
-                    </p>
-                    <Select
-                      value={settings.tabCloak}
-                      onValueChange={(value) => updateSettings({ tabCloak: value as TabCloakOption })}
-                    >
-                      <SelectTrigger className="bg-background">
-                        <SelectValue placeholder="Select a tab cloak" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="google-drive">
-                          <div className="flex items-center gap-2">
-                            <img className="h-4 w-4 rounded-sm" src={GoogleDriveFavicon} alt="Google Drive" />
-                            <span>Google Drive</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="google">
-                          <div className="flex items-center gap-2">
-                            <img className="h-4 w-4 rounded-sm" src={GoogleFavicon} alt="Google" />
-                            <span>Google</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="google-docs">
-                          <div className="flex items-center gap-2">
-                            <img className="h-4 w-4 rounded-sm" src={GoogleDocsFavicon} alt="Google Docs" />
-                            <span>Google Docs</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="google-slides">
-                          <div className="flex items-center gap-2">
-                            <img className="h-4 w-4 rounded-sm" src={GoogleSlidesFavicon} alt="Google Slides" />
-                            <span>Google Slides</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="outlook">
-                          <div className="flex items-center gap-2">
-                            <img className="h-4 w-4 rounded-sm" src={OutlookFavicon} alt="Outlook" />
-                            <span>Outlook</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="clever">
-                          <div className="flex items-center gap-2">
-                            <img className="h-4 w-4 rounded-sm" src={CleverFavicon} alt="Clever" />
-                            <span>Clever</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="custom">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-muted text-[10px]">C</span>
-                            <span>Custom</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Separator className="my-3" />
-                    {settings.tabCloak === 'custom' && (
-                      <div className="space-y-4">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="custom-tab-title">Custom Tab Title</Label>
-                          <Input
-                            id="custom-tab-title"
-                            value={settings.customTabTitle}
-                            onChange={(e) => updateSettings({ customTabTitle: e.target.value })}
-                            placeholder="Enter title"
-                            className="bg-background"
-                          />
+                  <Select
+                    value={settings.tabCloak}
+                    onValueChange={(value) => updateSettings({ tabCloak: value as TabCloakOption })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select a tab cloak" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="google-drive">
+                        <div className="flex items-center gap-2">
+                          <img className="h-4 w-4 rounded-sm" src={GoogleDriveFavicon} alt="Google Drive" />
+                          <span>Google Drive</span>
                         </div>
-                        <div className="space-y-0.5">
-                          <Label htmlFor="custom-favicon">Custom Favicon</Label>
-                          <Input
-                            id="custom-favicon"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleCustomFaviconUpload}
-                            className="bg-background"
-                          />
-                          {settings.customFavicon && (
-                            <div className="flex items-center gap-2">
-                              <img src={settings.customFavicon} alt="Custom favicon preview" className="h-6 w-6 rounded-sm" />
-                              <span className="text-sm text-muted-foreground">Preview</span>
-                            </div>
-                          )}
+                      </SelectItem>
+                      <SelectItem value="google">
+                        <div className="flex items-center gap-2">
+                          <img className="h-4 w-4 rounded-sm" src={GoogleFavicon} alt="Google" />
+                          <span>Google</span>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>About:Blank Cloaking</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Opens the site in an about:blank tab to hide the URL
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => {
-                        const win = window.open('about:blank', '_blank');
-                        if (win) {
-                          const iframe = win.document.createElement('iframe');
-                          iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
-                          iframe.src = window.location.href;
-                          win.document.body.style.margin = '0';
-                          win.document.body.style.overflow = 'hidden';
-                          win.document.body.appendChild(iframe);
-                          const cloak = getTabCloakMetadata(settings);
-                          win.document.title = cloak.title;
-                          const link = win.document.createElement('link');
-                          link.rel = 'icon';
-                          link.href = cloak.favicon;
-                          win.document.head.appendChild(link);
-                          window.location.href = 'https://google.com';
-                        }
-                      }}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Launch
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Auto-Cloak on Startup</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Automatically open in about:blank tab when you visit the site
-                      </p>
-                    </div>
-                    <Switch
-                      checked={settings.autoAboutBlank}
-                      onCheckedChange={(checked) => updateSettings({ autoAboutBlank: checked })}
-                    />
-                  </div>
-                </div>
+                      </SelectItem>
+                      <SelectItem value="google-docs">
+                        <div className="flex items-center gap-2">
+                          <img className="h-4 w-4 rounded-sm" src={GoogleDocsFavicon} alt="Google Docs" />
+                          <span>Google Docs</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="google-slides">
+                        <div className="flex items-center gap-2">
+                          <img className="h-4 w-4 rounded-sm" src={GoogleSlidesFavicon} alt="Google Slides" />
+                          <span>Google Slides</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="outlook">
+                        <div className="flex items-center gap-2">
+                          <img className="h-4 w-4 rounded-sm" src={OutlookFavicon} alt="Outlook" />
+                          <span>Outlook</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="clever">
+                        <div className="flex items-center gap-2">
+                          <img className="h-4 w-4 rounded-sm" src={CleverFavicon} alt="Clever" />
+                          <span>Clever</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="custom">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-muted text-[10px]">C</span>
+                          <span>Custom</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                <div className="space-y-3 border-t border-border pt-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Label>Panic Key</Label>
+                  {settings.tabCloak === 'custom' && (
+                    <div className="space-y-4">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="custom-tab-title">Custom Tab Title</Label>
+                        <Input
+                          id="custom-tab-title"
+                          value={settings.customTabTitle}
+                          onChange={(e) => updateSettings({ customTabTitle: e.target.value })}
+                          placeholder="Enter title"
+                          className="bg-background"
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label htmlFor="custom-favicon">Custom Favicon</Label>
+                        <Input
+                          id="custom-favicon"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCustomFaviconUpload}
+                          className="bg-background"
+                        />
+                        {settings.customFavicon && (
+                          <div className="flex items-center gap-2">
+                            <img src={settings.customFavicon} alt="Custom favicon preview" className="h-6 w-6 rounded-sm" />
+                            <span className="text-sm text-muted-foreground">Preview</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border shadow-lg hover-glow">
+              <CardHeader>
+                <CardTitle>About:Blank Cloaking</CardTitle>
+                <CardDescription>
+                  Open the site in an about:blank tab so the URL is hidden.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Launch Cloak</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Open the current page in a hidden about:blank window.
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Press a key to instantly navigate away to a safe webpage
-                  </p>
-                  <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      const win = window.open('about:blank', '_blank');
+                      if (win) {
+                        const iframe = win.document.createElement('iframe');
+                        iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
+                        iframe.src = window.location.href;
+                        win.document.body.style.margin = '0';
+                        win.document.body.style.overflow = 'hidden';
+                        win.document.body.appendChild(iframe);
+                        const cloak = getTabCloakMetadata(settings);
+                        win.document.title = cloak.title;
+                        const link = win.document.createElement('link');
+                        link.rel = 'icon';
+                        link.href = cloak.favicon;
+                        win.document.head.appendChild(link);
+                        window.location.href = 'https://google.com';
+                      }
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Launch
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Auto-Cloak on Startup</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically open in an about:blank tab when you visit the site.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.autoAboutBlank}
+                    onCheckedChange={(checked) => updateSettings({ autoAboutBlank: checked })}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border shadow-lg hover-glow">
+              <CardHeader>
+                <CardTitle>Panic Key</CardTitle>
+                <CardDescription>
+                  Set a key to instantly navigate away to a safe page.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant={isListeningForKey ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setIsListeningForKey(!isListeningForKey)}
+                    className="min-w-[140px]"
+                  >
+                    {isListeningForKey
+                      ? "Press any key..."
+                      : settings.panicKey
+                        ? `Key: ${settings.panicKey.length === 1 ? settings.panicKey.toUpperCase() : settings.panicKey}`
+                        : "Set Key"}
+                  </Button>
+                  {settings.panicKey && (
                     <Button
-                      variant={isListeningForKey ? "default" : "outline"}
+                      variant="ghost"
                       size="sm"
-                      onClick={() => setIsListeningForKey(!isListeningForKey)}
-                      className="min-w-[140px]"
+                      onClick={() => updateSettings({ panicKey: null })}
                     >
-                      {isListeningForKey
-                        ? "Press any key..."
-                        : settings.panicKey
-                          ? `Key: ${settings.panicKey.length === 1 ? settings.panicKey.toUpperCase() : settings.panicKey}`
-                          : "Set Key"}
+                      Clear
                     </Button>
-                    {settings.panicKey && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => updateSettings({ panicKey: null })}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex gap-2 items-center mt-2">
-                    <Label className="text-sm whitespace-nowrap">Redirect URL</Label>
-                    <Input
-                      value={settings.panicUrl}
-                      onChange={(e) => updateSettings({ panicUrl: e.target.value })}
-                      placeholder="https://google.com"
-                      className="bg-background"
-                    />
-                  </div>
+                  )}
+                </div>
+                <div className="flex gap-2 items-center mt-2">
+                  <Label className="text-sm whitespace-nowrap">Redirect URL</Label>
+                  <Input
+                    value={settings.panicUrl}
+                    onChange={(e) => updateSettings({ panicUrl: e.target.value })}
+                    placeholder="https://google.com"
+                    className="bg-background"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -451,6 +485,56 @@ const Settings = () => {
                     </p>
                   </div>
                   <Switch checked={settings.developerMode} onCheckedChange={handleDeveloperModeToggle} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border shadow-lg hover-glow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Info className="h-5 w-5" />
+                  App Info
+                </CardTitle>
+                <CardDescription>
+                  Repository, legal, and version details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4">
+                  <div className="grid gap-1">
+                    <div className="text-sm font-semibold text-foreground">Repository</div>
+                    <a
+                      href="https://github.com/snork1023/schoolwork-hard-algebra"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-muted-foreground underline"
+                    >
+                      GitHub
+                    </a>
+                  </div>
+
+                  <div className="grid gap-1">
+                    <div className="text-sm font-semibold text-foreground">Legal</div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <Link to="/termsofservice" className="text-sm text-muted-foreground underline">
+                        Terms of Service
+                      </Link>
+                      <Link to="/privacypolicy" className="text-sm text-muted-foreground underline">
+                        Privacy Policy
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="inline-flex min-w-fit items-center gap-3 rounded-full border border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Version {appVersion}</span>
+                    {latestVersion ? (
+                      isBehind ? (
+                        <span className="text-xs text-foreground">Update available: {latestVersion}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Up to date</span>
+                      )
+                    ) : null}
+                  </div>
                 </div>
               </CardContent>
             </Card>

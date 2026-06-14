@@ -67,7 +67,6 @@
         "npm:eslint@^9.32.0",
         "npm:globals@^15.15.0",
         "npm:input-otp@^1.4.2",
-        "npm:lovable-tagger@^1.1.10",
         "npm:lucide-react@0.462",
         "npm:next-themes@0.3",
         "npm:postcss@^8.5.6",

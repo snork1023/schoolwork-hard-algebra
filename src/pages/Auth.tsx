@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +87,7 @@ const Auth = () => {
   const [signUpUsername, setSignUpUsername] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
+  const [signUpAgreementChecked, setSignUpAgreementChecked] = useState(false);
 
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
@@ -207,6 +208,15 @@ const Auth = () => {
  // ── Sign Up ────────────────────────────────────────────────────────────────
 const handleSignUp = async (e: React.FormEvent) => {
   e.preventDefault();
+  if (!signUpAgreementChecked) {
+    toast({
+      title: "Agreement required",
+      description: "You must agree to the Privacy Policy and Terms of Service to create an account.",
+      variant: "destructive",
+    });
+    return;
+  }
+
   const validation = signUpSchema.safeParse({
     username: signUpUsername,
     email: signUpEmail,
@@ -285,6 +295,7 @@ const handleSignUp = async (e: React.FormEvent) => {
     setSignUpUsername("");
     setSignUpEmail("");
     setSignUpPassword("");
+    setSignUpAgreementChecked(false);
   } catch (error: any) {
     toast({
       title: "Error",
@@ -513,7 +524,17 @@ const handleSignUp = async (e: React.FormEvent) => {
                         minLength={6}
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="signup-agreement"
+                        checked={signUpAgreementChecked}
+                        onCheckedChange={(v) => setSignUpAgreementChecked(v === true)}
+                      />
+                      <Label htmlFor="signup-agreement" className="text-sm cursor-pointer">
+                        I have read, understood, and agree to Kepler's <Link to="/termsofservice" className="underline">Terms of Service</Link> and <Link to="/privacypolicy" className="underline">Privacy Policy</Link>.
+                      </Label>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading || !signUpAgreementChecked}>
                       {loading ? "Creating account…" : "Create Account"}
                     </Button>
                   </form>

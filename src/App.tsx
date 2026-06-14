@@ -8,12 +8,14 @@ import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvi
 import ShootingStars from "@/components/ShootingStars";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
-import Chat from "./pages/Chat";
+import Ai from "./pages/Ai";
 import Auth from "./pages/Auth";
 import CommunityChat from "./pages/CommunityChat";
 import Account from "./pages/Account";
 import Games from "./pages/Games";
 import Search from "./pages/Search";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import BrowserView from "./components/BrowserView";
 
@@ -38,13 +40,15 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/games" element={<Games />} />
-              <Route path="/chat" element={<Chat />} />
+              <Route path="/ai" element={<Ai />} />
               <Route path="/community-chat" element={<CommunityChat />} />
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/browser" element={<BrowserView />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/privacypolicy" element={<PrivacyPolicy />} />
+              <Route path="/termsofservice" element={<TermsOfService />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
