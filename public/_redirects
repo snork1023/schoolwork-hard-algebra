@@ -1,9 +1,9 @@
-/.git/* 404
-/.git 404
-/.env* 404
-/.hg/* 404
-/.hg 404
-/.svn/* 404
-/.svn 404
-/.vscode/* 404
-/.vscode 404
+/.git/* 404 force
+/.git 404 force
+/.env* 404 force
+/.hg/* 404 force
+/.hg 404 force
+/.svn/* 404 force
+/.svn 404 force
+/.vscode/* 404 force
+/.vscode 404 force

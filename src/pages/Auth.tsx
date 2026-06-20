@@ -11,68 +11,26 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
+import { loadHCaptcha, waitForHCaptcha } from "@/lib/hcaptcha-loader";
 
-// ─── Rate limit constants ─────────────────────────────────────────────────────
-const WINDOW_MS = 10 * 60 * 1000; // 10-minute sliding window
-const CAPTCHA_AFTER = 3;
-const LOCKOUT_5_AFTER = 5;
-const LOCKOUT_15_AFTER = 10;
-const LOCKOUT_5_MS = 5 * 60 * 1000;
-const LOCKOUT_15_MS = 15 * 60 * 1000;
-const RL_KEY = "auth_attempts";
+const HCAPTCHA_SITEKEY = import.meta.env.VITE_HCAPTCHA_SITEKEY as string | undefined;
 
-// Password reset: 1 request per minute (client-side gate)
-const RESET_RL_KEY = "pw_reset_last";
-const RESET_COOLDOWN_MS = 60 * 1000;
-
-interface AttemptRecord {
-  timestamps: number[];
-  lockedUntil: number;
-}
-
-function loadRecord(): AttemptRecord {
-  try {
-    const raw = localStorage.getItem(RL_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { timestamps: [], lockedUntil: 0 };
-}
-function saveRecord(r: AttemptRecord) {
-  localStorage.setItem(RL_KEY, JSON.stringify(r));
-}
-function recentAttempts(r: AttemptRecord): number[] {
-  return r.timestamps.filter((t) => t > Date.now() - WINDOW_MS);
-}
-function recordFailedAttempt(): AttemptRecord {
-  const r = loadRecord();
-  const recent = [...recentAttempts(r), Date.now()];
-  let lockedUntil = 0;
-  if (recent.length >= LOCKOUT_15_AFTER) lockedUntil = Date.now() + LOCKOUT_15_MS;
-  else if (recent.length >= LOCKOUT_5_AFTER) lockedUntil = Date.now() + LOCKOUT_5_MS;
-  const updated = { timestamps: recent, lockedUntil };
-  saveRecord(updated);
-  return updated;
-}
-function clearAttempts() { localStorage.removeItem(RL_KEY); }
-function lockoutRemaining(r: AttemptRecord): number {
-  if (!r.lockedUntil) return 0;
-  return Math.max(0, r.lockedUntil - Date.now());
-}
-function formatCountdown(ms: number): string {
-  const s = Math.ceil(ms / 1000);
-  const m = Math.floor(s / 60);
-  return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
-}
-function generateChallenge() {
-  const a = Math.floor(Math.random() * 9) + 1;
-  const b = Math.floor(Math.random() * 9) + 1;
-  return { question: `${a} + ${b}`, answer: a + b };
+if (!HCAPTCHA_SITEKEY) {
+  // Fails loudly in dev instead of silently passing `undefined` to hcaptcha.render()
+  console.error(
+    "VITE_HCAPTCHA_SITEKEY is not set. Add it to your .env file and restart the dev server."
+  );
 }
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 // Sign-up: username + email + password
 const signUpSchema = z.object({
-  username: z.string().trim().min(2, "Username must be at least 2 characters").max(50),
+  username: z
+    .string()
+    .trim()
+    .min(2, "Username must be at least 2 characters")
+    .max(50)
+    .regex(/^[a-zA-Z0-9_\- ]+$/, "Username can only contain letters, numbers, spaces, hyphens, and underscores"),
   email: z.string().trim().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters").max(72),
 });
@@ -83,6 +41,55 @@ const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// ─── hCaptcha hook ───────────────────────────────────────────────────────────
+// Renders an hCaptcha widget into the given container ref and tracks its token.
+// Assumes the container stays mounted for the lifetime of the component
+// (visibility toggled with CSS, not conditional render) since hcaptcha.render()
+// injects DOM that React doesn't manage, and unmount/remount cycles break it.
+function useHCaptchaWidget(containerRef: React.RefObject<HTMLDivElement>) {
+  const [token, setToken] = useState<string | null>(null);
+  const widgetIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const tryRender = () => {
+      if (cancelled || widgetIdRef.current !== null) return;
+      if (!containerRef.current) {
+        requestAnimationFrame(tryRender);
+        return;
+      }
+      waitForHCaptcha().then((hcaptcha) => {
+        if (cancelled || widgetIdRef.current !== null || !HCAPTCHA_SITEKEY) return;
+        const id = hcaptcha.render(containerRef.current!, {
+          sitekey: HCAPTCHA_SITEKEY,
+          callback: (t: string) => setToken(t),
+          "expired-callback": () => setToken(null),
+          "error-callback": () => setToken(null),
+        });
+        widgetIdRef.current = id;
+      });
+    };
+
+    loadHCaptcha();
+    tryRender();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const reset = () => {
+    setToken(null);
+    if (widgetIdRef.current !== null) {
+      waitForHCaptcha().then((hcaptcha) => hcaptcha.reset(widgetIdRef.current));
+    }
+  };
+
+  return { token, reset };
+}
+
 const Auth = () => {
   const [signUpUsername, setSignUpUsername] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -91,26 +98,24 @@ const Auth = () => {
 
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
-  const [stayLoggedIn, setStayLoggedIn] = useState(true);
 
   const [loading, setLoading] = useState(false);
-
-  // Login rate limit
-  const [attemptCount, setAttemptCount] = useState(() => recentAttempts(loadRecord()).length);
-  const [lockoutMs, setLockoutMs] = useState(() => lockoutRemaining(loadRecord()));
-  const [countdown, setCountdown] = useState("");
-  const [challenge, setChallenge] = useState(() => generateChallenge());
-  const [captchaInput, setCaptchaInput] = useState("");
-  const [captchaPassed, setCaptchaPassed] = useState(false);
 
   // Password reset
   const [resetEmail, setResetEmail] = useState("");
   const [showResetForm, setShowResetForm] = useState(false);
-  const [resetCooldownMs, setResetCooldownMs] = useState(0);
-  const [resetCountdown, setResetCountdown] = useState("");
 
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const resetCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Controlled so we can animate a sliding indicator behind the active tab
+  const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
+
+  // hCaptcha containers + state, one widget per form
+  const signInCaptchaRef = useRef<HTMLDivElement>(null);
+  const signUpCaptchaRef = useRef<HTMLDivElement>(null);
+  const resetCaptchaRef = useRef<HTMLDivElement>(null);
+
+  const signInCaptcha = useHCaptchaWidget(signInCaptchaRef);
+  const signUpCaptcha = useHCaptchaWidget(signUpCaptchaRef);
+  const resetCaptcha = useHCaptchaWidget(resetCaptchaRef);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -125,53 +130,11 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Login lockout countdown
-  useEffect(() => {
-    if (lockoutMs <= 0) { setCountdown(""); return; }
-    setCountdown(formatCountdown(lockoutMs));
-    countdownRef.current = setInterval(() => {
-      const rem = lockoutRemaining(loadRecord());
-      if (rem <= 0) { setLockoutMs(0); setCountdown(""); clearInterval(countdownRef.current!); }
-      else setCountdown(formatCountdown(rem));
-    }, 1000);
-    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
-  }, [lockoutMs]);
-
-  // Password reset cooldown countdown
-  useEffect(() => {
-    if (resetCooldownMs <= 0) { setResetCountdown(""); return; }
-    setResetCountdown(formatCountdown(resetCooldownMs));
-    resetCountdownRef.current = setInterval(() => {
-      const last = parseInt(localStorage.getItem(RESET_RL_KEY) || "0", 10);
-      const rem = Math.max(0, last + RESET_COOLDOWN_MS - Date.now());
-      if (rem <= 0) { setResetCooldownMs(0); setResetCountdown(""); clearInterval(resetCountdownRef.current!); }
-      else setResetCountdown(formatCountdown(rem));
-    }, 1000);
-    return () => { if (resetCountdownRef.current) clearInterval(resetCountdownRef.current); };
-  }, [resetCooldownMs]);
-
-  const needsCaptcha = attemptCount >= CAPTCHA_AFTER && !captchaPassed;
-  const isLockedOut = lockoutMs > 0;
-
-  const handleCaptchaCheck = () => {
-    if (parseInt(captchaInput, 10) === challenge.answer) {
-      setCaptchaPassed(true);
-    } else {
-      toast({ title: "Incorrect answer", variant: "destructive" });
-      setChallenge(generateChallenge());
-      setCaptchaInput("");
-    }
-  };
-
   // ── Sign In ────────────────────────────────────────────────────────────────
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLockedOut) {
-      toast({ title: "Too many attempts", description: `Wait ${formatCountdown(lockoutMs)}`, variant: "destructive" });
-      return;
-    }
-    if (needsCaptcha) {
-      toast({ title: "Complete the CAPTCHA first", variant: "destructive" });
+    if (!signInCaptcha.token) {
+      toast({ title: "Please complete the CAPTCHA", variant: "destructive" });
       return;
     }
     const validation = signInSchema.safeParse({ email: signInEmail, password: signInPassword });
@@ -184,23 +147,14 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithPassword({
         email: validation.data.email,
         password: validation.data.password,
+        options: { captchaToken: signInCaptcha.token },
       });
       if (error) throw error;
-      clearAttempts();
-      setAttemptCount(0);
-      setCaptchaPassed(false);
       toast({ title: "Welcome back!" });
     } catch (error: any) {
-      const updated = recordFailedAttempt();
-      const newCount = recentAttempts(updated).length;
-      setAttemptCount(newCount);
-      const newRem = lockoutRemaining(updated);
-      if (newRem > 0) setLockoutMs(newRem);
-      setCaptchaPassed(false);
-      setChallenge(generateChallenge());
-      setCaptchaInput("");
       toast({ title: "Sign in failed", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
+      signInCaptcha.reset();
       setLoading(false);
     }
   };
@@ -214,6 +168,10 @@ const handleSignUp = async (e: React.FormEvent) => {
       description: "You must agree to the Privacy Policy and Terms of Service to create an account.",
       variant: "destructive",
     });
+    return;
+  }
+  if (!signUpCaptcha.token) {
+    toast({ title: "Please complete the CAPTCHA", variant: "destructive" });
     return;
   }
 
@@ -239,6 +197,7 @@ const handleSignUp = async (e: React.FormEvent) => {
       options: {
         data: { username: validation.data.username },
         emailRedirectTo: `${window.location.origin}/`,
+        captchaToken: signUpCaptcha.token,
       },
     });
 
@@ -303,6 +262,7 @@ const handleSignUp = async (e: React.FormEvent) => {
       variant: "destructive",
     });
   } finally {
+    signUpCaptcha.reset();
     setLoading(false);
   }
 };
@@ -311,16 +271,8 @@ const handleSignUp = async (e: React.FormEvent) => {
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Client-side rate limit: 1 request per minute
-    const last = parseInt(localStorage.getItem(RESET_RL_KEY) || "0", 10);
-    const remaining = last + RESET_COOLDOWN_MS - Date.now();
-    if (remaining > 0) {
-      setResetCooldownMs(remaining);
-      toast({
-        title: "Please wait",
-        description: `You can request another reset in ${formatCountdown(remaining)}.`,
-        variant: "destructive",
-      });
+    if (!resetCaptcha.token) {
+      toast({ title: "Please complete the CAPTCHA", variant: "destructive" });
       return;
     }
 
@@ -334,12 +286,9 @@ const handleSignUp = async (e: React.FormEvent) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(emailValidation.data, {
         redirectTo: `${window.location.origin}/auth`,
+        captchaToken: resetCaptcha.token,
       });
       if (error) throw error;
-
-      // Record timestamp for cooldown
-      localStorage.setItem(RESET_RL_KEY, String(Date.now()));
-      setResetCooldownMs(RESET_COOLDOWN_MS);
 
       toast({ title: "Check your email", description: "We sent you a password reset link." });
       setResetEmail("");
@@ -347,6 +296,7 @@ const handleSignUp = async (e: React.FormEvent) => {
     } catch (error: any) {
       toast({ title: "Error", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
+      resetCaptcha.reset();
       setLoading(false);
     }
   };
@@ -362,44 +312,56 @@ const handleSignUp = async (e: React.FormEvent) => {
           </CardHeader>
           <CardContent>
             {/* ── Password Reset Form ── */}
-            {showResetForm ? (
-              <form onSubmit={handlePasswordReset} className="space-y-4">
-                <div className="space-y-1">
-                  <Label htmlFor="reset-email">Email address</Label>
-                  <Input
-                    id="reset-email"
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    required
+            {/* Both this form and the Tabs block below stay mounted at all times.
+                Visibility is toggled with `hidden` rather than a conditional render,
+                because hcaptcha.render() injects DOM (an iframe) into the captcha
+                container that React doesn't manage — unmounting that container
+                breaks the widget and it can't cleanly come back. */}
+            <form onSubmit={handlePasswordReset} className={`space-y-4 ${showResetForm ? "" : "hidden"}`}>
+              <div className="space-y-1">
+                <Label htmlFor="reset-email">Email address</Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-center" ref={resetCaptchaRef} />
+
+              <div className="flex gap-2">
+                <Button type="submit" disabled={loading || !resetCaptcha.token} className="flex-1">
+                  {loading ? "Sending…" : "Send Reset Link"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowResetForm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+
+            <div className={showResetForm ? "hidden" : ""}>
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "signin" | "signup")}>
+                <TabsList className="relative grid w-full grid-cols-2">
+                  <div
+                    aria-hidden
+                    className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-sm bg-background shadow-sm transition-transform duration-300 ease-out"
+                    style={{
+                      transform: activeTab === "signup" ? "translateX(100%)" : "translateX(0%)",
+                    }}
                   />
-                </div>
-
-                {resetCooldownMs > 0 && (
-                  <p className="text-sm text-destructive">
-                    Next reset available in <span className="font-mono font-bold">{resetCountdown}</span>
-                  </p>
-                )}
-
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={loading || resetCooldownMs > 0} className="flex-1">
-                    {loading ? "Sending…" : "Send Reset Link"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowResetForm(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <Tabs defaultValue="signin">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="signin">Sign In</TabsTrigger>
-                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                  <TabsTrigger value="signin" className="relative z-10 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                    Sign In
+                  </TabsTrigger>
+                  <TabsTrigger value="signup" className="relative z-10 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                    Sign Up
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* ── Sign In ── */}
-                <TabsContent value="signin">
+                <TabsContent value="signin" forceMount className="data-[state=inactive]:hidden">
                   <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-1">
                       <Label htmlFor="signin-email">Email</Label>
@@ -410,7 +372,6 @@ const handleSignUp = async (e: React.FormEvent) => {
                         onChange={(e) => setSignInEmail(e.target.value)}
                         placeholder="your@email.com"
                         required
-                        disabled={isLockedOut}
                       />
                     </div>
                     <div className="space-y-1">
@@ -422,55 +383,15 @@ const handleSignUp = async (e: React.FormEvent) => {
                         onChange={(e) => setSignInPassword(e.target.value)}
                         placeholder="••••••••"
                         required
-                        disabled={isLockedOut}
                       />
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="stay-logged-in"
-                        checked={stayLoggedIn}
-                        onCheckedChange={(v) => setStayLoggedIn(v === true)}
-                      />
-                      <Label htmlFor="stay-logged-in" className="text-sm cursor-pointer">Stay logged in</Label>
-                    </div>
-
-                    {/* Lockout banner */}
-                    {isLockedOut && (
-                      <div className="rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive text-center">
-                        Too many attempts. Wait <span className="font-mono font-bold">{countdown}</span>.
-                      </div>
-                    )}
-
-                    {/* CAPTCHA */}
-                    {!isLockedOut && needsCaptcha && (
-                      <div className="rounded-md border border-border bg-muted/50 px-4 py-3 space-y-2">
-                        <p className="text-sm font-medium">
-                          Security check: what is <span className="font-mono">{challenge.question}</span>?
-                        </p>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Answer"
-                            value={captchaInput}
-                            onChange={(e) => setCaptchaInput(e.target.value)}
-                            className="w-24"
-                          />
-                          <Button type="button" variant="outline" size="sm" onClick={handleCaptchaCheck}>
-                            Verify
-                          </Button>
-                        </div>
-                        {captchaPassed && <p className="text-xs text-green-600 font-medium">✓ Verified</p>}
-                        <p className="text-xs text-muted-foreground">
-                          {attemptCount} failed attempt{attemptCount !== 1 ? "s" : ""} in the last 10 min.
-                        </p>
-                      </div>
-                    )}
+                    <div className="flex justify-center" ref={signInCaptchaRef} />
 
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={loading || isLockedOut || (needsCaptcha && !captchaPassed)}
+                      disabled={loading || !signInCaptcha.token}
                     >
                       {loading ? "Signing in…" : "Sign In"}
                     </Button>
@@ -487,7 +408,7 @@ const handleSignUp = async (e: React.FormEvent) => {
                 </TabsContent>
 
                 {/* ── Sign Up ── */}
-                <TabsContent value="signup">
+                <TabsContent value="signup" forceMount className="data-[state=inactive]:hidden">
                   <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-1">
                       <Label htmlFor="signup-username">Username</Label>
@@ -524,7 +445,7 @@ const handleSignUp = async (e: React.FormEvent) => {
                         minLength={6}
                       />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <Checkbox
                         id="signup-agreement"
                         checked={signUpAgreementChecked}
@@ -534,13 +455,16 @@ const handleSignUp = async (e: React.FormEvent) => {
                         I have read, understood, and agree to Kepler's <Link to="/termsofservice" className="underline">Terms of Service</Link> and <Link to="/privacypolicy" className="underline">Privacy Policy</Link>.
                       </Label>
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading || !signUpAgreementChecked}>
+
+                    <div className="flex justify-center" ref={signUpCaptchaRef} />
+
+                    <Button type="submit" className="w-full" disabled={loading || !signUpAgreementChecked || !signUpCaptcha.token}>
                       {loading ? "Creating account…" : "Create Account"}
                     </Button>
                   </form>
                 </TabsContent>
               </Tabs>
-            )}
+            </div>
           </CardContent>
         </Card>
       </div>

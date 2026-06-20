@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { X } from "lucide-react";
+import { X, Search } from "lucide-react";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 const usernameSchema = z.string().trim().min(1, "Username cannot be empty").max(50);
@@ -32,6 +32,7 @@ const CreateConversationDialog = ({
   const [users, setUsers] = useState<Profile[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<Profile[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filteredUsers, setFilteredUsers] = useState<Profile[]>([]);
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
   const {
@@ -42,9 +43,32 @@ const CreateConversationDialog = ({
       fetchUsers();
       setSelectedUsers([]);
       setSearchQuery("");
+      setFilteredUsers([]);
       setGroupName("");
     }
   }, [open]);
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      setFilteredUsers([]);
+      return;
+    }
+    
+    // Filter users with exact username match (case-insensitive)
+    const results = users.filter(
+      user =>
+        user.username.toLowerCase() === searchQuery.toLowerCase().trim() &&
+        !selectedUsers.some(selected => selected.id === user.id)
+    );
+    setFilteredUsers(results);
+  };
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   const fetchUsers = async () => {
     // Only fetch users who are discoverable (allow message requests)
     const {
@@ -62,8 +86,6 @@ const CreateConversationDialog = ({
     }
   };
 
-  // Only show users with EXACT username match (case-insensitive)
-  const filteredUsers = users.filter(user => searchQuery.trim() !== "" && user.username.toLowerCase() === searchQuery.toLowerCase().trim() && !selectedUsers.some(selected => selected.id === user.id));
   const addUser = (user: Profile) => {
     const validation = usernameSchema.safeParse(user.username);
     if (!validation.success) {
@@ -75,6 +97,7 @@ const CreateConversationDialog = ({
     }
     setSelectedUsers(prev => [...prev, user]);
     setSearchQuery("");
+    setFilteredUsers([]);
   };
   const removeUser = (userId: string) => {
     setSelectedUsers(prev => prev.filter(user => user.id !== userId));
@@ -233,8 +256,25 @@ const CreateConversationDialog = ({
           <TabsContent value="dm" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="dmSearch">Enter exact username</Label>
-              <Input id="dmSearch" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Type exact username..." maxLength={50} />
-              
+              <div className="flex gap-2">
+                <Input
+                  id="dmSearch"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyPress={handleSearchKeyPress}
+                  placeholder="Type exact username..."
+                  maxLength={50}
+                />
+                <Button
+                  type="button"
+                  onClick={handleSearch}
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {selectedUsers.length > 0 && <div className="space-y-2">
@@ -273,8 +313,25 @@ const CreateConversationDialog = ({
 
             <div className="space-y-2">
               <Label htmlFor="groupSearch">Enter exact username</Label>
-              <Input id="groupSearch" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Type exact username..." maxLength={50} />
-              
+              <div className="flex gap-2">
+                <Input
+                  id="groupSearch"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyPress={handleSearchKeyPress}
+                  placeholder="Type exact username..."
+                  maxLength={50}
+                />
+                <Button
+                  type="button"
+                  onClick={handleSearch}
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {selectedUsers.length > 0 && <div className="space-y-2">
