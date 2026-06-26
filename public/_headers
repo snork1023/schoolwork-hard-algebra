@@ -1,3 +1,100 @@
+# --- GLOBAL SITE HEADERS ---
 /*
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+
+# --- SENSITIVE FILE SECURITY BLOCKS ---
+/.git*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/.env*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/.hg*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/.svn*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/.vscode*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/.idea*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/node_modules*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/package.json
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/package-lock.json
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/yarn.lock
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/pnpm-lock.yaml
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.config.js
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.config.ts
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.config.*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.local.*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.secret.*
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.pem
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.key
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+
+/*.crt
+Content-Security-Policy: default-src 'none';
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
