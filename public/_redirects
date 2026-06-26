@@ -1,28 +1,28 @@
-/.git/* 404
-/.git 404
-/.env* 404
-/.env.* 404
-/.hg/* 404
-/.hg 404
-/.svn/* 404
-/.svn 404
-/.vscode/* 404
-/.vscode 404
-/.idea/* 404
-/.idea 404
-/node_modules/* 404
-/node_modules 404
-/package.json 404
-/package-lock.json 404
-/yarn.lock 404
-/pnpm-lock.yaml 404
-/*.config.js 404
-/*.config.ts 404
-/*.config.* 404
-/*.local.* 404
-/*.secret.* 404
-/*.pem 404
-/*.key 404
-/*.crt 404
+/.git/* /blocked.html 404
+/.git /blocked.html 404
+/.env* /blocked.html 404
+/.env.* /blocked.html 404
+/.hg/* /blocked.html 404
+/.hg /blocked.html 404
+/.svn/* /blocked.html 404
+/.svn /blocked.html 404
+/.vscode/* /blocked.html 404
+/.vscode /blocked.html 404
+/.idea/* /blocked.html 404
+/.idea /blocked.html 404
+/node_modules/* /blocked.html 404
+/node_modules /blocked.html 404
+/package.json /blocked.html 404
+/package-lock.json /blocked.html 404
+/yarn.lock /blocked.html 404
+/pnpm-lock.yaml /blocked.html 404
+/*.config.js /blocked.html 404
+/*.config.ts /blocked.html 404
+/*.config.* /blocked.html 404
+/*.local.* /blocked.html 404
+/*.secret.* /blocked.html 404
+/*.pem /blocked.html 404
+/*.key /blocked.html 404
+/*.crt /blocked.html 404
 
-/* /index.html 200
+/* / 200
