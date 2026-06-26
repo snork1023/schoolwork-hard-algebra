@@ -1,0 +1,10 @@
+/package.json /this-file-does-not-exist 302
+/package-lock.json /this-file-does-not-exist 302
+/yarn.lock /this-file-does-not-exist 302
+/pnpm-lock.yaml /this-file-does-not-exist 302
+/vite.config.js /this-file-does-not-exist 302
+/vite.config.ts /this-file-does-not-exist 302
+/tsconfig.json /this-file-does-not-exist 302
+/webpack.config.js /this-file-does-not-exist 302
+/assets/* /assets/:splat 200
+/* /index.html 200
