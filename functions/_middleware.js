@@ -39,5 +39,5 @@ export async function onRequest(context) {
   }
 
   // 3. Let everything else pass through safely (Assets, index.html, etc.)
-  return next();
+  return context.next();
 }
