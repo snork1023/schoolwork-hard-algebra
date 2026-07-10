@@ -1,0 +1,23 @@
+.darkveil-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  pointer-events: none;
+  transform: translateY(0) scale(1.02);
+  opacity: 0.95;
+}
+
+.darkveil-canvas.light {
+  opacity: 0.95;
+  background: transparent;
+  filter: saturate(0.7) contrast(0.95);
+}
+
+.darkveil-canvas.dark {
+  opacity: 0.95;
+  background: transparent;
+  filter: saturate(1) contrast(1);
+}

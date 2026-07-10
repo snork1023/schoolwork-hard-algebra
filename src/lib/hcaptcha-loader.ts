@@ -1,23 +1,59 @@
 // src/lib/hcaptcha-loader.ts
-let loaded = false;
+let loadPromise: Promise<any> | null = null;
 
-export function loadHCaptcha() {
-  if (loaded) return;
+declare global {
+  interface Window {
+    hcaptcha?: any;
+    __hcaptchaOnLoad?: () => void;
+  }
+}
 
-  const script = document.createElement("script");
-  script.src = "https://js.hcaptcha.com/1/api.js?render=explicit";
-  script.async = true;
-  document.head.appendChild(script);
+export function loadHCaptcha(): Promise<any> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("hCaptcha can only be loaded in the browser"));
+  }
 
-  loaded = true;
+  if ((window as Window).hcaptcha) {
+    return Promise.resolve((window as Window).hcaptcha);
+  }
+
+  if (loadPromise) {
+    return loadPromise;
+  }
+
+  loadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://js.hcaptcha.com/1/api.js?render=explicit&onload=__hcaptchaOnLoad";
+    script.async = true;
+    script.defer = true;
+
+    (window as Window).__hcaptchaOnLoad = () => {
+      const hcaptcha = (window as Window).hcaptcha;
+      if (hcaptcha) {
+        resolve(hcaptcha);
+      } else {
+        reject(new Error("hCaptcha API loaded but hcaptcha is not available"));
+      }
+    };
+
+    script.onerror = () => {
+      reject(new Error("Failed to load hCaptcha script"));
+    };
+
+    document.head.appendChild(script);
+  });
+
+  return loadPromise;
 }
 
 export function waitForHCaptcha(): Promise<any> {
-  return new Promise((resolve) => {
-    const check = () => {
-      if ((window as any).hcaptcha) resolve((window as any).hcaptcha);
-      else setTimeout(check, 50);
-    };
-    check();
-  });
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("hCaptcha can only be loaded in the browser"));
+  }
+
+  if ((window as Window).hcaptcha) {
+    return Promise.resolve((window as Window).hcaptcha);
+  }
+
+  return loadHCaptcha();
 }

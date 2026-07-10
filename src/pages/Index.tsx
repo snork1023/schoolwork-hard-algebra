@@ -42,7 +42,7 @@ const Index = () => {
       
       <main className="container mx-auto px-4 pt-32 pb-12">
         <div className="text-center mb-16 animate-fade-in">
-          <h1 className="text-5xl font-bold mb-4 glow-text" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h1 className="text-5xl font-bold mb-4 text-foreground glow-text" style={{ fontFamily: "'Orbitron', sans-serif" }}>
             Kepler
           </h1>
           <p
