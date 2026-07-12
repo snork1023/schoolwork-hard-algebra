@@ -10,6 +10,18 @@
   opacity: 0.95;
 }
 
+.darkveil-accent-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  transform: translateY(0) scale(1.02);
+  mix-blend-mode: hue;
+  opacity: 0.8;
+}
+
 .darkveil-canvas.light {
   opacity: 0.95;
   background: transparent;

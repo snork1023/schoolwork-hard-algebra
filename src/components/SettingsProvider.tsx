@@ -16,14 +16,16 @@ export interface UserSettings {
   searchEngine: string;
   autoOpen: boolean;
   developerMode: boolean;
-  simpleMode: boolean;
-  showStars: boolean;
+  showBackground: boolean;
   panicKey: string | null;
   panicUrl: string;
   autoAboutBlank: boolean;
   tabCloak: TabCloakOption;
   customTabTitle: string;
   customFavicon: string | null;
+  veilSpeed: number;
+  veilHueShift: number;
+  veilWarpAmount: number;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -33,14 +35,22 @@ const DEFAULT_SETTINGS: UserSettings = {
   searchEngine: 'duckduckgo',
   autoOpen: true,
   developerMode: false,
-  simpleMode: false,
-  showStars: true,
+  showBackground: true,
   panicKey: null,
   panicUrl: 'https://google.com',
   autoAboutBlank: false,
   tabCloak: 'google-drive',
   customTabTitle: 'Google Drive',
   customFavicon: null,
+  veilSpeed: 1,
+  veilHueShift: 263,
+  veilWarpAmount: 0.8,
+};
+
+const parseNumber = (value: string | null, fallback: number): number => {
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 };
 
 const loadFromLocalStorage = (): UserSettings => ({
@@ -50,14 +60,16 @@ const loadFromLocalStorage = (): UserSettings => ({
   searchEngine: localStorage.getItem('searchEngine') || DEFAULT_SETTINGS.searchEngine,
   autoOpen: localStorage.getItem('autoOpen') !== 'false',
   developerMode: localStorage.getItem('developerMode') === 'true',
-  simpleMode: localStorage.getItem('simpleMode') === 'true',
-  showStars: localStorage.getItem('showStars') !== 'false',
+  showBackground: localStorage.getItem('showBackground') !== 'false',
   panicKey: localStorage.getItem('panicKey') || null,
   panicUrl: localStorage.getItem('panicUrl') || DEFAULT_SETTINGS.panicUrl,
   autoAboutBlank: localStorage.getItem('autoAboutBlank') === 'true',
   tabCloak: (localStorage.getItem('tabCloak') as TabCloakOption) || DEFAULT_SETTINGS.tabCloak,
   customTabTitle: localStorage.getItem('customTabTitle') || DEFAULT_SETTINGS.customTabTitle,
   customFavicon: localStorage.getItem('customFavicon') || null,
+  veilSpeed: parseNumber(localStorage.getItem('veilSpeed'), DEFAULT_SETTINGS.veilSpeed),
+  veilHueShift: parseNumber(localStorage.getItem('veilHueShift'), DEFAULT_SETTINGS.veilHueShift),
+  veilWarpAmount: parseNumber(localStorage.getItem('veilWarpAmount'), DEFAULT_SETTINGS.veilWarpAmount),
 });
 
 const syncToLocalStorage = (s: UserSettings) => {
@@ -71,8 +83,7 @@ const syncToLocalStorage = (s: UserSettings) => {
   localStorage.setItem('searchEngine', s.searchEngine);
   localStorage.setItem('autoOpen', String(s.autoOpen));
   localStorage.setItem('developerMode', s.developerMode ? 'true' : 'false');
-  localStorage.setItem('simpleMode', s.simpleMode ? 'true' : 'false');
-  localStorage.setItem('showStars', s.showStars ? 'true' : 'false');
+  localStorage.setItem('showBackground', s.showBackground ? 'true' : 'false');
   if (s.panicKey) {
     localStorage.setItem('panicKey', s.panicKey);
   } else {
@@ -87,6 +98,9 @@ const syncToLocalStorage = (s: UserSettings) => {
   } else {
     localStorage.removeItem('customFavicon');
   }
+  localStorage.setItem('veilSpeed', String(s.veilSpeed));
+  localStorage.setItem('veilHueShift', String(s.veilHueShift));
+  localStorage.setItem('veilWarpAmount', String(s.veilWarpAmount));
 };
 
 export const getTabCloakMetadata = (settings: UserSettings) => {
@@ -165,6 +179,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [userId, setUserId] = useState<string | null>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Global panic key listener – directly navigates to the panic URL
   useEffect(() => {
@@ -272,19 +287,29 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const updateSettings = useCallback(async (updates: Partial<UserSettings>) => {
     const newSettings = { ...settingsRef.current, ...updates };
     setSettings(newSettings);
-    syncToLocalStorage(newSettings);
 
     if (updates.accentColor) {
       applyAccentColor(updates.accentColor);
     }
 
-    const currentUserId = userId;
-    if (currentUserId) {
-      await supabase
-        .from('profiles')
-        .update({ settings: newSettings })
-        .eq('id', currentUserId);
+    // Debounce the actual persistence (localStorage + Supabase) so rapid-fire
+    // updates like slider dragging don't spam writes. UI state above updates
+    // instantly for a live preview regardless.
+    if (persistTimeoutRef.current) {
+      clearTimeout(persistTimeoutRef.current);
     }
+
+    persistTimeoutRef.current = setTimeout(async () => {
+      syncToLocalStorage(newSettings);
+
+      const currentUserId = userId;
+      if (currentUserId) {
+        await supabase
+          .from('profiles')
+          .update({ settings: newSettings })
+          .eq('id', currentUserId);
+      }
+    }, 400);
   }, [userId]);
 
   return (

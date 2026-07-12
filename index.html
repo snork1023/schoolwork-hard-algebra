@@ -10,6 +10,19 @@
     <meta property="og:description" content="Zero limits, pushing boundaries">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <meta property="og:type" content="website">
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var isDark = stored === 'dark'
+            || (stored === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+            || !stored; // no stored value yet → defaultTheme="dark"
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

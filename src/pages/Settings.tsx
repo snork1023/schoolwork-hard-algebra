@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Code, ExternalLink, Keyboard, Github, Info } from "lucide-react";
+import { Moon, Sun, Code, ExternalLink, Keyboard, Info } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
+import BackgroundEffectSettings from "@/components/BackgroundEffectSettings";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { getTabCloakMetadata, TabCloakOption } from "@/components/SettingsProvider";
@@ -244,29 +245,18 @@ const Settings = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Simple Mode</Label>
+                    <Label>Background</Label>
                     <p className="text-sm text-muted-foreground">
-                      Hide nav button labels, show icons only
+                      Animated background effect
                     </p>
                   </div>
                   <Switch
-                    checked={settings.simpleMode}
-                    onCheckedChange={(checked) => updateSettings({ simpleMode: checked })}
+                    checked={settings.showBackground}
+                    onCheckedChange={(checked) => updateSettings({ showBackground: checked })}
                   />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Shooting Stars</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Animated star background effect
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.showStars}
-                    onCheckedChange={(checked) => updateSettings({ showStars: checked })}
-                  />
-                </div>
+                {settings.showBackground && <BackgroundEffectSettings />}
               </CardContent>
             </Card>
 

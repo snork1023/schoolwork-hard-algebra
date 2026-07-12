@@ -233,5 +233,15 @@ export default function DarkVeil({
     };
   }, [hueShift, noiseIntensity, scanlineIntensity, effectSpeed, scanlineFrequency, warpAmount, resolutionScale, uniforms, themeModeValue]);
 
-  return <canvas ref={ref} className={`darkveil-canvas ${isDark ? "dark" : "light"}`} />;
+  return (
+    <>
+      <canvas ref={ref} className={`darkveil-canvas ${isDark ? "dark" : "light"}`} />
+      <div
+        className="darkveil-accent-overlay"
+        style={{
+          backgroundColor: `hsl(${accentConfig.hue} ${accentConfig.saturation * 100}% ${accentConfig.lightness * 100}%)`,
+        }}
+      />
+    </>
+  );
 }

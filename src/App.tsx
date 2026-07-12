@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
-import ShootingStars from "@/components/ShootingStars";
+import Background from "@/components/Background";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Ai from "./pages/Ai";
@@ -21,10 +21,10 @@ import BrowserView from "./components/BrowserView";
 
 const queryClient = new QueryClient();
 
-const GlobalStars = () => {
+const Backgroundeffect = () => {
   const { settings } = useSettingsContext();
-  if (!settings.showStars) return null;
-  return <ShootingStars />;
+  if (!settings.showBackground) return null;
+  return <Background />;
 };
 
 const App = () => (
@@ -35,7 +35,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <GlobalStars />
+            <Backgroundeffect />
             <div className="relative" style={{ zIndex: 1 }}>
             <Routes>
               <Route path="/" element={<Index />} />
