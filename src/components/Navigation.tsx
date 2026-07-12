@@ -26,9 +26,9 @@ const Navigation = () => {
   
   const links = [
     { to: "/", icon: Home, label: "Home" },
-    { to: "/games", icon: Gamepad2, label: "Games" },
+    { to: "/g", icon: Gamepad2, label: "Games" },
     { to: "/ai", icon: Sparkles, label: "Ai" },
-    { to: "/community-chat", icon: MessageSquare, label: "Chat" },
+    { to: "/chat", icon: MessageSquare, label: "Chat" },
     { to: "/account", icon: User, label: "Account" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];

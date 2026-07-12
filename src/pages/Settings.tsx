@@ -481,7 +481,7 @@ const Settings = () => {
                   <div className="space-y-0.5">
                     <Label>Enable Developer Mode</Label>
                     <p className="text-sm text-muted-foreground">
-                      Show debug info
+                      Show debug info (does not give special perms)
                     </p>
                   </div>
                   <Switch checked={settings.developerMode} onCheckedChange={handleDeveloperModeToggle} />

@@ -16,7 +16,6 @@ import { loadHCaptcha, waitForHCaptcha } from "@/lib/hcaptcha-loader";
 const HCAPTCHA_SITEKEY = import.meta.env.VITE_HCAPTCHA_SITEKEY as string | undefined;
 
 if (!HCAPTCHA_SITEKEY) {
-  // Fails loudly in dev instead of silently passing `undefined` to hcaptcha.render()
   console.error(
     "VITE_HCAPTCHA_SITEKEY is not set. Add it to your .env file and restart the dev server."
   );
@@ -124,7 +123,7 @@ const Auth = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
-        navigate("/community-chat");
+        navigate("/chat");
       }
     });
     return () => subscription.unsubscribe();

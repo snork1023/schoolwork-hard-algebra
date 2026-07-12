@@ -39,9 +39,9 @@ const App = () => (
             <div className="relative" style={{ zIndex: 1 }}>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/games" element={<Games />} />
+              <Route path="/g" element={<Games />} />
               <Route path="/ai" element={<Ai />} />
-              <Route path="/community-chat" element={<CommunityChat />} />
+              <Route path="/chat" element={<CommunityChat />} />
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/auth" element={<Auth />} />
