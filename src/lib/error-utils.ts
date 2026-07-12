@@ -4,22 +4,37 @@
  */
 
 /**
+ * Minimal shape for errors we know how to inspect (Supabase/Postgres errors,
+ * standard JS Errors, or anything with an optional code/message).
+ */
+interface KnownError {
+  code?: string;
+  message?: string;
+}
+
+const isKnownError = (error: unknown): error is KnownError => {
+  return typeof error === 'object' && error !== null;
+};
+
+/**
  * Maps database/system errors to user-friendly messages.
  * In development mode, returns detailed error messages for debugging.
  * In production mode, returns generic user-friendly messages.
  */
-export const getUserFriendlyError = (error: any): string => {
+export const getUserFriendlyError = (error: unknown): string => {
   // Always log the actual error for debugging purposes (server-side logs)
   console.error('Application error:', error);
 
+  const err = isKnownError(error) ? error : {};
+
   // In development, show detailed errors for debugging
   if (import.meta.env.DEV) {
-    return error?.message || 'An unexpected error occurred';
+    return err.message || 'An unexpected error occurred';
   }
 
   // In production, map specific error codes to friendly messages
-  const errorCode = error?.code;
-  const errorMessage = error?.message?.toLowerCase() || '';
+  const errorCode = err.code;
+  const errorMessage = err.message?.toLowerCase() || '';
 
   // PostgreSQL constraint violations
   if (errorCode === '23505') {
@@ -72,6 +87,6 @@ export const getUserFriendlyError = (error: any): string => {
  * Creates an error description suitable for toast notifications.
  * Returns undefined if no specific message should be shown.
  */
-export const getToastErrorDescription = (error: any): string | undefined => {
+export const getToastErrorDescription = (error: unknown): string | undefined => {
   return getUserFriendlyError(error);
 };

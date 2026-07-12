@@ -8,11 +8,32 @@
  *   used to encode proxied URLs.
  */
 
+interface ScramjetControllerConfig {
+  prefix: string;
+  files: {
+    wasm: string;
+    all: string;
+    sync: string;
+  };
+}
+
+interface ScramjetControllerInstance {
+  init: () => Promise<void>;
+}
+
+type ScramjetControllerConstructor = new (
+  config: ScramjetControllerConfig,
+) => ScramjetControllerInstance;
+
+// Not instantiated directly in this file today, but declared so the global
+// shape matches what the Scramjet bundle actually registers.
+type ScramjetServiceWorkerConstructor = new (...args: unknown[]) => unknown;
+
 declare global {
   interface Window {
-    $scramjetLoadController?: () => { ScramjetController: any };
+    $scramjetLoadController?: () => { ScramjetController: ScramjetControllerConstructor };
     $scramjetVersion?: { build: string; version: string };
-    $scramjetLoadWorker?: () => { ScramjetServiceWorker: any };
+    $scramjetLoadWorker?: () => { ScramjetServiceWorker: ScramjetServiceWorkerConstructor };
   }
 }
 
@@ -77,15 +98,19 @@ function captureConsoleLogs() {
   };
 }
 
-let controllerPromise: Promise<any> | null = null;
+let controllerPromise: Promise<ScramjetControllerInstance> | null = null;
+
+interface LoadedScriptElement extends HTMLScriptElement {
+  __loaded?: boolean;
+}
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(
+    const existing = document.querySelector<LoadedScriptElement>(
       `script[data-scram-src="${src}"]`,
     );
     if (existing) {
-      if ((existing as any).__loaded) return resolve();
+      if (existing.__loaded) return resolve();
       existing.addEventListener("load", () => resolve());
       existing.addEventListener("error", () =>
         reject(new Error(`Failed to load ${src}`)),
@@ -93,12 +118,12 @@ function loadScript(src: string): Promise<void> {
       return;
     }
 
-    const s = document.createElement("script");
+    const s = document.createElement("script") as LoadedScriptElement;
     s.src = src;
     s.async = false;
     s.dataset.scramSrc = src;
     s.addEventListener("load", () => {
-      (s as any).__loaded = true;
+      s.__loaded = true;
       resolve();
     });
     s.addEventListener("error", () =>
@@ -113,10 +138,14 @@ function buildWispUrl(): string {
   return `${proto}//${window.location.host}/wisp/`;
 }
 
+interface BareMuxConnectionInstance {
+  setTransport: (transportPath: string, options: unknown[]) => Promise<void>;
+}
+
 async function setupTransport(): Promise<void> {
   const bareMux = (await import(
     /* @vite-ignore */ `${SCRAM_ASSETS}bare-mux/index.mjs`
-  )) as { BareMuxConnection: new (workerPath: string) => any };
+  )) as { BareMuxConnection: new (workerPath: string) => BareMuxConnectionInstance };
   const conn = new bareMux.BareMuxConnection(`${SCRAM_ASSETS}bare-mux/worker.js`);
   await conn.setTransport(`${SCRAM_ASSETS}epoxy/index.mjs`, [
     { wisp: buildWispUrl() },
@@ -151,7 +180,7 @@ async function registerServiceWorker(): Promise<void> {
   }
 }
 
-async function initInternal(): Promise<any> {
+async function initInternal(): Promise<ScramjetControllerInstance> {
   captureConsoleLogs();
   await registerServiceWorker();
   await loadScript(`${SCRAM_ASSETS}scramjet.all.js`);
@@ -179,7 +208,7 @@ export function getScramjetLogs(): string[] {
   return logBuffer.map((entry) => `[${entry.timestamp}] [${entry.level}] ${entry.message}`);
 }
 
-export function initScramjet(): Promise<any> {
+export function initScramjet(): Promise<ScramjetControllerInstance> {
   if (!controllerPromise) {
     controllerPromise = initInternal().catch((err) => {
       controllerPromise = null;

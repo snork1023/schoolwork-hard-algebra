@@ -183,7 +183,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             window.open(absolutePanicUrl, '_top');
             return;
           }
-        } catch {}
+        } catch {
+            window.open(absolutePanicUrl, '_self');
+        }
 
         window.location.replace(absolutePanicUrl);
       }
