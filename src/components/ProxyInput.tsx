@@ -43,7 +43,7 @@ const ProxyInput = () => {
         fillOpacity={0.45}
         className="px-3 py-3"
       >
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <Input
             type="text"
             placeholder="Search DuckDuckGo..."
@@ -56,7 +56,21 @@ const ProxyInput = () => {
           <Button
             onClick={handleSearch}
             disabled={isLoading}
-            className="h-14 px-8 bg-gradient-to-r from-primary to-accent hover-glow"
+            className="
+      -translate-x-1
+      h-12
+      px-6
+      rounded-full
+      bg-primary
+      text-primary-foreground
+      shadow-md
+      transition-all
+      duration-300
+      ease-out
+      hover:bg-primary/90
+      hover:scale-105
+      active:scale-95
+    "
             size="lg"
           >
             <Search className="w-5 h-5 mr-2" />

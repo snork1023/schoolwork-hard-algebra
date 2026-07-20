@@ -24,7 +24,7 @@ export interface UserSettings {
   customTabTitle: string;
   customFavicon: string | null;
   veilSpeed: number;
-  veilHueShift: number;
+  veilHueShift: number | null;
   veilWarpAmount: number;
 }
 
@@ -42,9 +42,9 @@ const DEFAULT_SETTINGS: UserSettings = {
   tabCloak: 'google-drive',
   customTabTitle: 'Google Drive',
   customFavicon: null,
-  veilSpeed: 1,
-  veilHueShift: 263,
-  veilWarpAmount: 0.8,
+  veilSpeed: 0.5,
+  veilHueShift: null,
+  veilWarpAmount: 0.15,
 };
 
 const parseNumber = (value: string | null, fallback: number): number => {
@@ -68,7 +68,9 @@ const loadFromLocalStorage = (): UserSettings => ({
   customTabTitle: localStorage.getItem('customTabTitle') || DEFAULT_SETTINGS.customTabTitle,
   customFavicon: localStorage.getItem('customFavicon') || null,
   veilSpeed: parseNumber(localStorage.getItem('veilSpeed'), DEFAULT_SETTINGS.veilSpeed),
-  veilHueShift: parseNumber(localStorage.getItem('veilHueShift'), DEFAULT_SETTINGS.veilHueShift),
+  veilHueShift: localStorage.getItem('veilHueShift') === null
+    ? null
+    : parseNumber(localStorage.getItem('veilHueShift'), 0),
   veilWarpAmount: parseNumber(localStorage.getItem('veilWarpAmount'), DEFAULT_SETTINGS.veilWarpAmount),
 });
 
@@ -99,7 +101,11 @@ const syncToLocalStorage = (s: UserSettings) => {
     localStorage.removeItem('customFavicon');
   }
   localStorage.setItem('veilSpeed', String(s.veilSpeed));
-  localStorage.setItem('veilHueShift', String(s.veilHueShift));
+  if (s.veilHueShift !== null) {
+    localStorage.setItem('veilHueShift', String(s.veilHueShift));
+  } else {
+    localStorage.removeItem('veilHueShift');
+  }
   localStorage.setItem('veilWarpAmount', String(s.veilWarpAmount));
 };
 
@@ -285,7 +291,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateSettings = useCallback(async (updates: Partial<UserSettings>) => {
-    const newSettings = { ...settingsRef.current, ...updates };
+    const accentColorChanged =
+      updates.accentColor !== undefined && updates.accentColor !== settingsRef.current.accentColor;
+    const finalUpdates =
+      accentColorChanged && updates.veilHueShift === undefined
+        ? { ...updates, veilHueShift: null }
+        : updates;
+
+    const newSettings = { ...settingsRef.current, ...finalUpdates };
     setSettings(newSettings);
 
     if (updates.accentColor) {

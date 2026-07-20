@@ -15,7 +15,7 @@ const Index = () => {
     "this message is super rare",
     "if it doesn't work ur not worthy",
     "do it again",
-    "snorkthedork was never real",
+    "good boy",
     "how bored must you be",
     "click me for a secret coin!",
     "good luck finding that coin",
@@ -47,7 +47,7 @@ const Index = () => {
           </h1>
           <p
             onClick={() => setMessageIndex(Math.floor(Math.random() * messages.length))}
-            className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6 cursor-pointer select-none"
+            className="text-xl text-foreground/90 max-w-2xl mx-auto mb-6 cursor-pointer select-none"
           >
             {messages[messageIndex]}
           </p>

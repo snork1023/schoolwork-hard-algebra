@@ -4,11 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RotateCcw, Minus, Plus } from "lucide-react";
 
-// Matches DarkVeil's own original auto-calculated defaults
 const DARKVEIL_PRESETS = {
   speed: 1,
-  hueShift: 263,
   warpAmount: 0.8,
+};
+
+const parseAccentHue = (accentColor: string): number => {
+  const match = accentColor.trim().match(/^(\d+)/);
+  return match ? Number(match[1]) : 263;
 };
 
 const BackgroundEffectSettings = () => {
@@ -17,7 +20,7 @@ const BackgroundEffectSettings = () => {
   const handleReset = () => {
     updateSettings({
       veilSpeed: DARKVEIL_PRESETS.speed,
-      veilHueShift: DARKVEIL_PRESETS.hueShift,
+      veilHueShift: null,
       veilWarpAmount: DARKVEIL_PRESETS.warpAmount,
     });
   };
@@ -26,7 +29,7 @@ const BackgroundEffectSettings = () => {
     <div className="space-y-6 pt-2">
       <div className="flex items-center justify-between">
         <Label>Effect Settings</Label>
-        <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5">
+        <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5">
           <RotateCcw className="h-3.5 w-3.5" />
           Reset
         </Button>
@@ -55,7 +58,7 @@ const BackgroundEffectSettings = () => {
             className="!w-full"
             startingValue={0}
             maxValue={360}
-            defaultValue={settings.veilHueShift ?? DARKVEIL_PRESETS.hueShift}
+            defaultValue={settings.veilHueShift ?? parseAccentHue(settings.accentColor)}
             isStepped
             stepSize={1}
             leftIcon={<Minus className="h-3.5 w-3.5" />}
@@ -76,7 +79,7 @@ const BackgroundEffectSettings = () => {
             stepSize={0.1}
             leftIcon={<Minus className="h-3.5 w-3.5" />}
             rightIcon={<Plus className="h-3.5 w-3.5" />}
-            formatValue={(v) => v.toFixed(2)}
+            formatValue={(v) => v.toFixed(1)}
             onChange={(value) => updateSettings({ veilWarpAmount: value })}
           />
         </div>

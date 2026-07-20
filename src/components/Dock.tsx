@@ -85,7 +85,9 @@ function DockItem({
       aria-label={label}
       onKeyDown={handleKeyDown}
     >
-      {Children.map(children, (child) => cloneElement(child as React.ReactElement, { isHovered }))}
+      {Children.map(children, (child) =>
+        cloneElement(child as React.ReactElement<{ isHovered?: ReturnType<typeof useMotionValue<number>> }>, { isHovered })
+      )}
     </motion.div>
   );
 }

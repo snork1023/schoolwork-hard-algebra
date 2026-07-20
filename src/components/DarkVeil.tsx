@@ -134,6 +134,7 @@ export default function DarkVeil({
   resolutionScale = 1,
 }: DarkVeilProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
+  const programRef = useRef<Program | null>(null);
   const [accentConfig, setAccentConfig] = useState(getAccentConfig);
   const [themeMode, setThemeMode] = useState<ThemeMode>(getThemeMode);
 
@@ -163,6 +164,11 @@ export default function DarkVeil({
   const effectSpeed = speed * (isDark ? 0.64 : 0.36);
   const themeModeValue = isDark ? 1 : 0;
 
+  const speedRef = useRef(effectSpeed);
+  useEffect(() => {
+    speedRef.current = effectSpeed;
+  }, [effectSpeed]);
+
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
@@ -174,7 +180,8 @@ export default function DarkVeil({
       uWarp: { value: warpAmount },
       uThemeMode: { value: themeModeValue },
     }),
-    [hueShift, noiseIntensity, scanlineIntensity, scanlineFrequency, warpAmount, themeModeValue]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   useEffect(() => {
@@ -199,6 +206,7 @@ export default function DarkVeil({
     });
 
     const mesh = new Mesh(gl, { geometry, program });
+    programRef.current = program;
 
     const resize = () => {
       const w = parent.clientWidth || window.innerWidth;
@@ -214,13 +222,7 @@ export default function DarkVeil({
     let frame = 0;
 
     const loop = () => {
-      program.uniforms.uTime.value = ((performance.now() - start) / 1000) * effectSpeed;
-      program.uniforms.uHueShift.value = hueShift;
-      program.uniforms.uNoise.value = noiseIntensity;
-      program.uniforms.uScan.value = scanlineIntensity;
-      program.uniforms.uScanFreq.value = scanlineFrequency;
-      program.uniforms.uWarp.value = warpAmount;
-      program.uniforms.uThemeMode.value = themeModeValue;
+      program.uniforms.uTime.value = ((performance.now() - start) / 1000) * speedRef.current;
       renderer.render({ scene: mesh });
       frame = window.requestAnimationFrame(loop);
     };
@@ -230,16 +232,27 @@ export default function DarkVeil({
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
+      programRef.current = null;
     };
-  }, [hueShift, noiseIntensity, scanlineIntensity, effectSpeed, scanlineFrequency, warpAmount, resolutionScale, uniforms, themeModeValue]);
+  }, [resolutionScale, uniforms]);
+
+  useEffect(() => {
+    if (!programRef.current) return;
+    programRef.current.uniforms.uHueShift.value = hueShift;
+    programRef.current.uniforms.uNoise.value = noiseIntensity;
+    programRef.current.uniforms.uScan.value = scanlineIntensity;
+    programRef.current.uniforms.uScanFreq.value = scanlineFrequency;
+    programRef.current.uniforms.uWarp.value = warpAmount;
+    programRef.current.uniforms.uThemeMode.value = themeModeValue;
+  }, [hueShift, noiseIntensity, scanlineIntensity, scanlineFrequency, warpAmount, themeModeValue]);
 
   return (
     <>
       <canvas ref={ref} className={`darkveil-canvas ${isDark ? "dark" : "light"}`} />
       <div
-        className="darkveil-accent-overlay"
+        className="darkveil-hue-overlay"
         style={{
-          backgroundColor: `hsl(${accentConfig.hue} ${accentConfig.saturation * 100}% ${accentConfig.lightness * 100}%)`,
+          backgroundColor: `hsl(${hueShift} 70% 55%)`,
         }}
       />
     </>
