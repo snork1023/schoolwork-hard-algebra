@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserSettings } from "@/hooks/useUserSettings";

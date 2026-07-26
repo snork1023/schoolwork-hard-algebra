@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect, useRef, ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useTheme } from "next-themes";
 import { Moon, Sun, Code, ExternalLink, Keyboard, Info } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";

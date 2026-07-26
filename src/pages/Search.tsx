@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router";
 import { buildSearchUrl, buildSearchTarget, decodeProxiedUrl } from "@/lib/searchProxy";
 import { getScramjetLogs } from "@/lib/scramjet";
 import { Button } from "@/components/ui/button";

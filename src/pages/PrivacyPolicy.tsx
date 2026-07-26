@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 const PrivacyPolicy = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

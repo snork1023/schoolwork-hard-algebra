@@ -49,7 +49,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogContent 
         id="game-container"
         className={`p-0 gap-0 bg-background border-border [&>button[class*="absolute"]]:hidden ${
@@ -101,6 +101,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
             ? 'w-full h-full' 
             : 'flex-1 w-full h-[calc(90vh-52px)]'
         }`}>
+        {gameUrl && (
           <iframe
             key={key}
             ref={iframeRef}
@@ -110,6 +111,7 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
             allow="fullscreen; autoplay; clipboard-write; accelerometer; gyroscope; gamepad; cross-origin-isolated"
             allowFullScreen
           />
+        )}
         </div>
       </DialogContent>
     </Dialog>
