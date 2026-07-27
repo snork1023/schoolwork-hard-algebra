@@ -1,131 +1,113 @@
-import { useState, useRef, useEffect } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, Maximize, Minimize, X } from "lucide-react";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { useState, useEffect, useMemo } from "react";
+import Navigation from "@/components/Navigation";
+import GamePlayerDialog from "@/components/games/GamePlayerDialog";
+import { Search, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
-interface GamePlayerDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  gameUrl: string;
-  gameName: string;
+interface GameEntry {
+  folder: string;
+  name: string;
 }
 
-const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerDialogProps) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [key, setKey] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+const SKELETON_COUNT = 32;
+
+const Games = () => {
+  const [games, setGames] = useState<GameEntry[]>([]);
+  const [search, setSearch] = useState("");
+  const [selectedGame, setSelectedGame] = useState<{name: string;url: string;} | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    fetch("/games/manifest.json").
+    then((res) => res.json()).
+    then((data: GameEntry[]) => setGames(data)).
+    catch(() => setGames([])).
+    finally(() => setIsLoading(false));
   }, []);
 
-  const handleReload = () => {
-    setKey(prev => prev + 1);
-  };
-
-  const handleFullscreen = async () => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await iframe.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.error("Fullscreen error:", err);
-    }
-  };
-
-  const handleHome = () => {
-    onOpenChange(false);
-  };
+  const filteredGames = useMemo(
+    () => games.filter((g) => g.name.toLowerCase().includes(search.toLowerCase())),
+    [games, search]
+  );
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={false}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay
-          className="fixed inset-0 z-50 transition-opacity duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-          style={{
-            backgroundColor: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-          }}
-        />
-        <DialogPrimitive.Content
-          id="game-container"
-          className={`fixed left-[50%] top-[50%] z-50 grid translate-x-[-50%] translate-y-[-50%] gap-0 border border-border bg-background p-0 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg ${
-            isFullscreen
-              ? 'w-screen h-screen max-w-none rounded-none'
-              : 'max-w-[95vw] w-[95vw] h-[90vh]'
-          }`}
-        >
-          <VisuallyHidden>
-            <DialogPrimitive.Title>{gameName}</DialogPrimitive.Title>
-          </VisuallyHidden>
+    <div className="min-h-screen">
+      <Navigation />
 
-          {/* Control Bar */}
-          <div className={`flex items-center justify-between px-4 py-2 border-b border-border bg-card ${
-            isFullscreen ? 'hidden' : ''
-          }`}>
-            <span className="font-medium text-foreground">{gameName}</span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleReload}
-                title="Reload"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleFullscreen}
-                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-              >
-                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleHome}
-                title="Close"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+      <main className="container mx-auto px-4 pt-24 pb-12">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="relative max-w-md mx-auto animate-in fade-in duration-700">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 rounded-full" placeholder="Search games" />
+            
           </div>
 
-          {/* Game iframe */}
-          <div className={`bg-black ${
-            isFullscreen
-              ? 'w-full h-full'
-              : 'flex-1 w-full h-[calc(90vh-52px)]'
-          }`}>
-            {gameUrl && (
-              <iframe
-                key={key}
-                ref={iframeRef}
-                src={gameUrl}
-                className="w-full h-full border-0"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-pointer-lock allow-orientation-lock allow-forms allow-downloads allow-modals allow-top-navigation-by-user-activation"
-                allow="fullscreen; autoplay; clipboard-write; accelerometer; gyroscope; gamepad; cross-origin-isolated"
-                allowFullScreen
-              />
+          {!isLoading && filteredGames.length === 0 &&
+          <p className="text-center text-muted-foreground mt-12">No games found</p>
+          }
+
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3">
+            {isLoading ? (
+              Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-square rounded-lg bg-muted animate-pulse"
+                />
+              ))
+            ) : (
+              <>
+                <button
+                  onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLSebhS_LawxlNeNbHgD6T7CFtv8-avMriEmNwMxONQFlKkHbmw/viewform", "_blank")}
+                  className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted animate-in fade-in duration-500"
+                  title="Suggest a Game"
+                >
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors">
+                    <Plus className="w-6 h-6" />
+                    <span className="text-xs font-semibold">Suggest a Game</span>
+                  </div>
+                </button>
+
+                {filteredGames.map((game) =>
+                  <button
+                    key={game.folder}
+                    onClick={() =>
+                      setSelectedGame({
+                        name: game.name,
+                        url: `/games/${game.folder}/index.html`
+                      })
+                    }
+                    className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted animate-in fade-in duration-500"
+                    title={game.name}>
+                    <img
+                      src={`/games/${game.folder}/thumb.png`}
+                      alt={game.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }} />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{game.name}</span>
+                    </div>
+                  </button>
+                )}
+              </>
             )}
           </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
-  );
+        </div>
+      </main>
+
+      <GamePlayerDialog
+        open={!!selectedGame}
+        onOpenChange={(open) => !open && setSelectedGame(null)}
+        gameUrl={selectedGame?.url || ""}
+        gameName={selectedGame?.name || ""} />
+      
+    </div>);
+
 };
 
-export default GamePlayerDialog;
+export default Games;

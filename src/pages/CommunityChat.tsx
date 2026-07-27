@@ -567,7 +567,7 @@ const CommunityChat = () => {
       });
     }, 2000);
   };
-  const MAX_MESSAGE_LENGTH = 5000;
+  const MAX_MESSAGE_LENGTH = 160;
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() && attachments.length === 0 || !user || !selectedConversationId) return;
