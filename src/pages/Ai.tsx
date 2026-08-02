@@ -4,6 +4,7 @@ import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DotmCircular10 } from "@/components/ui/dotm-circular-10";
 import { Send, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +36,8 @@ const Chat = () => {
   const [rateLimited, setRateLimited] = useState(false);
   const [resetsAt, setResetsAt] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState("");
+  const [usedMessages, setUsedMessages] = useState(0);
+  const [limitMessages, setLimitMessages] = useState(RATE_LIMIT);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -119,6 +122,10 @@ const Chat = () => {
         const data = await response.json().catch(() => ({}));
 
         if (data.error === "rate_limited") {
+          const serverUsed = typeof data.used === "number" ? data.used : usedMessages;
+          const serverLimit = typeof data.limit === "number" ? data.limit : limitMessages;
+          setUsedMessages(serverUsed);
+          setLimitMessages(serverLimit);
           setRateLimited(true);
           if (data.resetsAt) setResetsAt(new Date(data.resetsAt));
 
@@ -185,6 +192,8 @@ const Chat = () => {
           }
         }
       }
+
+      setUsedMessages(prev => Math.min(prev + 1, limitMessages));
     } catch (error) {
       console.error("Chat error:", error);
       toast({ title: "Error", description: "Failed to get response from AI.", variant: "destructive" });
@@ -197,6 +206,8 @@ const Chat = () => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
+
+  const remainingMessages = Math.max(0, limitMessages - usedMessages);
 
   const formatMessage = (text: string) =>
     text.split(/(\*\*.*?\*\*)/g).map((part, i) =>
@@ -217,8 +228,8 @@ const Chat = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
-      <main className="flex-1 container mx-auto px-4 pt-24 pb-6 flex flex-col">
-        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
+      <main className="flex-1 container mx-auto px-4 pt-24 pb-6 flex flex-col min-h-0">
+        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col min-h-0">
 
           {/* Usage indicator */}
           <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground px-1">
@@ -226,12 +237,12 @@ const Chat = () => {
             <span className={rateLimited ? "text-destructive font-medium" : ""}>
               {rateLimited
                 ? `Rate limited — resets in ${countdown}`
-                : `Server-enforced limit: ${RATE_LIMIT} messages / hour`}
+                : `${remainingMessages} left / ${limitMessages}`}
             </span>
           </div>
 
-          <div className="flex-1 bg-card rounded-lg border border-border shadow-lg overflow-hidden flex flex-col hover-glow">
-            <ScrollArea className="flex-1 p-6" ref={scrollRef}>
+          <div className="flex-1 bg-card rounded-lg border border-border shadow-lg overflow-hidden flex flex-col hover-glow min-h-0 h-[calc(100vh-11rem)]">
+            <ScrollArea className="flex-1 min-h-0 p-6" ref={scrollRef}>
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center text-muted-foreground">
                   <div className="space-y-2">
@@ -262,6 +273,14 @@ const Chat = () => {
                 </div>
               )}
             </ScrollArea>
+
+            {/* Thinking banner */}
+            {isLoading && messages[messages.length - 1]?.role === "assistant" && !messages[messages.length - 1]?.content && (
+              <div className="mx-4 mb-2 flex items-center gap-3 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                <DotmCircular10 size={24} dotSize={3} speed={1.2} bloom className="text-primary" />
+                <span className="font-medium">AI is thinking...</span>
+              </div>
+            )}
 
             {/* Rate limited banner */}
             {rateLimited && (
