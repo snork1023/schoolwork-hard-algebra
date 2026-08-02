@@ -36,69 +36,56 @@ serve(async (req) => {
       return json({ error: "Invalid or expired token" }, 401);
     }
 
-    // ── Rate limiting ────────────────────────────────────────────────────────
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
-
-    const { count, error: countError } = await adminClient
-      .from("chat_rate_limits")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .gte("created_at", windowStart);
-
-    if (countError) {
-      console.error("Rate limit count error:", countError);
-    }
-
-    const messageCount = count ?? 0;
-
-    if (messageCount >= RATE_LIMIT) {
-      const { data: oldest } = await adminClient
-        .from("chat_rate_limits")
-        .select("created_at")
-        .eq("user_id", user.id)
-        .gte("created_at", windowStart)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .single();
-
-      const resetsAt = oldest
-        ? new Date(new Date(oldest.created_at).getTime() + WINDOW_MINUTES * 60 * 1000).toISOString()
-        : null;
-
-      return json(
-        {
-          error: "rate_limited",
-          message: `You've used all ${RATE_LIMIT} messages for this hour. Try again when the limit resets.`,
-          resetsAt,
-          used: messageCount,
-          limit: RATE_LIMIT,
-        },
-        429
-      );
-    }
-
     // ── Parse request ────────────────────────────────────────────────────────
     const { messages } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: "messages array is required" }, 400);
     }
 
-    // ── Call OpenRouter ──────────────────────────────────────────────────────
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured");
+    // ── Rate limiting (server-enforced, atomic) ─────────────────────────────
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: limitData, error: limitError } = await adminClient.rpc(
+      "consume_chat_request",
+      {
+        p_user_id: user.id,
+        p_limit: RATE_LIMIT,
+        p_window_minutes: WINDOW_MINUTES,
+      }
+    );
+
+    if (limitError) {
+      console.error("Rate limit RPC error:", limitError);
+      return json({ error: "Unable to validate message quota." }, 500);
     }
 
-    const openrouterResp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const quota = Array.isArray(limitData) ? limitData[0] : limitData;
+    if (!quota?.allowed) {
+      return json(
+        {
+          error: "rate_limited",
+          message: `You've used all ${RATE_LIMIT} messages for this hour. Try again when the limit resets.`,
+          resetsAt: quota?.resets_at ?? null,
+          used: quota?.used_count ?? RATE_LIMIT,
+          limit: quota?.limit_count ?? RATE_LIMIT,
+        },
+        429
+      );
+    }
+
+    // ── Call Groq Cloud ──────────────────────────────────────────────────────
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not configured");
+    }
+
+    const groqResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat", // free + high quality
+        model: "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: "You are a helpful AI assistant." },
           ...messages,
@@ -109,27 +96,19 @@ serve(async (req) => {
       }),
     });
 
-    if (!openrouterResp.ok) {
-      const errText = await openrouterResp.text();
-      console.error("OpenRouter API error:", openrouterResp.status, errText);
+    if (!groqResp.ok) {
+      const errText = await groqResp.text();
+      console.error("Groq API error:", groqResp.status, errText);
 
-      if (openrouterResp.status === 429) {
-        return json({ error: "OpenRouter rate limit hit. Please wait a moment." }, 429);
+      if (groqResp.status === 429) {
+        return json({ error: "Groq rate limit hit. Please wait a moment." }, 429);
       }
 
       return json({ error: "AI service error. Please try again." }, 500);
     }
 
-    // ── Record usage AFTER successful call ───────────────────────────────────
-    adminClient
-      .from("chat_rate_limits")
-      .insert({ user_id: user.id })
-      .then(({ error }) => {
-        if (error) console.error("Failed to record rate limit entry:", error);
-      });
-
-    // ── Stream OpenRouter SSE → client (already OpenAI format) ───────────────
-    return new Response(openrouterResp.body, {
+    // ── Stream Groq SSE → client (already OpenAI format) ─────────────────────
+    return new Response(groqResp.body, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",

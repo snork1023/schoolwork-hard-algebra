@@ -31,8 +31,7 @@ const Chat = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-  // Rate limit state
-  const [usedMessages, setUsedMessages] = useState(0);
+  // Server-enforced rate limit state
   const [rateLimited, setRateLimited] = useState(false);
   const [resetsAt, setResetsAt] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState("");
@@ -73,7 +72,6 @@ const Chat = () => {
         setRateLimited(false);
         setResetsAt(null);
         setCountdown("");
-        setUsedMessages(0);
         if (countdownRef.current) clearInterval(countdownRef.current);
       } else {
         setCountdown(formatCountdown(rem));
@@ -123,7 +121,6 @@ const Chat = () => {
         if (data.error === "rate_limited") {
           setRateLimited(true);
           if (data.resetsAt) setResetsAt(new Date(data.resetsAt));
-          if (data.used != null) setUsedMessages(data.used);
 
           toast({
             title: "Message limit reached",
@@ -161,7 +158,6 @@ const Chat = () => {
       let assistantContent = "";
 
       setMessages(prev => [...prev, { role: "assistant", content: "" }]);
-      setUsedMessages(prev => Math.min(prev + 1, RATE_LIMIT));
 
       while (true) {
         const { done, value } = await reader.read();
@@ -218,8 +214,6 @@ const Chat = () => {
     );
   }
 
-  const remaining = Math.max(0, RATE_LIMIT - usedMessages);
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
@@ -229,10 +223,10 @@ const Chat = () => {
           {/* Usage indicator */}
           <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground px-1">
             <span>Kepler AI Chat</span>
-            <span className={remaining <= 5 ? "text-destructive font-medium" : ""}>
+            <span className={rateLimited ? "text-destructive font-medium" : ""}>
               {rateLimited
                 ? `Rate limited — resets in ${countdown}`
-                : `${remaining} / ${RATE_LIMIT} messages remaining this hour`}
+                : `Server-enforced limit: ${RATE_LIMIT} messages / hour`}
             </span>
           </div>
 
@@ -242,7 +236,7 @@ const Chat = () => {
                 <div className="h-full flex items-center justify-center text-center text-muted-foreground">
                   <div className="space-y-2">
                     <p className="text-lg">Ask me anything!</p>
-                    <p className="text-sm">Powered by Google Gemini</p>
+                    <p className="text-sm">Powered by Groq Cloud</p>
                   </div>
                 </div>
               ) : (

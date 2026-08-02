@@ -4,7 +4,7 @@
 -- Message content length (allow empty since attachments-only messages exist with '[attachment]' placeholder)
 ALTER TABLE public.chat_messages 
 ADD CONSTRAINT chat_messages_content_length_check 
-CHECK (length(content) <= 5000);
+CHECK (length(content) <= 160);
 
 -- Conversation name length
 ALTER TABLE public.conversations
