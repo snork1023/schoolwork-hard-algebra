@@ -360,9 +360,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_chat_request: {
+        Args: {
+          p_user_id: string
+          p_limit?: number
+          p_window_minutes?: number
+        }
+        Returns: {
+          allowed: boolean
+          used_count: number
+          resets_at: string | null
+          limit_count: number
+        }[]
+      }
       find_existing_dm: {
         Args: { user1_id: string; user2_id: string }
         Returns: string
+      }
+      get_chat_quota: {
+        Args: {
+          p_user_id: string
+          p_limit?: number
+          p_window_minutes?: number
+        }
+        Returns: {
+          allowed: boolean
+          used_count: number
+          resets_at: string | null
+          limit_count: number
+        }[]
       }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }

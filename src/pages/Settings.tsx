@@ -7,12 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { Link } from "react-router";
 import { useTheme } from "next-themes";
 import { Moon, Sun, Code, ExternalLink, Keyboard, Info } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import BackgroundEffectSettings from "@/components/BackgroundEffectSettings";
+import { ScrollRevealCard } from "@/components/ScrollRevealCard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { getTabCloakMetadata, TabCloakOption } from "@/components/SettingsProvider";
@@ -48,48 +49,6 @@ const compareVersions = (current: string, latest: string) => {
   }
 
   return 0;
-};
-
-// Custom Hook to trigger reveal classes on scroll
-const useScrollReveal = () => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 }
-    );
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
-  return { ref, isVisible };
-};
-
-const ScrollRevealCard = ({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) => {
-  const { ref, isVisible } = useScrollReveal();
-
-  return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-700 ease-out transform ${
-        isVisible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-8"
-      } ${className}`}
-    >
-      {children}
-    </div>
-  );
 };
 
 const Settings = () => {

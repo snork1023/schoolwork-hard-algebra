@@ -11,6 +11,7 @@ import { Loader2, Camera, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollRevealCard } from "@/components/ScrollRevealCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
@@ -370,14 +371,15 @@ const Account = () => {
           </p>
 
           <div className="space-y-6">
-            <Card className="bg-card border-border shadow-lg hover-glow">
-              <CardHeader>
-                <CardTitle>Profile</CardTitle>
-                <CardDescription>
-                  Your account information
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <ScrollRevealCard delay={0}>
+              <Card className="bg-card border-border shadow-lg hover-glow">
+                <CardHeader>
+                  <CardTitle>Profile</CardTitle>
+                  <CardDescription>
+                    Your account information
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Profile Picture</Label>
                   <div className="flex items-center gap-4">
@@ -464,17 +466,19 @@ const Account = () => {
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </ScrollRevealCard>
 
-            <Card className="bg-card border-border shadow-lg hover-glow">
-              <CardHeader>
-                <CardTitle>Privacy</CardTitle>
-                <CardDescription>
-                  Control who can find and message you
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <ScrollRevealCard delay={80}>
+              <Card className="bg-card border-border shadow-lg hover-glow">
+                <CardHeader>
+                  <CardTitle>Privacy</CardTitle>
+                  <CardDescription>
+                    Control who can find and message you
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="discoverable">Allow message requests</Label>
@@ -489,17 +493,19 @@ const Account = () => {
                     disabled={discoverableLoading}
                   />
                 </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </ScrollRevealCard>
 
-            <Card className="bg-card border-border shadow-lg hover-glow">
-              <CardHeader>
-                <CardTitle>Security</CardTitle>
-                <CardDescription>
-                  Update your password
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <ScrollRevealCard delay={160}>
+              <Card className="bg-card border-border shadow-lg hover-glow">
+                <CardHeader>
+                  <CardTitle>Security</CardTitle>
+                  <CardDescription>
+                    Update your password
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-password">New Password</Label>
                   <Input
@@ -523,17 +529,19 @@ const Account = () => {
                 <Button onClick={handleUpdatePassword} disabled={loading}>
                   Update Password
                 </Button>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </ScrollRevealCard>
 
-            <Card className="bg-card border-border shadow-lg hover-glow">
-              <CardHeader>
-                <CardTitle>Account Actions</CardTitle>
-                <CardDescription>
-                  Sign out or delete your account
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <ScrollRevealCard delay={240}>
+              <Card className="bg-card border-border shadow-lg hover-glow">
+                <CardHeader>
+                  <CardTitle>Account Actions</CardTitle>
+                  <CardDescription>
+                    Sign out or delete your account
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <Button 
                   variant="outline" 
                   onClick={handleSignOut}
@@ -564,8 +572,9 @@ const Account = () => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </ScrollRevealCard>
           </div>
         </div>
       </main>

@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "2.05",
+  "version": "2.06",
   "type": "module",
   "scripts": {
     "predev": "node scripts/copy-scram-assets.mjs",
