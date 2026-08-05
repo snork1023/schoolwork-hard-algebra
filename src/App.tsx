@@ -10,7 +10,7 @@ import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Ai from "./pages/Ai";
 import Auth from "./pages/Auth";
-import CommunityChat from "./pages/CommunityChat";
+import Chat from "./pages/Chat";
 import Account from "./pages/Account";
 import Games from "./pages/Games";
 import Search from "./pages/Search";
@@ -41,7 +41,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/g" element={<Games />} />
               <Route path="/ai" element={<Ai />} />
-              <Route path="/chat" element={<CommunityChat />} />
+              <Route path="/chat" element={<Chat />} />
               <Route path="/account" element={<Account />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/auth" element={<Auth />} />

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Eye, EyeOff, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Navigation from "@/components/Navigation";
 import { Label } from "@/components/ui/label";
@@ -28,10 +29,16 @@ const signUpSchema = z.object({
     .string()
     .trim()
     .min(2, "Username must be at least 2 characters")
-    .max(50)
+    .max(20, "Username must be at most 20 characters")
     .regex(/^[a-zA-Z0-9_\- ]+$/, "Username can only contain letters, numbers, spaces, hyphens, and underscores"),
   email: z.string().trim().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters").max(72),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(64, "Password must be at most 64 characters")
+    .regex(/\d/, "Password must contain at least one number")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter"),
 });
 
 // Sign-in: email + password
@@ -89,6 +96,40 @@ function useHCaptchaWidget(containerRef: React.RefObject<HTMLDivElement>) {
   return { token, reset };
 }
 
+function PasswordRequirement({
+  valid,
+  text,
+}: {
+  valid: boolean;
+  text: string;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 transition-all duration-300 ${
+        valid
+          ? "text-green-500"
+          : "text-muted-foreground"
+      }`}
+    >
+      <div
+        className={`transition-all duration-300 ${
+          valid
+            ? "rotate-0 scale-100"
+            : "-rotate-90 scale-75"
+        }`}
+      >
+        {valid ? (
+          <Check className="h-4 w-4" />
+        ) : (
+          <X className="h-4 w-4" />
+        )}
+      </div>
+
+      <span>{text}</span>
+    </div>
+  );
+}
+
 const Auth = () => {
   const [signUpUsername, setSignUpUsername] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -103,6 +144,30 @@ const Auth = () => {
   // Password reset
   const [resetEmail, setResetEmail] = useState("");
   const [showResetForm, setShowResetForm] = useState(false);
+
+  // Password visibility
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
+
+  // Password checks
+  const passwordChecks = {
+    length: signUpPassword.length >= 8,
+    uppercase: /[A-Z]/.test(signUpPassword),
+    lowercase: /[a-z]/.test(signUpPassword),
+    number: /\d/.test(signUpPassword),
+  };
+
+  // Password focus
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const showPasswordRequirements =
+  passwordFocused || signUpPassword.length > 0;
+
+  const passwordValid =
+    passwordChecks.length &&
+    passwordChecks.uppercase &&
+    passwordChecks.lowercase &&
+    passwordChecks.number;
 
   // Controlled so we can animate a sliding indicator behind the active tab
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
@@ -361,7 +426,7 @@ const handleSignUp = async (e: React.FormEvent) => {
 
                 {/* ── Sign In ── */}
                 <TabsContent value="signin" forceMount className="data-[state=inactive]:hidden">
-                  <form onSubmit={handleSignIn} className="space-y-4">
+                  <form onSubmit={handleSignIn} className="space-y-5">
                     <div className="space-y-1">
                       <Label htmlFor="signin-email">Email</Label>
                       <Input
@@ -375,14 +440,30 @@ const handleSignUp = async (e: React.FormEvent) => {
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="signin-password">Password</Label>
-                      <Input
-                        id="signin-password"
-                        type="password"
-                        value={signInPassword}
-                        onChange={(e) => setSignInPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="signin-password"
+                          type={showSignInPassword ? "text" : "password"}
+                          value={signInPassword}
+                          onChange={(e) => setSignInPassword(e.target.value)}
+                          placeholder="••••••••"
+                          required
+                          className="pr-10"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => setShowSignInPassword((prev) => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                        >
+                          {showSignInPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex justify-center" ref={signInCaptchaRef} />
@@ -408,7 +489,7 @@ const handleSignUp = async (e: React.FormEvent) => {
 
                 {/* ── Sign Up ── */}
                 <TabsContent value="signup" forceMount className="data-[state=inactive]:hidden">
-                  <form onSubmit={handleSignUp} className="space-y-4">
+                  <form onSubmit={handleSignUp} className="space-y-5">
                     <div className="space-y-1">
                       <Label htmlFor="signup-username">Username</Label>
                       <Input
@@ -432,17 +513,72 @@ const handleSignUp = async (e: React.FormEvent) => {
                         required
                       />
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <Label htmlFor="signup-password">Password</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        value={signUpPassword}
-                        onChange={(e) => setSignUpPassword(e.target.value)}
-                        placeholder="Min 6 characters"
-                        required
-                        minLength={6}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="signup-password"
+                          type={showSignUpPassword ? "text" : "password"}
+                          value={signUpPassword}
+                          onChange={(e) => setSignUpPassword(e.target.value)}
+                          onFocus={() => setPasswordFocused(true)}
+                          onBlur={() => setPasswordFocused(false)}
+                          placeholder="Create a password"
+                          required
+                          className="pr-10"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowSignUpPassword((prev) => !prev)
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          aria-label={
+                            showSignUpPassword
+                              ? "Hide password"
+                              : "Show password"
+                          }
+                        >
+                          {showSignUpPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+
+                      <div
+                        className={`overflow-hidden transition-all duration-300 ease-out ${
+                          showPasswordRequirements
+                            ? "max-h-48 opacity-100"
+                            : "max-h-0 opacity-0"
+                        }`}
+                      >
+                        <div className="space-y-2 rounded-lg border bg-muted/30 p-3 mt-2">
+
+                          <PasswordRequirement
+                            valid={passwordChecks.length}
+                            text="At least 8 characters"
+                          />
+
+                          <PasswordRequirement
+                            valid={passwordChecks.uppercase}
+                            text="One uppercase letter"
+                          />
+
+                          <PasswordRequirement
+                            valid={passwordChecks.lowercase}
+                            text="One lowercase letter"
+                          />
+
+                          <PasswordRequirement
+                            valid={passwordChecks.number}
+                            text="One number"
+                          />
+
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center justify-center gap-2">
                       <Checkbox
@@ -457,8 +593,24 @@ const handleSignUp = async (e: React.FormEvent) => {
 
                     <div className="flex justify-center" ref={signUpCaptchaRef} />
 
-                    <Button type="submit" className="w-full" disabled={loading || !signUpAgreementChecked || !signUpCaptcha.token}>
-                      {loading ? "Creating account…" : "Create Account"}
+                    <Button
+                      type="submit"
+                      className="
+                        w-full
+                        transition-all
+                        duration-300
+                      "
+                      disabled={
+                        loading ||
+                        !signUpAgreementChecked ||
+                        !signUpCaptcha.token ||
+                        !passwordValid
+                      }
+                    >
+                      {loading
+                        ? "Creating account..."
+                        : "Create Account"
+                    }
                     </Button>
                   </form>
                 </TabsContent>

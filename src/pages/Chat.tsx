@@ -85,7 +85,7 @@ type PollVote = {
   };
 };
 
-const CommunityChat = () => {
+const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -973,4 +973,4 @@ const CommunityChat = () => {
       />
     </div>;
 };
-export default CommunityChat;
+export default Chat;

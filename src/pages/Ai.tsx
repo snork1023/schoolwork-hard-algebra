@@ -37,7 +37,7 @@ function formatCountdown(ms: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-const Chat = () => {
+const Ai = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -465,4 +465,4 @@ const Chat = () => {
   );
 };
 
-export default Chat;
+export default Ai;
