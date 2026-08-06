@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Navigation from "@/components/Navigation";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
@@ -367,7 +366,6 @@ const handleSignUp = async (e: React.FormEvent) => {
 
   return (
     <div className="min-h-screen">
-      <Navigation />
       <div className="container mx-auto px-4 pt-24 pb-12 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>

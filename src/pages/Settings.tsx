@@ -1,4 +1,3 @@
-import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -154,8 +153,6 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen">
-      <Navigation />
-      
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold mb-2 glow-text">Settings</h1>

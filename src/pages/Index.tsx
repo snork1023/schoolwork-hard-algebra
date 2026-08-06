@@ -1,4 +1,3 @@
-import Navigation from "@/components/Navigation";
 import ProxyInput from "@/components/ProxyInput";
 import { Shield, Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,6 @@ const Index = () => {
 
 
   return <div className="min-h-screen">
-      <Navigation />
       
       <main className="container mx-auto px-4 pt-32 pb-12">
         <div className="text-center mb-16 animate-fade-in">

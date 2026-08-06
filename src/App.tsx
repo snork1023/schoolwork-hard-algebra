@@ -2,10 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router";
 import { ThemeProvider } from "next-themes";
 import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
 import Background from "@/components/Background";
+import Navigation from "@/components/Navigation";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Ai from "./pages/Ai";
@@ -27,6 +28,14 @@ const Backgroundeffect = () => {
   return <Background />;
 };
 
+const DOCK_FREE_ROUTES = ["/browser", "/search", "/privacypolicy", "/termsofservice"];
+
+const NavigationGate = () => {
+  const location = useLocation();
+  if (DOCK_FREE_ROUTES.includes(location.pathname)) return null;
+  return <Navigation />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
@@ -36,6 +45,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Backgroundeffect />
+            <NavigationGate />
             <div className="relative" style={{ zIndex: 1 }}>
             <Routes>
               <Route path="/" element={<Index />} />

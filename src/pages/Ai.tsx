@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
-import Navigation from "@/components/Navigation";
+import { useNavigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DotmCircular10 } from "@/components/ui/dotm-circular-10";
@@ -43,6 +42,7 @@ const Ai = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [resetsAt, setResetsAt] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState("");
@@ -87,7 +87,8 @@ const Ai = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!active) return;
       if (!session) {
-        navigate("/auth");
+        setAuthReady(true);
+        setNeedsAuth(true);
         return;
       }
       setUser(session.user);
@@ -97,11 +98,14 @@ const Ai = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       if (!session) {
-        navigate("/auth");
+        setUser(null);
+        setAuthReady(true);
+        setNeedsAuth(true);
         return;
       }
       setUser(session.user);
       setAuthReady(true);
+      setNeedsAuth(false);
     });
 
     return () => {
@@ -177,7 +181,7 @@ const Ai = () => {
           description: "Please sign in to use the AI assistant.",
           variant: "destructive",
         });
-        navigate("/auth");
+        setNeedsAuth(true);
         return;
       }
 
@@ -315,6 +319,22 @@ const Ai = () => {
     );
   }
 
+  if (needsAuth) {
+    return (
+      <div className="min-h-screen">
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+          <h1 className="text-2xl font-bold glow-text">You must be signed in</h1>
+          <p className="text-muted-foreground max-w-sm">
+            Sign in to chat with Kepler AI.
+          </p>
+          <Button asChild>
+            <Link to="/auth">Go to Sign In</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-transparent">
       <style>{`
@@ -329,8 +349,6 @@ const Ai = () => {
           100% { transform: translate3d(8px, -10px, 0) scale(0.94); opacity: 0.42; }
         }
       `}</style>
-
-      <Navigation />
 
       <main className="container mx-auto flex min-h-0 flex-1 px-4 pb-6 pt-24">
         <div className="mx-auto flex w-full max-w-5xl flex-col">

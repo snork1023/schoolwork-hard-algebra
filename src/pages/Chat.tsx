@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import Navigation from "@/components/Navigation";
 import { User } from "@supabase/supabase-js";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import CreateConversationDialog from "@/components/chat/CreateConversationDialog";
@@ -96,6 +95,7 @@ const Chat = () => {
   const [userStatus, setUserStatus] = useState<'online' | 'idle' | 'dnd' | 'offline'>('offline');
   const [userStatusMessage, setUserStatusMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null);
@@ -113,7 +113,6 @@ const Chat = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const navigate = useNavigate();
   const {
     toast
   } = useToast();
@@ -176,10 +175,11 @@ const Chat = () => {
       if (event === "SIGNED_IN") {
         setUser(session?.user ?? null);
         setLoading(false);
+        setNeedsAuth(false);
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setLoading(false);
-        navigate("/auth");
+        setNeedsAuth(true);
       }
     });
 
@@ -190,7 +190,7 @@ const Chat = () => {
       if (!session) {
         setUser(null);
         setLoading(false);
-        navigate("/auth");
+        setNeedsAuth(true);
         return;
       }
 
@@ -200,14 +200,14 @@ const Chat = () => {
       if (!active) return;
       setUser(null);
       setLoading(false);
-      navigate("/auth");
+      setNeedsAuth(true);
     });
 
     return () => {
       active = false;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
   useEffect(() => {
     if (!user) return;
     fetchConversations();
@@ -711,7 +711,7 @@ const Chat = () => {
   };
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate("/auth");
+    setNeedsAuth(true);
   };
   if (loading) {
     return <div className="min-h-screen flex flex-col items-center justify-center gap-4 animate-fade-in">
@@ -719,8 +719,20 @@ const Chat = () => {
         <p className="text-muted-foreground text-sm">Loading your conversations…</p>
       </div>;
   }
+  if (needsAuth) {
+    return <div className="min-h-screen">
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+          <h1 className="text-2xl font-bold glow-text">You must be signed in</h1>
+          <p className="text-muted-foreground max-w-sm">
+            Sign in to access your conversations.
+          </p>
+          <Button asChild>
+            <Link to="/auth">Go to Sign In</Link>
+          </Button>
+        </div>
+      </div>;
+  }
   return <div className="h-screen flex flex-col">
-      <Navigation />
       <div className="flex-1 pt-16 flex overflow-hidden">
         <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
 

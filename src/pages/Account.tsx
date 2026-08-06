@@ -1,4 +1,3 @@
-import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -486,7 +485,6 @@ const Account = () => {
   if (needsAuth) {
     return (
       <div className="min-h-screen">
-        <Navigation />
         <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
           <h1 className="text-2xl font-bold glow-text">You must be signed in</h1>
           <p className="text-muted-foreground max-w-sm">
@@ -502,8 +500,6 @@ const Account = () => {
 
   return (
     <div className="min-h-screen">
-      <Navigation />
-      
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold mb-2 glow-text">Account</h1>

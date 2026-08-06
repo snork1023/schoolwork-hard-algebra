@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import Navigation from "@/components/Navigation";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
 import { Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -32,8 +31,6 @@ const Games = () => {
 
   return (
     <div className="min-h-screen">
-      <Navigation />
-
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-7xl mx-auto space-y-4">
           <div className="relative max-w-md mx-auto animate-in fade-in duration-700">
