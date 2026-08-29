@@ -4,6 +4,9 @@
   width: 100vw;
   align-items: flex-end;
   justify-content: center;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
 }
 
 .dock-panel {
@@ -11,9 +14,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: max-content;
-  min-width: 1200px;
-  max-width: calc(100vw - 2rem);
+  width: 100%;
+  max-width: 1200px; /* Sets your "perfect length" ceiling */
   gap: 1rem;
   border-radius: 1rem;
   background-color: #120F17;

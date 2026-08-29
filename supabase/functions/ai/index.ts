@@ -85,13 +85,13 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "qwen/qwen3.8-27b",
         messages: [
-          { role: "system", content: "You are a helpful AI assistant." },
+          { role: "system", content: "You are Kepler AI" },
           ...messages,
         ],
         stream: true,
-        max_tokens: 1024,
+        max_tokens: 512,
         temperature: 0.7,
       }),
     });

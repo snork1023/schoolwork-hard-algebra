@@ -209,8 +209,8 @@ export default function DarkVeil({
     programRef.current = program;
 
     const resize = () => {
-      const w = parent.clientWidth || window.innerWidth;
-      const h = parent.clientHeight || window.innerHeight;
+      const w = (window.innerWidth + 20);
+      const h = (window.innerHeight + 20);
       renderer.setSize(w * resolutionScale, h * resolutionScale);
       program.uniforms.uResolution.value.set(w, h);
     };

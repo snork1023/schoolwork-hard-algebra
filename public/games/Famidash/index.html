@@ -1,9 +1,7 @@
 <html>
   <head>
-    <script>
-      alert("Use 'Z' to select/jump | 'X' to go back/cancel | Right and Left arrow keys to move through menus | 'Enter' to pause in a level | 'Enter' + 'V' to exit level | 'Enter' + 'X' to enter practice mode | In practice mode, 'X' to create checkpoint and 'V' to delete checkpoint");
-    </script>
     <script src="//www.google.com/jsapi"></script>
+
     <script>
       window.parent.maeExportApis_();
     </script>
@@ -24,7 +22,6 @@
         background-color: #4caf50;
         color: white;
         text-align: center;
-        text-decoration: none;
         font-size: 16px;
         margin: 20px auto;
         padding: 10px 20px;
@@ -34,67 +31,227 @@
         font-family: "Press Start 2P", cursive;
         box-shadow: 0px 0px 10px 2px #000000;
       }
+
+      /* Popup background */
+      #controlsPopup {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 99999;
+
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Popup box */
+      #controlsBox {
+        width: min(600px, 85vw);
+        max-height: 80vh;
+        overflow-y: auto;
+
+        background: #111;
+        color: white;
+
+        border: 3px solid #4caf50;
+        border-radius: 12px;
+
+        padding: 25px;
+
+        text-align: center;
+
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.7;
+
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+      }
+
+      #controlsTitle {
+        color: #4caf50;
+        font-family: "Press Start 2P", cursive;
+        font-size: 20px;
+        margin-bottom: 20px;
+      }
+
+      .key {
+        display: inline-block;
+        padding: 3px 8px;
+        margin: 2px;
+
+        background: #333;
+        border: 1px solid #777;
+        border-radius: 4px;
+
+        font-family: monospace;
+        font-weight: bold;
+        color: #fff;
+      }
+
+      #continueButton {
+        margin-top: 20px;
+
+        padding: 12px 25px;
+
+        background: #4caf50;
+        color: white;
+
+        border: none;
+        border-radius: 6px;
+
+        cursor: pointer;
+
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      #continueButton:hover {
+        background: #5bcf60;
+      }
     </style>
+
     <link
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;display=swap"
       rel="stylesheet"
     />
-    <style type="text/css">
-      #button {
-        display: none;
-      }
-
-      .imgb_vis {
-        animation: imgb-animation 7s linear;
-      }
-
-      @keyframes imgb-animation {
-        10% {
-          transform: translateX(0);
-        }
-
-        20% {
-          transform: translateX(100px);
-        }
-
-        90% {
-          transform: translateX(100px);
-        }
-
-        100% {
-          transform: translateX(0);
-        }
-      }
-    </style>
   </head>
 
   <body>
+
     <div style="width: 100vw; height: 100vh; max-width: 100%">
       <div id="game" style="display: none"></div>
+
       <button id="startButton">PLAY</button>
     </div>
+
+    <!-- Controls popup -->
+    <div id="controlsPopup">
+      <div id="controlsBox">
+
+        <div id="controlsTitle">
+          CONTROLS
+        </div>
+
+        <div>
+          <span class="key">Z</span>
+          Select / Jump
+        </div>
+
+        <div>
+          <span class="key">X</span>
+          Back / Cancel
+        </div>
+
+        <div>
+          <span class="key">←</span>
+          <span class="key">→</span>
+          Move through menus
+        </div>
+
+        <div>
+          <span class="key">ENTER</span>
+          Pause in a level
+        </div>
+
+        <div>
+          <span class="key">ENTER</span>
+          +
+          <span class="key">V</span>
+          Exit level
+        </div>
+
+        <div>
+          <span class="key">ENTER</span>
+          +
+          <span class="key">X</span>
+          Enter practice mode
+        </div>
+
+        <br>
+
+        <strong>Practice Mode</strong>
+
+        <div>
+          <span class="key">X</span>
+          Create checkpoint
+        </div>
+
+        <div>
+          <span class="key">V</span>
+          Delete checkpoint
+        </div>
+
+        <button id="continueButton">
+          CONTINUE
+        </button>
+
+      </div>
+    </div>
+
     <script>
       document.getElementById("game").style.display = "none";
+
+      const startButton =
+        document.getElementById("startButton");
+
+      const controlsPopup =
+        document.getElementById("controlsPopup");
+
+      const continueButton =
+        document.getElementById("continueButton");
+
+      /*
+       * PLAY button
+       */
+      startButton.addEventListener("click", function () {
+
+        // Hide PLAY
+        startButton.style.display = "none";
+
+        // Show controls popup
+        controlsPopup.style.display = "flex";
+      });
+
+      /*
+       * CONTINUE button
+       */
+      continueButton.addEventListener("click", function () {
+
+        // Close popup
+        controlsPopup.style.display = "none";
+
+        // Start game
+        startGame();
+      });
+
       function startGame() {
+
         document.getElementById("game").style.display = "block";
-        document.getElementById("startButton").style.display = "none";
+
         EJS_player = "#game";
         EJS_core = "nes";
         EJS_color = "#000000";
         EJS_startOnLoaded = true;
-        EJS_pathtodata = "https://cdn.jsdelivr.net/gh/genizy/emu@master/";
+
+        EJS_pathtodata =
+          "https://cdn.jsdelivr.net/gh/bubblfan/emu@master/";
+
         EJS_gameUrl =
           "https://cdn.jsdelivr.net/gh/ap-math-class/exams@main/nes/Famidash.v1.2.8.nes";
+
         loadGame();
       }
-      document
-        .getElementById("startButton")
-        .addEventListener("click", startGame);
+
       function loadGame() {
+
         var script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/gh/genizy/emu@master/loader.js";
+
+        script.src =
+          "https://cdn.jsdelivr.net/gh/bubblfan/emu@master/loader.js";
+
         document.body.appendChild(script);
       }
     </script>
+
   </body>
 </html>

@@ -1,56 +1,199 @@
+<!DOCTYPE html>
 <html>
-  <script>
-    alert("'Z' to select | 'X' to go back/secondary button | 'Enter' for menu | Arrow keys to move");
-  </script>
-  <head>
-    <style>
-      body,
-      html {
-        margin: 0;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        background-color: #121212;
-        color: white;
-        font-family: Arial, sans-serif;
-      }
-      #game-container {
-        text-align: center;
-        width: 100%;
-        height: 100%;
-      }
-      #loading-progress {
-        font-size: 18px;
-        margin-top: 20px;
-        padding: 10px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        display: inline-block;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="game-container">
-      <div id="game"></div>
-      <div id="loading-progress">Loading: 0/0</div>
-      <div id="first-time">First-time loading may take longer...</div>
-    </div>
-    <script>
-          document.getElementById("loading-progress").remove();
-          document.getElementById("first-time").remove();
+    <head>
+      <script src="//www.google.com/jsapi"></script>
+      <script>
+        window.parent.maeExportApis_();
+      </script>
+
+      <style>
+        body,
+        html {
+          margin: 0;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          background-color: #121212;
+          color: white;
+          font-family: Arial, sans-serif;
+          overflow: hidden;
+        }
+        #game-container {
+          text-align: center;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        #game {
+          width: 100%;
+          height: 100%;
+        }
+        #startButton {
+          display: block;
+          width: 160px;
+          height: 40px;
+          background-color: #4caf50;
+          color: white;
+          text-align: center;
+          text-decoration: none;
+          font-size: 16px;
+          margin: 20px auto;
+          padding: 10px 20px;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-family: "Press Start 2P", cursive;
+          box-shadow: 0px 0px 10px 2px #000000;
+        }
+
+        /* Popup background */
+        #controlsPopup {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.75);
+          z-index: 99999;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* Popup box */
+        #controlsBox {
+          width: min(600px, 85vw);
+          max-height: 80vh;
+          overflow-y: auto;
+          background: #111;
+          color: white;
+          border: 3px solid #4caf50;
+          border-radius: 12px;
+          padding: 25px;
+          text-align: center;
+          font-family: Arial, sans-serif;
+          font-size: 16px;
+          line-height: 1.7;
+          box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+        }
+
+        #controlsTitle {
+          color: #4caf50;
+          font-family: "Press Start 2P", cursive;
+          font-size: 20px;
+          margin-bottom: 20px;
+        }
+
+        .key {
+          display: inline-block;
+          padding: 3px 8px;
+          margin: 2px;
+          background: #333;
+          border: 1px solid #777;
+          border-radius: 4px;
+          font-family: monospace;
+          font-weight: bold;
+          color: #fff;
+        }
+
+        #continueButton {
+          margin-top: 20px;
+          padding: 12px 25px;
+          background: #4caf50;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 16px;
+          font-weight: bold;
+        }
+
+        #continueButton:hover {
+          background: #5bcf60;
+        }
+      </style>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;display=swap"
+        rel="stylesheet"
+      />
+    </head>
+    <body>
+      <div id="game-container">
+        <div id="game" style="display: none"></div>
+        <button id="startButton">PLAY</button>
+      </div>
+
+      <!-- Controls popup -->
+      <div id="controlsPopup">
+        <div id="controlsBox">
+          <div id="controlsTitle">
+            CONTROLS
+          </div>
+          <div>
+          <span class="key">Z</span>
+          Select / Primary
+        </div>
+
+        <div>
+          <span class="key">X</span>
+          Back / Secondary
+        </div>
+
+        <div>
+          <span class="key">←</span>
+          <span class="key">→</span>
+          Move
+        </div>
+
+        <div>
+          <span class="key">ENTER</span>
+          Pause
+        </div>
+          <button id="continueButton">
+            CONTINUE
+          </button>
+        </div>
+      </div>
+
+      <script>
+        document.getElementById("game").style.display = "none";
+
+        const startButton = document.getElementById("startButton");
+        const controlsPopup = document.getElementById("controlsPopup");
+        const continueButton = document.getElementById("continueButton");
+
+        startButton.addEventListener("click", function () {
+          startButton.style.display = "none";
+          controlsPopup.style.display = "flex";
+        });
+
+        continueButton.addEventListener("click", function () {
+          controlsPopup.style.display = "none";
+          startGame();
+        });
+
+        function startGame() {
+          document.getElementById("game").style.display = "block";
           EJS_player = "#game";
           EJS_core = "gba";
           EJS_gameName = "i-forgot";
           EJS_color = "#0064ff";
           EJS_startOnLoaded = true;
-          EJS_pathtodata = "https://cdn.jsdelivr.net/gh/genizy/emu@master/";
-          EJS_gameUrl = "https://cdn.jsdelivr.net/gh/bubbls/UGS-file-encryption@main/Pokemon%20-%20LeafGreen%20Version%20(USA%2C%20Europe).zip";
+          EJS_pathtodata = "https://cdn.jsdelivr.net/gh/bubblfan/emu@master/";
+          EJS_gameUrl =
+            "https://cdn.jsdelivr.net/gh/bubbls/UGS-file-encryption@main/Pokemon%20-%20LeafGreen%20Version%20(USA%2C%20Europe).zip";
+          loadGame();
+        }
+
+        function loadGame() {
           const script = document.createElement("script");
-          script.src = "https://cdn.jsdelivr.net/gh/genizy/emu@master/loader.js";
+          script.src =
+            "https://cdn.jsdelivr.net/gh/bubblfan/emu@master/loader.js";
           document.body.appendChild(script);
-    </script>
-  </body>
-</html>
+        }
+      </script>
+    </body>
+  </html>
