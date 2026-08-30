@@ -371,6 +371,36 @@ const Auth = () => {
         type: "email",
       });
       if (error) throw error;
+
+      // signInWithOtp doesn't distinguish new vs. returning users at request
+      // time — an existing user's OTP verifies here too. If a profile
+      // already exists for this id, they already have an account, so don't
+      // let this flow continue on to overwrite their password.
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", userData.user.id)
+          .maybeSingle();
+
+        if (existingProfile) {
+          await supabase.auth.signOut();
+          skipAuthRedirectRef.current = false;
+          toast({
+            title: "Account already exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive",
+          });
+          setSignUpStep("request");
+          setSignUpEmail("");
+          setSignUpOtp("");
+          setSignInEmail(signUpEmail);
+          setActiveTab("signin");
+          return;
+        }
+      }
+
       setSignUpStep("password");
     } catch (error: any) {
       skipAuthRedirectRef.current = false;
@@ -599,7 +629,7 @@ const Auth = () => {
           <CardContent>
             {/* ── Password Reset ── */}
             {/* This block and the Tabs block below stay mounted at all times.
-                Visibility is toggled with `hidden` rather than a conditional render,
+                Visibility is toggled with CSS rather than a conditional render,
                 because hcaptcha.render() injects DOM (an iframe) into the captcha
                 container that React doesn't manage — unmounting that container
                 breaks the widget and it can't cleanly come back. */}
@@ -678,10 +708,12 @@ const Auth = () => {
                 </div>
               </form>
 
-              {/* Resend captcha popup */}
+              {/* Resend captcha popup — always laid out at full size (never
+                  display:none), just faded/disabled when closed, so hCaptcha
+                  never measures a 0x0 container when it renders the iframe. */}
               <div
-                className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 ${
-                  showResetResendModal ? "" : "hidden"
+                className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity duration-150 ${
+                  showResetResendModal ? "opacity-100" : "opacity-0 invisible pointer-events-none"
                 }`}
               >
                 <div className="relative w-full max-w-xs rounded-lg border border-border bg-card p-4 shadow-lg">
@@ -899,16 +931,18 @@ const Auth = () => {
                       </div>
                     </form>
 
-                    {/* Resend signup captcha popup */}
+                    {/* Resend captcha popup — always laid out at full size (never
+                        display:none), just faded/disabled when closed, so hCaptcha
+                        never measures a 0x0 container when it renders the iframe. */}
                     <div
-                      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 ${
-                        showSignUpResendModal ? "" : "hidden"
+                      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity duration-150 ${
+                        showSignUpResendModal ? "opacity-100" : "opacity-0 invisible pointer-events-none"
                       }`}
                     >
                       <div className="relative w-full max-w-xs rounded-lg border border-border bg-card p-4 shadow-lg">
                         <div className="flex items-center justify-between mb-4">
                           <span className="text-xs text-muted-foreground">
-                            Complete the CAPTCHA to resend your code.
+                            Complete the CAPTCHA to resend your code
                           </span>
                           <button
                             type="button"
