@@ -576,7 +576,7 @@ const Auth = () => {
                       <div className="flex justify-center" ref={signUpCaptchaRef} />
 
                       <Button type="submit" className="w-full" disabled={loading || !signUpCaptcha.token}>
-                        {loading ? "Conforming Email…" : "Conform Email"}
+                        {loading ? "Confirming Email…" : "Confirm Email"}
                       </Button>
                     </form>
 
