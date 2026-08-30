@@ -734,8 +734,9 @@ const Chat = () => {
   }
   return <div className="h-screen flex flex-col">
       <div className="flex-1 pt-16 flex overflow-hidden">
+        <div className="ml-5 mt-3">
         <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
-
+        </div>
         <div className="flex-1 flex flex-col">
           {selectedConversationId ? <>
               <div className="flex-1 overflow-hidden">
@@ -871,8 +872,7 @@ const Chat = () => {
               <TypingIndicator typingUsers={typingUsers} />
 
               <div className="p-4 max-w-4xl mx-auto w-full">
-                <div className="bg-secondary/30 backdrop-blur-lg rounded-2xl border border-border/30 shadow-lg">
-                  <form onSubmit={handleSendMessage} className="relative">
+                <div className="bg-card/50 backdrop-blur-xl rounded-3xl border border-border/25 shadow-xl">                  <form onSubmit={handleSendMessage} className="relative">
                     {attachments.length > 0 && <div className="p-3 pb-0 flex flex-wrap gap-2 border-b border-border/30">
                         {attachments.map((attachment, idx) => <div key={idx} className="relative inline-block">
                             <div className="h-16 w-16 bg-background/50 rounded-xl flex items-center justify-center border border-border/20">
@@ -955,8 +955,13 @@ const Chat = () => {
                   }} className="flex-1 min-h-[24px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 p-0 text-sm" rows={1} placeholder="Message..." />
                       </div>
                       
-                      <Button type="submit" disabled={!newMessage.trim() && attachments.length === 0} size="icon" className="h-10 w-10 self-center rounded-full shrink-0 bg-primary hover:bg-primary/90 shadow-md flex items-center justify-center">
-                        <Send className="h-4 w-4" />
+                      <Button 
+                        type="submit" 
+                        disabled={!newMessage.trim() && attachments.length === 0} 
+                        size="icon" 
+                        className="h-10 w-10 self-center rounded-xl shrink-0 bg-background/40 hover:bg-background/70 border border-white/10 text-foreground shadow-md transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 flex items-center justify-center group"
+                      >
+                        <Send className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
                       </Button>
                     </div>
                   </form>
