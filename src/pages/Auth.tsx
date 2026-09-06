@@ -580,17 +580,34 @@ const Auth = () => {
   const handleOnboardingAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Please select an image file", variant: "destructive" });
+
+    const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+    if (!allowedImageTypes.has(file.type)) {
+      toast({ title: "Please select a JPG, PNG, WEBP, or GIF image", variant: "destructive" });
       return;
     }
+
     if (file.size > 5 * 1024 * 1024) {
       toast({ title: "Image must be less than 5MB", variant: "destructive" });
       return;
     }
+
+    if (onboardingAvatarPreview) {
+      URL.revokeObjectURL(onboardingAvatarPreview);
+    }
+
     setOnboardingAvatarFile(file);
-    setOnboardingAvatarPreview(URL.createObjectURL(file));
+    const previewUrl = URL.createObjectURL(file);
+    setOnboardingAvatarPreview(previewUrl);
   };
+
+  useEffect(() => {
+    return () => {
+      if (onboardingAvatarPreview) {
+        URL.revokeObjectURL(onboardingAvatarPreview);
+      }
+    };
+  }, [onboardingAvatarPreview]);
 
   const handleSaveOnboardingBio = () => {
     setOnboardingStep("avatar");
