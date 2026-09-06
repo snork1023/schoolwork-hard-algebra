@@ -371,7 +371,12 @@ export type Database = {
           used_count: number
           resets_at: string | null
           limit_count: number
+          reservation_id: string | null
         }[]
+      }
+      release_chat_request: {
+        Args: { p_reservation_id: string }
+        Returns: boolean
       }
       find_existing_dm: {
         Args: { user1_id: string; user2_id: string }

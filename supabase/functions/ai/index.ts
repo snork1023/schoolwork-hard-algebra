@@ -42,8 +42,14 @@ serve(async (req) => {
       return json({ error: "messages array is required" }, 400);
     }
 
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+    if (!GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not configured");
+    }
+
     // ── Rate limiting (server-enforced, atomic) ─────────────────────────────
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    let reservationId: string | null = null;
     const { data: limitData, error: limitError } = await adminClient.rpc(
       "consume_chat_request",
       {
@@ -71,34 +77,47 @@ serve(async (req) => {
         429
       );
     }
+    reservationId = quota.reservation_id ?? null;
 
     // ── Call Groq Cloud ──────────────────────────────────────────────────────
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) {
-      throw new Error("GROQ_API_KEY is not configured");
+    let groqResp: Response;
+    try {
+      groqResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "qwen/qwen3.8-27b",
+          messages: [
+            { role: "system", content: "You are Kepler AI" },
+            ...messages,
+          ],
+          stream: true,
+          max_tokens: 512,
+          temperature: 0.7,
+        }),
+      });
+    } catch (error) {
+      if (reservationId) {
+        await adminClient.rpc("release_chat_request", {
+          p_reservation_id: reservationId,
+        });
+        reservationId = null;
+      }
+      throw error;
     }
-
-    const groqResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "qwen/qwen3.8-27b",
-        messages: [
-          { role: "system", content: "You are Kepler AI" },
-          ...messages,
-        ],
-        stream: true,
-        max_tokens: 512,
-        temperature: 0.7,
-      }),
-    });
 
     if (!groqResp.ok) {
       const errText = await groqResp.text();
       console.error("Groq API error:", groqResp.status, errText);
+      if (reservationId) {
+        await adminClient.rpc("release_chat_request", {
+          p_reservation_id: reservationId,
+        });
+        reservationId = null;
+      }
 
       if (groqResp.status === 429) {
         return json({ error: "Groq rate limit hit. Please wait a moment." }, 429);
