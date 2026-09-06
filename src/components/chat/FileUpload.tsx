@@ -5,8 +5,32 @@ import { Plus, X, Image as ImageIcon, FileText, Video, Mic, BarChart3, Clock, Pa
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getUserFriendlyError } from "@/lib/error-utils";
+import { compressImageFile } from "@/lib/image-utils";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { GifPickerDialog } from "./GifPickerDialog";
+
+const MAX_CHAT_ATTACHMENT_SIZE = 20 * 1024 * 1024;
+const ALLOWED_CHAT_ATTACHMENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+const ALLOWED_CHAT_ATTACHMENT_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "pdf",
+  "mp4",
+  "mov",
+  "webm",
+]);
 
 interface FileUploadProps {
   conversationId: string;
@@ -25,13 +49,31 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    
-    const newFiles = files.map((file) => ({
+
+    const validFiles = files.filter((file) => {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "";
+      return (
+        file.size <= MAX_CHAT_ATTACHMENT_SIZE &&
+        ALLOWED_CHAT_ATTACHMENT_TYPES.has(file.type) &&
+        ALLOWED_CHAT_ATTACHMENT_EXTENSIONS.has(extension)
+      );
+    });
+
+    if (validFiles.length !== files.length) {
+      toast({
+        title: "Some files were not added",
+        description: "Use JPG, PNG, GIF, WEBP, PDF, MP4, MOV, or WEBM files under 20MB.",
+        variant: "destructive",
+      });
+    }
+
+    const newFiles = validFiles.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
     }));
-    
+
     setSelectedFiles([...selectedFiles, ...newFiles]);
+    event.target.value = "";
   };
 
   const removeFile = (index: number) => {
@@ -53,20 +95,35 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
       if (!userId) throw new Error("Not authenticated");
 
       for (const { file } of selectedFiles) {
-        const fileExt = file.name.split(".").pop();
+        if (
+          file.size > MAX_CHAT_ATTACHMENT_SIZE ||
+          !ALLOWED_CHAT_ATTACHMENT_TYPES.has(file.type) ||
+          !ALLOWED_CHAT_ATTACHMENT_EXTENSIONS.has(file.name.split(".").pop()?.toLowerCase() || "")
+        ) {
+          throw new Error("This file type is not allowed or the file is larger than 20MB.");
+        }
+
+        const uploadFile = file.type.startsWith("image/")
+          ? await compressImageFile(file, {
+              maxWidth: 1920,
+              quality: 0.8,
+              maxSizeMB: 2,
+            })
+          : file;
+        const fileExt = uploadFile.name.split(".").pop() || "bin";
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `${conversationId}/${userId}/${Date.now()}_${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("chat-attachments")
-          .upload(filePath, file);
+          .upload(filePath, uploadFile);
 
         if (uploadError) throw uploadError;
 
         uploadedFiles.push({
           path: filePath,
-          type: file.type,
-          name: file.name,
+          type: uploadFile.type,
+          name: uploadFile.name,
         });
       }
 
@@ -173,7 +230,7 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
             <Plus className="h-5 w-5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-2" align="start" side="top">
+        <PopoverContent className="w-64 rounded-2xl border border-border/60 bg-popover/85 p-2 shadow-2xl backdrop-blur-xl" align="start" side="top" sideOffset={8}>
           <div className="space-y-1">
             {menuItems.map((item) => (
               <button

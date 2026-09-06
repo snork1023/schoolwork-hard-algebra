@@ -15,11 +15,12 @@ interface Reaction {
 interface MessageReactionsProps {
   messageId: string;
   currentUserId: string;
+  showTrigger?: boolean;
 }
 
 const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🎉", "🔥", "👏"];
 
-export const MessageReactions = ({ messageId, currentUserId }: MessageReactionsProps) => {
+export const MessageReactions = ({ messageId, currentUserId, showTrigger = true }: MessageReactionsProps) => {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const { toast } = useToast();
 
@@ -118,39 +119,46 @@ export const MessageReactions = ({ messageId, currentUserId }: MessageReactionsP
   };
 
   return (
-    <div className="flex items-center gap-1 mt-1">
+    <div className="mt-1 flex flex-wrap items-center gap-1.5">
       {reactions.map((reaction) => (
         <Button
           key={reaction.emoji}
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="h-6 px-2 text-xs"
+          className={`h-7 rounded-full border px-2.5 text-xs shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+            reaction.user_id === currentUserId
+              ? "border-primary/50 bg-primary/15 text-foreground"
+              : "border-border/50 bg-background/45 text-muted-foreground"
+          }`}
           onClick={() => handleReaction(reaction.emoji)}
+          title={`React with ${reaction.emoji}`}
         >
           {reaction.emoji} {reaction.count}
         </Button>
       ))}
-      <Popover>
+      {showTrigger && <Popover>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
             <Smile className="h-3 w-3" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-2">
-          <div className="grid grid-cols-4 gap-2">
+          <PopoverContent className="w-64 rounded-2xl border-border/50 bg-popover/95 p-3 shadow-xl backdrop-blur-md">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Add a reaction</p>
+          <div className="grid grid-cols-4 gap-1.5">
             {COMMON_EMOJIS.map((emoji) => (
               <Button
                 key={emoji}
                 variant="ghost"
-                className="h-10 text-xl hover:bg-secondary"
+                className="h-10 rounded-xl text-xl transition-transform hover:scale-110 hover:bg-secondary"
                 onClick={() => handleReaction(emoji)}
+                title={`React with ${emoji}`}
               >
                 {emoji}
               </Button>
             ))}
           </div>
         </PopoverContent>
-      </Popover>
+      </Popover>}
     </div>
   );
 };

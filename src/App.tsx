@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router";
+import { useEffect, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
 import Background from "@/components/Background";
@@ -19,6 +20,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import BrowserView from "./components/BrowserView";
+import { isSignupInProgress } from "@/lib/signup-flow";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +38,21 @@ const NavigationGate = () => {
   return <Navigation />;
 };
 
+const SignupRouteGuard = ({ children }: { children: ReactNode }) => {
+  const location = useLocation();
+  const shouldBlock = location.pathname !== "/auth" && isSignupInProgress();
+
+  useEffect(() => {
+    if (!shouldBlock) return;
+    window.alert("Account must first be created before you can leave signup.");
+    window.history.replaceState(null, "", "/auth");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, [shouldBlock]);
+
+  if (shouldBlock) return null;
+  return children;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
@@ -47,6 +64,7 @@ const App = () => (
             <Backgroundeffect />
             <NavigationGate />
             <div className="relative" style={{ zIndex: 1 }}>
+            <SignupRouteGuard>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/g" element={<Games />} />
@@ -62,6 +80,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </SignupRouteGuard>
             </div>
           </BrowserRouter>
         </TooltipProvider>

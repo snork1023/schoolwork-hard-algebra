@@ -5,13 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, EyeOff, Check, X } from "lucide-react";
+import { Eye, EyeOff, Check, X, Camera, User, LogIn, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { loadHCaptcha, waitForHCaptcha } from "@/lib/hcaptcha-loader";
+import { SIGNUP_IN_PROGRESS_KEY, isSignupInProgress } from "@/lib/signup-flow";
+import { compressImageFile } from "@/lib/image-utils";
 
 const HCAPTCHA_SITEKEY = import.meta.env.VITE_HCAPTCHA_SITEKEY as string | undefined;
 
@@ -45,6 +49,8 @@ const signUpProfileSchema = z.object({
     .regex(/^[a-zA-Z0-9_\- ]+$/, "Username can only contain letters, numbers, spaces, hyphens, and underscores"),
   password: passwordSchema,
 });
+
+const signUpUsernameSchema = signUpProfileSchema.shape.username;
 
 // Sign-in: email + password
 const signInSchema = z.object({
@@ -151,7 +157,7 @@ function getPasswordChecks(password: string) {
 
 const Auth = () => {
   // Sign-up: which step of the request-otp -> verify-otp -> set-password flow we're on
-  const [signUpStep, setSignUpStep] = useState<"request" | "otp" | "password">("request");
+  const [signUpStep, setSignUpStep] = useState<"request" | "otp" | "password" | "username">("request");
   const [signUpUsername, setSignUpUsername] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpOtp, setSignUpOtp] = useState("");
@@ -173,6 +179,13 @@ const Auth = () => {
   const [resetPassword, setResetPassword] = useState("");
   const [resetResendCooldown, setResetResendCooldown] = useState(0);
   const [showResetResendModal, setShowResetResendModal] = useState(false);
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState<"bio" | "avatar">("bio");
+  const [onboardingBio, setOnboardingBio] = useState("");
+  const [onboardingAvatarFile, setOnboardingAvatarFile] = useState<File | null>(null);
+  const [onboardingAvatarPreview, setOnboardingAvatarPreview] = useState<string | null>(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
 
   // Password visibility
   const [showSignInPassword, setShowSignInPassword] = useState(false);
@@ -230,11 +243,14 @@ const Auth = () => {
   // (reset flow) before the password step is done. This ref stops the
   // redirect-on-SIGNED_IN below from firing mid-flow, so we can send the user
   // onward ourselves once the password step actually completes.
-  const skipAuthRedirectRef = useRef(false);
+  const skipAuthRedirectRef = useRef(isSignupInProgress());
 
   // Redirect if already signed in
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        sessionStorage.removeItem(SIGNUP_IN_PROGRESS_KEY);
+      }
       if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
         if (skipAuthRedirectRef.current) return;
         navigate("/chat");
@@ -401,6 +417,7 @@ const Auth = () => {
         }
       }
 
+      sessionStorage.setItem(SIGNUP_IN_PROGRESS_KEY, "true");
       setSignUpStep("password");
     } catch (error: any) {
       skipAuthRedirectRef.current = false;
@@ -410,8 +427,8 @@ const Auth = () => {
     }
   };
 
-  // ── Sign Up: step 3 — set username + password ─────────────────────────────────
-  const handleCreateAccount = async (e: React.FormEvent) => {
+  // ── Sign Up: step 3 — set the password ───────────────────────────────────────
+  const handleSetSignUpPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!signUpAgreementChecked) {
       toast({
@@ -422,10 +439,7 @@ const Auth = () => {
       return;
     }
 
-    const validation = signUpProfileSchema.safeParse({
-      username: signUpUsername,
-      password: signUpPassword,
-    });
+    const validation = passwordSchema.safeParse(signUpPassword);
     if (!validation.success) {
       toast({
         title: "Validation error",
@@ -435,48 +449,121 @@ const Auth = () => {
       return;
     }
 
+    setSignUpStep("username");
+  };
+
+  // ── Sign Up: step 4 — continue with the username ─────────────────────────────
+  const handleContinueWithUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const usernameValidation = signUpUsernameSchema.safeParse(signUpUsername);
+    if (!usernameValidation.success) {
+      toast({
+        title: "Validation error",
+        description: usernameValidation.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      const { data: existingProfile, error: usernameError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", usernameValidation.data)
+        .maybeSingle();
+
+      if (usernameError) throw usernameError;
+      if (existingProfile) {
+        toast({
+          title: "Username taken",
+          description: "That username is already in use. Please choose another.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSignUpUsername(usernameValidation.data);
+      setOnboardingStep("bio");
+      setShowOnboarding(true);
+    } catch (error: any) {
+      toast({
+        title: "Could not check username",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    const usernameValidation = signUpUsernameSchema.safeParse(signUpUsername);
+    if (!usernameValidation.success) {
+      toast({
+        title: "Validation error",
+        description: usernameValidation.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let avatarUrl: string | undefined;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw userError || new Error("Your session has expired.");
+
+      if (onboardingAvatarFile) {
+        const compressedAvatar = await compressImageFile(onboardingAvatarFile, {
+          maxWidth: 1200,
+          quality: 0.75,
+          maxSizeMB: 1,
+        });
+
+        const fileExt = compressedAvatar.name.split(".").pop() || "jpg";
+        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, compressedAvatar);
+        if (uploadError) throw uploadError;
+        avatarUrl = supabase.storage.from("avatars").getPublicUrl(filePath).data.publicUrl;
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
-        password: validation.data.password,
-        data: { username: validation.data.username },
+        password: signUpPassword,
+        data: { username: usernameValidation.data },
       });
       if (updateError) throw updateError;
 
-      const { data: userData, error: getUserError } = await supabase.auth.getUser();
-      if (getUserError) throw getUserError;
+      const profileData: { id: string; username: string; bio: string; avatar_url?: string } = {
+        id: user.id,
+        username: usernameValidation.data,
+        bio: onboardingBio.trim(),
+      };
+      if (avatarUrl) profileData.avatar_url = avatarUrl;
 
-      if (userData.user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .upsert(
-            { id: userData.user.id, username: validation.data.username },
-            { onConflict: "id" }
-          );
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert(profileData, { onConflict: "id" });
 
-        if (profileError) {
-          if (profileError.code === "23505") {
-            // Unique violation on username — someone else already has it.
-            // The user is already authenticated at this point, so just let
-            // them try a different one instead of losing the session.
-            toast({
-              title: "Username taken",
-              description: "That username is already in use. Please choose another.",
-              variant: "destructive",
-            });
-            setLoading(false);
-            return;
-          }
-          console.error("Profile insert error:", profileError);
+      if (profileError) {
+        if (profileError.code === "23505") {
           toast({
-            title: "Profile error",
-            description: "Your account was created, but we couldn't set up your profile.",
+            title: "Username taken",
+            description: "That username is already in use. Please choose another.",
             variant: "destructive",
           });
+          setShowOnboarding(false);
+          setSignUpStep("username");
+          setLoading(false);
+          return;
         }
+        throw profileError;
       }
 
       toast({ title: "Account created!" });
+      sessionStorage.removeItem(SIGNUP_IN_PROGRESS_KEY);
       skipAuthRedirectRef.current = false;
       navigate("/account");
     } catch (error: any) {
@@ -487,6 +574,40 @@ const Auth = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOnboardingAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+    setOnboardingAvatarFile(file);
+    setOnboardingAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleSaveOnboardingBio = () => {
+    setOnboardingStep("avatar");
+  };
+
+  const handleSaveOnboardingAvatar = async () => {
+    setOnboardingLoading(true);
+    try {
+      await handleCreateAccount();
+    } catch (error: any) {
+      toast({
+        title: "Could not save profile picture",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setOnboardingLoading(false);
     }
   };
 
@@ -621,12 +742,123 @@ const Auth = () => {
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 pt-24 pb-12 flex items-center justify-center">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md border-black/10 bg-card/85 shadow-xl backdrop-blur-md dark:border-white/15 dark:bg-card/75">
           <CardHeader>
             <CardTitle>Authentication</CardTitle>
             <CardDescription>Sign in or create an account</CardDescription>
           </CardHeader>
           <CardContent>
+            {(showOnboarding || signUpStep === "password" || signUpStep === "username") && (
+              <div className="mb-6 space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Account setup</span>
+                  <span>
+                    Step {showOnboarding ? (onboardingStep === "bio" ? 3 : 4) : signUpStep === "username" ? 2 : 1}/4
+                  </span>
+                </div>
+                <Progress
+                  value={(showOnboarding ? (onboardingStep === "bio" ? 3 : 4) : signUpStep === "username" ? 2 : 1) * 25}
+                  className="h-2 bg-muted/60"
+                />
+              </div>
+            )}
+            {showOnboarding ? (
+              <div className="space-y-5">
+                <div className="space-y-2 border-b border-border/60 pb-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Profile setup</p>
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    {onboardingStep === "bio" ? "Tell us about you" : "Choose your picture"}
+                  </h2>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {onboardingStep === "bio"
+                      ? "Write a short bio to help people get to know you."
+                      : "Add a profile picture so people can recognize you."}
+                  </p>
+                </div>
+
+                {onboardingStep === "bio" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="onboarding-bio">Bio</Label>
+                    <Textarea
+                      id="onboarding-bio"
+                      value={onboardingBio}
+                      onChange={(e) => setOnboardingBio(e.target.value)}
+                      placeholder="Tell people a little about yourself"
+                      maxLength={500}
+                      className="min-h-[110px] resize-none bg-background/25"
+                    />
+                    <p className="text-right text-xs text-muted-foreground">{onboardingBio.length}/500</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 rounded-xl border border-black/10 bg-background/40 p-5 backdrop-blur-sm dark:border-white/10 dark:bg-background/25">
+                    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                      {onboardingAvatarPreview ? (
+                        <img src={onboardingAvatarPreview} alt="Profile preview" className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-10 w-10 text-muted-foreground" />
+                      )}
+                    </div>
+                    <input
+                      id="onboarding-avatar"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleOnboardingAvatarChange}
+                      className="hidden"
+                    />
+                    <Button type="button" variant="outline" asChild>
+                      <label htmlFor="onboarding-avatar" className="cursor-pointer">
+                        <Camera className="mr-2 h-4 w-4" />
+                        {onboardingAvatarFile ? "Change picture" : "Upload picture"}
+                      </label>
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Optional · JPG, PNG, WEBP, or GIF · Max 5MB</p>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={onboardingStep === "bio" ? handleSaveOnboardingBio : handleSaveOnboardingAvatar}
+                    disabled={
+                      onboardingLoading ||
+                      (onboardingStep === "bio" && onboardingBio.trim().length === 0) ||
+                      (onboardingStep === "avatar" && !onboardingAvatarFile)
+                    }
+                  >
+                    {onboardingLoading
+                      ? "Creating account..."
+                      : onboardingStep === "bio"
+                        ? "Continue"
+                        : onboardingAvatarFile
+                          ? "Create account"
+                          : "Create account"}
+                  </Button>
+                  {onboardingStep === "bio" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setOnboardingStep("avatar")}
+                      disabled={onboardingLoading}
+                    >
+                      Do later
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleSaveOnboardingAvatar}
+                      disabled={onboardingLoading}
+                    >
+                      Skip
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+            <>
             {/* ── Password Reset ── */}
             {/* This block and the Tabs block below stay mounted at all times.
                 Visibility is toggled with CSS rather than a conditional render,
@@ -716,7 +948,7 @@ const Auth = () => {
                   showResetResendModal ? "opacity-100" : "opacity-0 invisible pointer-events-none"
                 }`}
               >
-                <div className="relative w-full max-w-xs rounded-lg border border-border bg-card p-4 shadow-lg">
+                <div className="relative w-full max-w-xs rounded-lg border border-black/10 bg-card/85 p-4 shadow-xl backdrop-blur-sm dark:border-white/15 dark:bg-card/75">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-xs text-muted-foreground">
                       Complete the CAPTCHA to resend your code
@@ -782,18 +1014,24 @@ const Auth = () => {
 
             <div className={showResetForm ? "hidden" : ""}>
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "signin" | "signup")}>
-                <TabsList className="relative grid w-full grid-cols-2">
+                <TabsList
+                  className={`relative grid h-12 w-full grid-cols-2 overflow-hidden rounded-xl border border-black/10 bg-background/45 p-1 backdrop-blur-sm dark:border-white/10 ${
+                    signUpStep === "password" || signUpStep === "username" ? "hidden" : ""
+                  }`}
+                >
                   <div
                     aria-hidden
-                    className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-sm bg-background shadow-sm transition-transform duration-300 ease-out"
+                    className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-primary/20 shadow-sm transition-transform duration-300 ease-out"
                     style={{
                       transform: activeTab === "signup" ? "translateX(100%)" : "translateX(0%)",
                     }}
                   />
-                  <TabsTrigger value="signin" className="relative z-10 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                  <TabsTrigger value="signin" className="relative z-10 h-full gap-2 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                    <LogIn className="h-4 w-4" />
                     Sign In
                   </TabsTrigger>
-                  <TabsTrigger value="signup" className="relative z-10 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                  <TabsTrigger value="signup" className="relative z-10 h-full gap-2 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                    <UserPlus className="h-4 w-4" />
                     Sign Up
                   </TabsTrigger>
                 </TabsList>
@@ -939,7 +1177,7 @@ const Auth = () => {
                         showSignUpResendModal ? "opacity-100" : "opacity-0 invisible pointer-events-none"
                       }`}
                     >
-                      <div className="relative w-full max-w-xs rounded-lg border border-border bg-card p-4 shadow-lg">
+                      <div className="relative w-full max-w-xs rounded-lg border border-black/10 bg-card/85 p-4 shadow-xl backdrop-blur-sm dark:border-white/15 dark:bg-card/75">
                         <div className="flex items-center justify-between mb-4">
                           <span className="text-xs text-muted-foreground">
                             Complete the CAPTCHA to resend your code
@@ -957,20 +1195,8 @@ const Auth = () => {
                       </div>
                     </div>
 
-                    {/* Step 3: username + password */}
-                    <form onSubmit={handleCreateAccount} className={`space-y-5 ${signUpStep === "password" ? "" : "hidden"}`}>
-                      <div className="space-y-1">
-                        <Label htmlFor="signup-username">Username</Label>
-                        <Input
-                          id="signup-username"
-                          type="text"
-                          value={signUpUsername}
-                          onChange={(e) => setSignUpUsername(e.target.value)}
-                          placeholder="Choose a username"
-                          required
-                          maxLength={50}
-                        />
-                      </div>
+                    {/* Step 3: password */}
+                    <form onSubmit={handleSetSignUpPassword} className={`space-y-5 ${signUpStep === "password" ? "" : "hidden"}`}>
                       <div className="space-y-2">
                         <Label htmlFor="signup-password">Password</Label>
                         <div className="relative">
@@ -1051,27 +1277,42 @@ const Auth = () => {
 
                       <Button
                         type="submit"
-                        className="
-                          w-full
-                          transition-all
-                          duration-300
-                        "
+                        className="w-full transition-all duration-300"
                         disabled={
                           loading ||
                           !signUpAgreementChecked ||
                           !signUpPasswordValid
                         }
                       >
-                        {loading
-                          ? "Creating account..."
-                          : "Create Account"
-                      }
+                        {loading ? "Continuing..." : "Continue"}
+                      </Button>
+                    </form>
+
+                    {/* Step 4: username */}
+                    <form onSubmit={handleContinueWithUsername} className={`space-y-5 ${signUpStep === "username" ? "" : "hidden"}`}>
+                      <div className="space-y-1">
+                        <Label htmlFor="signup-username">Username</Label>
+                        <Input
+                          id="signup-username"
+                          type="text"
+                          value={signUpUsername}
+                          onChange={(e) => setSignUpUsername(e.target.value)}
+                          placeholder="Choose a username"
+                          required
+                          maxLength={20}
+                        />
+                      </div>
+
+                      <Button type="submit" className="w-full" disabled={loading}>
+                        {loading ? "Continuing..." : "Continue"}
                       </Button>
                     </form>
                   </div>
                 </TabsContent>
               </Tabs>
             </div>
+            </>
+            )}
           </CardContent>
         </Card>
       </div>

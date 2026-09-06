@@ -92,15 +92,16 @@ const ChatSidebar = ({
   };
 
   return (
-    <div className="w-72 p-3 flex flex-col h-full">
-      <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl flex flex-col h-full shadow-lg">
-        <div className="p-4 border-b border-border/50">
-          <div className="flex items-center justify-between gap-3 mb-2">
+    <div className="flex h-full w-[min(20rem,30vw)] min-w-[17rem] flex-col">
+      <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-black/10 bg-card/75 shadow-xl backdrop-blur-sm dark:border-white/10 dark:bg-card/70">
+        <div className="border-b border-border/50 p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm truncate">{username || 'User'}</p>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Messages</p>
+              <p className="truncate text-lg font-semibold">{username || 'User'}</p>
               <button
                 onClick={() => setShowEmail(!showEmail)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate block w-full text-left"
+                className="block w-full truncate text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 {userEmail ? (showEmail ? userEmail : maskEmail(userEmail)) : '••••••••'}
               </button>
@@ -109,7 +110,7 @@ const ChatSidebar = ({
               onClick={onCreateNew}
               variant="outline"
               size="icon"
-              className="h-9 w-9 shrink-0 rounded-lg"
+              className="h-10 w-10 shrink-0 rounded-xl border border-primary/30 bg-card/75 text-primary shadow-sm backdrop-blur-md hover:bg-card/90"
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -125,18 +126,18 @@ const ChatSidebar = ({
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="space-y-1 p-3">
             {conversations.map(conv => (
               <div
                 key={conv.id}
-                className={`group flex items-center gap-2 p-3 rounded-xl cursor-pointer hover:bg-accent/50 transition-colors ${selectedConversationId === conv.id ? 'bg-accent' : ''}`}
+                className={`group flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-all ${selectedConversationId === conv.id ? 'border-primary/30 bg-primary/10 shadow-sm' : 'border-transparent hover:border-border/50 hover:bg-accent/50'}`}
                 onClick={() => onSelectConversation(conv.id)}
               >
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="relative cursor-pointer">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-primary/10 text-primary">
                           {conv.type === 'group' ? <Users className="h-4 w-4 text-primary" /> : <MessageSquare className="h-4 w-4 text-primary" />}
                         </AvatarFallback>
                       </Avatar>
@@ -164,7 +165,7 @@ const ChatSidebar = ({
                   )}
                 </Tooltip>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate text-left">
+                  <p className="truncate text-left text-sm font-semibold">
                     {getConversationDisplay(conv)}
                   </p>
                   <p className="text-xs text-muted-foreground">

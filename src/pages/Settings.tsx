@@ -163,7 +163,7 @@ const Settings = () => {
           <div className="space-y-6">
             {/* Appearance Card */}
             <ScrollRevealCard>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>Appearance</CardTitle>
                   <CardDescription>
@@ -241,7 +241,7 @@ const Settings = () => {
 
             {/* Tab Cloak Card */}
             <ScrollRevealCard>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>Tab Cloak</CardTitle>
                   <CardDescription>
@@ -346,7 +346,7 @@ const Settings = () => {
 
             {/* About:Blank Cloaking Card */}
             <ScrollRevealCard>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>About:Blank Cloaking</CardTitle>
                   <CardDescription>
@@ -415,7 +415,7 @@ const Settings = () => {
 
             {/* Panic Key Card */}
             <ScrollRevealCard>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>Panic Key</CardTitle>
                   <CardDescription>
@@ -470,7 +470,7 @@ const Settings = () => {
 
             {/* Developer Options Card */}
             <ScrollRevealCard>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Code className="h-5 w-5" />
@@ -500,7 +500,7 @@ const Settings = () => {
 
             {/* App Info Card */}
             <ScrollRevealCard>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Info className="h-5 w-5" />

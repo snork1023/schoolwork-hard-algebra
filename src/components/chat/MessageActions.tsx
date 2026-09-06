@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Edit2, Trash2, Check, X, Smile } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import {
 import { MoreVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type MessageActionsProps = {
   messageId: string;
@@ -24,26 +26,47 @@ type MessageActionsProps = {
   onDelete: (messageId: string) => Promise<void>;
   showEdit?: boolean;
   showDelete?: boolean;
+  createdAt?: string;
+  senderName?: string;
+  readBy?: Array<{ username: string; read_at: string }>;
+  className?: string;
+  isEditing?: boolean;
+  onEditingChange?: (value: boolean) => void;
 };
 
 const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🎉", "🔥", "👏"];
 
-const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, showEdit = true, showDelete = true }: MessageActionsProps) => {
-  const [isEditing, setIsEditing] = useState(false);
+const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, showEdit = true, showDelete = true, createdAt, senderName, readBy = [], className, isEditing: controlledIsEditing, onEditingChange }: MessageActionsProps) => {
+  const [internalIsEditing, setInternalIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [loading, setLoading] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const { toast } = useToast();
+
+  const isEditing = controlledIsEditing ?? internalIsEditing;
+
+  useEffect(() => {
+    setEditContent(content);
+  }, [content]);
+
+  const updateEditingState = (value: boolean) => {
+    if (onEditingChange) {
+      onEditingChange(value);
+      return;
+    }
+    setInternalIsEditing(value);
+  };
 
   const handleSaveEdit = async () => {
     if (!editContent.trim() || editContent === content) {
-      setIsEditing(false);
+      updateEditingState(false);
       return;
     }
 
     setLoading(true);
     try {
       await onEdit(messageId, editContent.trim());
-      setIsEditing(false);
+      updateEditingState(false);
     } finally {
       setLoading(false);
     }
@@ -51,7 +74,7 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
 
   const handleCancelEdit = () => {
     setEditContent(content);
-    setIsEditing(false);
+    updateEditingState(false);
   };
 
   const handleDelete = async () => {
@@ -111,7 +134,7 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
 
   if (isEditing) {
     return (
-      <div className="flex gap-2 items-center mt-2">
+      <div className="mt-2 flex w-full max-w-md items-center gap-2 rounded-2xl border border-primary/30 bg-background/70 p-2 shadow-lg backdrop-blur-sm">
         <Input
           value={editContent}
           onChange={(e) => setEditContent(e.target.value)}
@@ -124,24 +147,26 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
             }
           }}
           disabled={loading}
-          className="flex-1"
+          className="h-9 flex-1 border-0 bg-transparent px-2 shadow-none focus-visible:ring-0"
           autoFocus
         />
         <Button
           size="icon"
-          variant="ghost"
+          variant="default"
           onClick={handleSaveEdit}
           disabled={loading || !editContent.trim()}
-          className="h-8 w-8"
+          className="h-9 w-9 shrink-0 rounded-xl"
+          title="Save edit"
         >
           <Check className="h-4 w-4" />
         </Button>
         <Button
           size="icon"
-          variant="ghost"
+          variant="outline"
           onClick={handleCancelEdit}
           disabled={loading}
-          className="h-8 w-8"
+          className="h-9 w-9 shrink-0 rounded-xl"
+          title="Cancel edit"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -150,30 +175,31 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
   }
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+          className={className || "h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"}
         >
           <MoreVertical className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-popover z-50">
+      <DropdownMenuContent align="end" sideOffset={8} className="z-50 min-w-[180px] rounded-2xl border border-border/60 bg-popover/80 p-1 shadow-2xl backdrop-blur-xl">
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger className="rounded-lg focus:bg-accent/80">
             <Smile className="mr-2 h-4 w-4" />
             React
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className="bg-popover">
-              <div className="grid grid-cols-4 gap-1 p-2">
+            <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-popover/90 p-2 shadow-xl backdrop-blur-md">
+              <div className="grid grid-cols-4 gap-1">
                 {COMMON_EMOJIS.map((emoji) => (
                   <Button
                     key={emoji}
                     variant="ghost"
-                    className="h-8 w-8 p-0 text-lg hover:bg-secondary"
+                    className="h-8 w-8 p-0 text-lg hover:bg-secondary/80"
                     onClick={() => handleReaction(emoji)}
                   >
                     {emoji}
@@ -183,8 +209,15 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
+        <DropdownMenuItem
+          onSelect={() => setInfoOpen(true)}
+          className="rounded-lg focus:bg-accent/80"
+        >
+          <Info className="mr-2 h-4 w-4" />
+          Message info
+        </DropdownMenuItem>
         {showEdit && (
-          <DropdownMenuItem onClick={() => setIsEditing(true)}>
+          <DropdownMenuItem onClick={() => updateEditingState(true)} className="rounded-lg focus:bg-accent/80">
             <Edit2 className="mr-2 h-4 w-4" />
             Edit
           </DropdownMenuItem>
@@ -192,7 +225,7 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
         {showDelete && (
           <DropdownMenuItem
             onClick={handleDelete}
-            className="text-destructive focus:text-destructive"
+            className="rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
@@ -200,6 +233,36 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+    <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+      <DialogContent className="max-w-sm border border-border/60 bg-card/90 shadow-xl backdrop-blur-md">
+        <DialogHeader>
+          <DialogTitle>Message info</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Sent</p>
+            <p className="mt-1 font-medium">{senderName || "Unknown"}</p>
+            {createdAt && <p className="text-xs text-muted-foreground">{new Date(createdAt).toLocaleString([], { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>}
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Seen by</p>
+            {readBy.length > 0 ? (
+              <div className="mt-2 space-y-2">
+                {readBy.map((reader) => (
+                  <div key={`${reader.username}-${reader.read_at}`} className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2">
+                    <span>{reader.username}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(reader.read_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-muted-foreground">No one has seen this yet.</p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 

@@ -6,3 +6,6 @@ verify_jwt = false
 [functions.search-proxy]
 verify_jwt = false
 
+[functions.delete-account]
+verify_jwt = true
+

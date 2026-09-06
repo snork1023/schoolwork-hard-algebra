@@ -3,6 +3,7 @@ import { Home, Settings, MessageSquare, User, Sparkles, Gamepad2, LogIn, LogOut 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Dock from "@/components/Dock";
+import { SIGNUP_IN_PROGRESS_KEY, isSignupInProgress } from "@/lib/signup-flow";
 
 const Navigation = () => {
   const location = useLocation();
@@ -12,8 +13,18 @@ const Navigation = () => {
 
   const handleAuthAction = async () => {
     if (isLoggedIn) {
+      sessionStorage.removeItem(SIGNUP_IN_PROGRESS_KEY);
       await supabase.auth.signOut();
     }
+  };
+
+  const handleNavigation = (path: string) => {
+    if (isSignupInProgress() && path !== "/auth") {
+      window.alert("Account must first be created before you can leave signup.");
+      navigate("/auth");
+      return;
+    }
+    navigate(path);
   };
 
   useEffect(() => {
@@ -35,7 +46,7 @@ const Navigation = () => {
   const dockItems = links.map((link) => ({
     icon: <link.icon className="w-5 h-5" />,
     label: link.label,
-    onClick: () => navigate(link.to),
+    onClick: () => handleNavigation(link.to),
     className: location.pathname === link.to ? "bg-primary/20" : "",
   }));
 

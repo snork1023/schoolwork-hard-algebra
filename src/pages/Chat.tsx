@@ -21,7 +21,7 @@ import { CreatePollDialog } from "@/components/chat/CreatePollDialog";
 import { PollCard } from "@/components/chat/PollCard";
 import { ProfileViewDialog } from "@/components/chat/ProfileViewDialog";
 import { useAutoIdle } from "@/hooks/useAutoIdle";
-import { Send, FileText, Loader2 } from "lucide-react";
+import { Send, FileText, Loader2, MessageSquare, Users } from "lucide-react";
 import { getUserFriendlyError } from "@/lib/error-utils";
 type Attachment = {
   path?: string;
@@ -111,8 +111,9 @@ const Chat = () => {
   const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     toast
   } = useToast();
@@ -732,16 +733,38 @@ const Chat = () => {
         </div>
       </div>;
   }
+
+  const selectedConversation = conversations.find(conversation => conversation.id === selectedConversationId);
+  const selectedConversationName = selectedConversation?.name || selectedConversation?.participants?.map(participant => participant.username).join(", ") || "Conversation";
+  const selectedConversationType = selectedConversation?.type === "group" ? "Group conversation" : "Direct conversation";
+
   return <div className="h-screen flex flex-col">
-      <div className="flex-1 pt-16 flex overflow-hidden">
-        <div className="ml-5 mt-3">
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-background/20 pt-20">
+        <div className="shrink-0 pb-3 pl-4 pt-3">
         <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
         </div>
-        <div className="flex-1 flex flex-col">
+        <div className="min-w-0 flex-1 flex min-h-0 flex-col">
           {selectedConversationId ? <>
-              <div className="flex-1 overflow-hidden">
-                <ScrollArea className="h-full p-4" ref={scrollRef}>
-                  <div className="space-y-1 max-w-4xl mx-auto">
+              <div className="mx-3 mb-3 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-black/10 bg-card/65 shadow-xl backdrop-blur-sm dark:border-white/10 dark:bg-card/60">
+              <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    {selectedConversation?.type === "group" ? <Users className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{selectedConversationType}</p>
+                    <h1 className="truncate text-base font-semibold text-foreground">{selectedConversationName}</h1>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="hidden sm:inline">{participantCount} {participantCount === 1 ? "participant" : "participants"}</span>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-hidden px-4 pt-3">
+                <ScrollArea className="h-full" ref={scrollRef}>
+                  <div className="mx-auto max-w-4xl px-1 pb-3">
+                    <div className="space-y-1 max-w-4xl mx-auto">
                     {/* Combined timeline of messages and polls */}
                     {(() => {
                       // Merge messages and polls into a single timeline
@@ -780,35 +803,44 @@ const Chat = () => {
                         const isSameUserAsNext = nextMessage?.user_id === message.user_id;
                         const timeDiffFromPrev = prevMessage ? (new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime()) / 1000 / 60 : Infinity;
                         const timeDiffToNext = nextMessage ? (new Date(nextMessage.created_at).getTime() - new Date(message.created_at).getTime()) / 1000 / 60 : Infinity;
-                        const isGroupedWithPrev = isSameUserAsPrev && timeDiffFromPrev < 2;
-                        const isGroupedWithNext = isSameUserAsNext && timeDiffToNext < 2;
+                        const isGroupedWithPrev = isSameUserAsPrev && timeDiffFromPrev < 10;
+                        const isGroupedWithNext = isSameUserAsNext && timeDiffToNext < 10;
+                        const isLatestOutgoingMessage = message.user_id === user?.id &&
+                          !messages.slice(messageIndex + 1).some(next => next.user_id === user?.id);
 
                         // Show header (username + time) only for first message in a group
                         const showHeader = !isGroupedWithPrev;
 
                         // Add extra spacing before a new group
                         const showExtraSpacing = !isGroupedWithPrev && messageIndex > 0;
+                        const messageBubbleTone = message.user_id === user?.id
+                          ? "border border-primary/40 bg-primary/90 text-primary-foreground shadow-lg shadow-primary/15"
+                          : "border border-border/50 bg-background/70 text-foreground shadow-sm dark:bg-black/30";
                         
+                        const isThisMessageBeingEdited = editingMessageId === message.id && message.user_id === user?.id;
+
                         return (
                           <div key={message.id} className={`group flex flex-col ${message.user_id === user?.id ? "items-end" : "items-start"} ${showExtraSpacing ? "mt-4" : ""}`}>
                             {showHeader && (
-                              <div className="flex items-baseline gap-2 mb-1">
+                              <div className="mb-1 flex items-center gap-2 rounded-full border border-border/40 bg-background/45 px-2.5 py-1 text-xs backdrop-blur-sm">
                                 <button
                                   onClick={() => {
                                     setSelectedUserId(message.user_id);
                                     setProfileDialogOpen(true);
                                   }}
-                                  className="text-sm font-medium hover:underline cursor-pointer"
+                                  className="cursor-pointer font-semibold hover:underline"
                                 >
                                   {message.profiles?.username || "Anonymous"}
                                 </button>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(message.created_at).toLocaleTimeString()}
+                                <span className="text-muted-foreground">
+                                  {new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                                   {message.edited_at && " (edited)"}
                                 </span>
                               </div>
                             )}
-                            <div className="flex items-start gap-2">
+                            <div className={message.user_id === user?.id
+                              ? "group/message relative flex w-full items-start justify-end gap-2"
+                              : "flex items-start gap-2"}>
                               {message.user_id !== user?.id && (
                                 <MessageActions 
                                   messageId={message.id} 
@@ -818,38 +850,75 @@ const Chat = () => {
                                   onDelete={handleDeleteMessage} 
                                   showEdit={false}
                                   showDelete={false}
+                                  createdAt={message.created_at}
+                                  senderName={message.profiles?.username || "Anonymous"}
+                                  readBy={message.message_read_receipts?.map(r => ({
+                                    username: r.profiles?.username || "Unknown",
+                                    read_at: r.read_at,
+                                  })) || []}
                                 />
                               )}
-                              <div className={`inline-block px-4 py-2 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ${message.user_id === user?.id ? "bg-primary text-primary-foreground" : "bg-muted"} ${isGroupedWithPrev && isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-r-md" : "rounded-r-lg rounded-l-md" : isGroupedWithPrev ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-md rounded-br-lg" : "rounded-r-lg rounded-tl-md rounded-bl-lg" : isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-lg rounded-tr-lg rounded-br-md" : "rounded-r-lg rounded-tl-lg rounded-bl-md" : "rounded-lg"}`}>
-                                {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
-                                
-                                {message.attachments && message.attachments.length > 0 && (
-                                  <div className="mt-2 space-y-2">
-                                    {message.attachments.map((attachment, idx) => (
-                                      <div key={idx}>
-                                        <AttachmentRenderer 
-                                          attachment={attachment} 
-                                          onImageClick={(url, name) => setPreviewImage({ url, name })} 
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                              {message.user_id === user?.id && (
-                                <MessageActions 
-                                  messageId={message.id} 
-                                  content={message.content} 
-                                  currentUserId={user?.id || ""} 
-                                  onEdit={handleEditMessage} 
-                                  onDelete={handleDeleteMessage} 
-                                  showEdit={!!message.content?.trim()} 
+                              {!isThisMessageBeingEdited ? (
+                                <div className={`inline-block max-w-xs px-4 py-2.5 transition-transform duration-200 hover:shadow-md sm:max-w-sm md:max-w-md lg:max-w-lg ${message.user_id === user?.id ? "group-hover/message:-translate-x-8" : ""} ${messageBubbleTone} ${isGroupedWithPrev && isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-2xl rounded-r-md" : "rounded-r-2xl rounded-l-md" : isGroupedWithPrev ? message.user_id === user?.id ? "rounded-l-2xl rounded-tr-md rounded-br-2xl" : "rounded-r-2xl rounded-tl-md rounded-bl-2xl" : isGroupedWithNext ? message.user_id === user?.id ? "rounded-l-2xl rounded-tr-2xl rounded-br-md" : "rounded-r-2xl rounded-tl-2xl rounded-bl-md" : "rounded-2xl"}`}>
+                                  {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+
+                                  {message.attachments && message.attachments.length > 0 && (
+                                    <div className="mt-2 space-y-2">
+                                      {message.attachments.map((attachment, idx) => (
+                                        <div key={idx}>
+                                          <AttachmentRenderer
+                                            attachment={attachment}
+                                            onImageClick={(url, name) => setPreviewImage({ url, name })}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="w-full max-w-md">
+                                  <MessageActions
+                                    messageId={message.id}
+                                    content={message.content}
+                                    currentUserId={user?.id || ""}
+                                    onEdit={handleEditMessage}
+                                    onDelete={handleDeleteMessage}
+                                    showEdit={!!message.content?.trim()}
+                                    showDelete={true}
+                                    createdAt={message.created_at}
+                                    senderName={message.profiles?.username || "Anonymous"}
+                                    readBy={message.message_read_receipts?.map(r => ({
+                                      username: r.profiles?.username || "Unknown",
+                                      read_at: r.read_at,
+                                    })) || []}
+                                    className="absolute right-0 top-1/2 h-7 w-7 -translate-y-1/2 opacity-0 transition-opacity group-hover/message:opacity-100"
+                                    isEditing={true}
+                                    onEditingChange={(value) => setEditingMessageId(value ? message.id : null)}
+                                  />
+                                </div>
+                              )}
+                              {message.user_id === user?.id && !isThisMessageBeingEdited && (
+                                <MessageActions
+                                  messageId={message.id}
+                                  content={message.content}
+                                  currentUserId={user?.id || ""}
+                                  onEdit={handleEditMessage}
+                                  onDelete={handleDeleteMessage}
+                                  showEdit={!!message.content?.trim()}
                                   showDelete={true}
+                                  createdAt={message.created_at}
+                                  senderName={message.profiles?.username || "Anonymous"}
+                                  readBy={message.message_read_receipts?.map(r => ({
+                                    username: r.profiles?.username || "Unknown",
+                                    read_at: r.read_at,
+                                  })) || []}
+                                  className="absolute right-0 top-1/2 h-7 w-7 -translate-y-1/2 opacity-0 transition-opacity group-hover/message:opacity-100"
+                                  onEditingChange={(value) => setEditingMessageId(value ? message.id : null)}
                                 />
                               )}
                             </div>
-                            <MessageReactions messageId={message.id} currentUserId={user?.id || ""} />
-                            {!isGroupedWithNext && (
+                            <MessageReactions messageId={message.id} currentUserId={user?.id || ""} showTrigger={false} />
+                            {!isGroupedWithNext && isLatestOutgoingMessage && (
                               <ReadReceipts 
                                 messageId={message.id} 
                                 readBy={message.message_read_receipts?.map(r => ({
@@ -865,14 +934,15 @@ const Chat = () => {
                         );
                       });
                     })()}
+                    </div>
                   </div>
                 </ScrollArea>
               </div>
 
               <TypingIndicator typingUsers={typingUsers} />
 
-              <div className="p-4 max-w-4xl mx-auto w-full">
-                <div className="bg-card/50 backdrop-blur-xl rounded-3xl border border-border/25 shadow-xl">                  <form onSubmit={handleSendMessage} className="relative">
+              <div className="mx-auto w-full max-w-4xl px-4 pb-4 pt-2">
+                  <form onSubmit={handleSendMessage} className="relative rounded-2xl border border-border/40 bg-background/35 shadow-sm backdrop-blur-sm">
                     {attachments.length > 0 && <div className="p-3 pb-0 flex flex-wrap gap-2 border-b border-border/30">
                         {attachments.map((attachment, idx) => <div key={idx} className="relative inline-block">
                             <div className="h-16 w-16 bg-background/50 rounded-xl flex items-center justify-center border border-border/20">
@@ -909,7 +979,7 @@ const Chat = () => {
                     }} />
                       </div>}
                      
-                    <div className="flex items-center gap-2 p-3">
+                    <div className="flex items-end gap-2 p-2 sm:p-3">
                       <FileUpload conversationId={selectedConversationId || ""} onFilesSelected={async files => {
                     // Auto-send voice messages immediately
                     if (files.length === 1 && files[0].type?.startsWith("audio/")) {
@@ -943,7 +1013,7 @@ const Chat = () => {
                     }
                   }} voiceRecorderOpen={voiceRecorderOpen} setVoiceRecorderOpen={setVoiceRecorderOpen} onCreatePoll={() => setCreatePollOpen(true)} />
                       
-                      <div className="flex-1 flex items-center bg-background/60 rounded-xl border border-border/20 px-3 py-2 min-h-[44px]">
+                      <div className="flex min-h-[46px] flex-1 items-center rounded-2xl border border-border/30 bg-background/55 px-3 py-2 transition-colors focus-within:border-primary/50 focus-within:bg-background/70">
                         <Textarea value={newMessage} onChange={e => {
                     setNewMessage(e.target.value);
                     handleTyping();
@@ -965,10 +1035,16 @@ const Chat = () => {
                       </Button>
                     </div>
                   </form>
-                </div>
               </div>
-            </> : <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <p>Select a conversation or create a new one to start chatting</p>
+              </div>
+            </> : <div className="flex flex-1 items-center justify-center p-6">
+              <div className="max-w-sm rounded-3xl border border-black/10 bg-card/65 p-8 text-center shadow-lg backdrop-blur-sm dark:border-white/10 dark:bg-card/60">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+                  <MessageSquare className="h-7 w-7" />
+                </div>
+                <h1 className="text-lg font-semibold">Your conversations</h1>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Select a conversation from the rail or create a new chat to get started.</p>
+              </div>
             </div>}
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { X, Search } from "lucide-react";
+import { X, Search, MessageSquare, Users } from "lucide-react";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 const usernameSchema = z.string().trim().min(1, "Username cannot be empty").max(50);
@@ -33,6 +33,8 @@ const CreateConversationDialog = ({
   const [selectedUsers, setSelectedUsers] = useState<Profile[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredUsers, setFilteredUsers] = useState<Profile[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [activeTab, setActiveTab] = useState<"dm" | "group">("dm");
   const [groupName, setGroupName] = useState("");
   const [loading, setLoading] = useState(false);
   const {
@@ -44,11 +46,14 @@ const CreateConversationDialog = ({
       setSelectedUsers([]);
       setSearchQuery("");
       setFilteredUsers([]);
+      setHasSearched(false);
+      setActiveTab("dm");
       setGroupName("");
     }
   }, [open]);
 
   const handleSearch = () => {
+    setHasSearched(true);
     if (!searchQuery.trim()) {
       setFilteredUsers([]);
       return;
@@ -61,6 +66,12 @@ const CreateConversationDialog = ({
         !selectedUsers.some(selected => selected.id === user.id)
     );
     setFilteredUsers(results);
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as "dm" | "group");
+    setHasSearched(false);
+    setFilteredUsers([]);
   };
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
@@ -98,6 +109,7 @@ const CreateConversationDialog = ({
     setSelectedUsers(prev => [...prev, user]);
     setSearchQuery("");
     setFilteredUsers([]);
+    setHasSearched(false);
   };
   const removeUser = (userId: string) => {
     setSelectedUsers(prev => prev.filter(user => user.id !== userId));
@@ -242,27 +254,39 @@ const CreateConversationDialog = ({
     }
   };
   return <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md rounded-3xl border border-black/10 bg-card/75 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-card/75">
         <DialogHeader>
           <DialogTitle>Create New Chat</DialogTitle>
+          <DialogDescription>Start a private conversation or bring people together in a group.</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="dm">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="dm">Direct Message</TabsTrigger>
-            <TabsTrigger value="group">Group Chat</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="relative grid h-12 w-full grid-cols-2 overflow-hidden rounded-xl border border-border/50 bg-background/45 p-1 backdrop-blur-md">
+            <div
+              aria-hidden
+              className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-primary/20 shadow-sm transition-transform duration-300 ease-out"
+              style={{ transform: activeTab === "group" ? "translateX(100%)" : "translateX(0%)" }}
+            />
+            <TabsTrigger value="dm" className="relative z-10 h-full gap-2 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+              <MessageSquare className="h-4 w-4" />
+              Direct Message
+            </TabsTrigger>
+            <TabsTrigger value="group" className="relative z-10 h-full gap-2 data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+              <Users className="h-4 w-4" />
+              Group Chat
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dm" className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="dmSearch">Enter exact username</Label>
+              <Label htmlFor="dmSearch">Enter username</Label>
               <div className="flex gap-2">
                 <Input
                   id="dmSearch"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyPress={handleSearchKeyPress}
-                  placeholder="Type exact username..."
+                  placeholder="Enter username"
                   maxLength={50}
                 />
                 <Button
@@ -289,14 +313,14 @@ const CreateConversationDialog = ({
                 </div>
               </div>}
 
-            {searchQuery.trim() && filteredUsers.length > 0 && <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md">
-                {filteredUsers.map(user => <div key={user.id} className="p-2 hover:bg-accent cursor-pointer transition-colors flex items-center gap-2" onClick={() => addUser(user)}>
+            {hasSearched && searchQuery.trim() && filteredUsers.length > 0 && <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border/40 bg-background/30 p-1">
+              {filteredUsers.map(user => <div key={user.id} className="flex cursor-pointer items-center gap-2 rounded-lg p-3 transition-colors hover:bg-accent" onClick={() => addUser(user)}>
                     <span className="text-green-500">✓</span>
                     {user.username}
                   </div>)}
               </div>}
 
-            {searchQuery.trim() && filteredUsers.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">
+            {hasSearched && searchQuery.trim() && filteredUsers.length === 0 && <p className="rounded-xl border border-dashed border-border/40 bg-background/20 py-3 text-center text-sm text-muted-foreground">
                 No user found with that exact username
               </p>}
 
@@ -312,14 +336,14 @@ const CreateConversationDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="groupSearch">Enter exact username</Label>
+              <Label htmlFor="groupSearch">Enter username</Label>
               <div className="flex gap-2">
                 <Input
                   id="groupSearch"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyPress={handleSearchKeyPress}
-                  placeholder="Type exact username..."
+                  placeholder="Enter usernames"
                   maxLength={50}
                 />
                 <Button
@@ -346,15 +370,15 @@ const CreateConversationDialog = ({
                 </div>
               </div>}
 
-            {searchQuery.trim() && filteredUsers.length > 0 && <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md">
-                {filteredUsers.map(user => <div key={user.id} className="p-2 hover:bg-accent cursor-pointer transition-colors flex items-center gap-2" onClick={() => addUser(user)}>
+            {hasSearched && searchQuery.trim() && filteredUsers.length > 0 && <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border/40 bg-background/30 p-1">
+              {filteredUsers.map(user => <div key={user.id} className="flex cursor-pointer items-center gap-2 rounded-lg p-3 transition-colors hover:bg-accent" onClick={() => addUser(user)}>
                     <span className="text-green-500">✓</span>
                     {user.username}
                   </div>)}
               </div>}
 
-            {searchQuery.trim() && filteredUsers.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">
-                No user found with that exact username
+            {hasSearched && searchQuery.trim() && filteredUsers.length === 0 && <p className="rounded-xl border border-dashed border-border/40 bg-background/20 py-3 text-center text-sm text-muted-foreground">
+                No user found with that username
               </p>}
 
             <Button type="button" onClick={handleCreateGroup} disabled={loading || selectedUsers.length < 1} className="w-full">

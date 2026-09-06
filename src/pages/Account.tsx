@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
+import { compressImageFile } from "@/lib/image-utils";
 
 const usernameSchema = z.string().trim().min(1, "Username is required").max(20, "Username must be 20 characters or less");
 
@@ -46,6 +47,7 @@ const Account = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteHoldFrameRef = useRef<number | null>(null);
   const deleteHoldStartRef = useRef<number | null>(null);
+  const deleteStartedRef = useRef(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -292,6 +294,12 @@ const Account = () => {
     setAvatarLoading(true);
 
     try {
+      const compressedFile = await compressImageFile(file, {
+        maxWidth: 1200,
+        quality: 0.75,
+        maxSizeMB: 1,
+      });
+
       // Delete old avatar if exists
       if (avatarUrl) {
         const oldPath = avatarUrl.split("/").pop();
@@ -301,13 +309,13 @@ const Account = () => {
       }
 
       // Upload new avatar
-      const fileExt = file.name.split(".").pop();
+      const fileExt = compressedFile.name.split(".").pop() || "jpg";
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file);
+        .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
 
@@ -381,25 +389,26 @@ const Account = () => {
     if (!userId) return;
     
     setLoading(true);
-    
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .delete()
-      .eq("id", userId);
-    
-    if (profileError) {
+
+    const { error } = await supabase.functions.invoke("delete-account", {
+      body: {},
+    });
+
+    if (error) {
+      deleteStartedRef.current = false;
+      cancelDeleteHold();
       toast({
         title: "Error",
-        description: "Failed to delete account",
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
       setLoading(false);
       return;
     }
-    
+
     await supabase.auth.signOut();
     setLoading(false);
-    
+
     toast({
       title: "Account Deleted",
       description: "Your account has been permanently deleted",
@@ -415,13 +424,14 @@ const Account = () => {
       deleteHoldFrameRef.current = null;
     }
     deleteHoldStartRef.current = null;
+    deleteStartedRef.current = false;
     setDeleteHoldProgress(0);
   }, []);
 
   // Tracks a press-and-hold on the delete button; only fires the actual
   // deletion once the user has held for the full DELETE_HOLD_DURATION_MS
   const startDeleteHold = useCallback(() => {
-    if (loading) return;
+    if (loading || deleteStartedRef.current || deleteHoldStartRef.current !== null) return;
     deleteHoldStartRef.current = Date.now();
 
     const tick = () => {
@@ -433,6 +443,7 @@ const Account = () => {
       if (progress >= 100) {
         deleteHoldFrameRef.current = null;
         deleteHoldStartRef.current = null;
+        deleteStartedRef.current = true;
         handleDeleteAccount();
         return;
       }
@@ -446,9 +457,7 @@ const Account = () => {
   // Reset hold progress whenever the delete dialog is closed
   const handleDeleteDialogChange = (open: boolean) => {
     setDeleteDialogOpen(open);
-    if (!open) {
-      cancelDeleteHold();
-    }
+    cancelDeleteHold();
   };
 
   // Reset password fields whenever the dialog is closed (cancel, success, or outside click)
@@ -510,7 +519,7 @@ const Account = () => {
           <div className="space-y-6">
             {/* Profile: identity-related fields grouped together */}
             <ScrollRevealCard delay={0}>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>Profile</CardTitle>
                   <CardDescription>
@@ -611,7 +620,7 @@ const Account = () => {
 
             {/* Privacy & Security combined: both are "who can access my account" concerns */}
             <ScrollRevealCard delay={80}>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>Privacy & Security</CardTitle>
                   <CardDescription>
@@ -759,7 +768,7 @@ const Account = () => {
 
             {/* Account Actions: destructive/session actions kept separate and last */}
             <ScrollRevealCard delay={160}>
-              <Card className="bg-card border-border shadow-lg hover-glow">
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>Account Actions</CardTitle>
                   <CardDescription>
@@ -797,10 +806,19 @@ const Account = () => {
                       <button
                         type="button"
                         disabled={loading}
-                        onPointerDown={startDeleteHold}
-                        onPointerUp={cancelDeleteHold}
-                        onPointerLeave={cancelDeleteHold}
-                        onPointerCancel={cancelDeleteHold}
+                        onPointerDown={(event) => {
+                          event.currentTarget.setPointerCapture(event.pointerId);
+                          startDeleteHold();
+                        }}
+                        onPointerUp={(event) => {
+                          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                            event.currentTarget.releasePointerCapture(event.pointerId);
+                          }
+                          if (!deleteStartedRef.current) cancelDeleteHold();
+                        }}
+                        onPointerCancel={() => {
+                          if (!deleteStartedRef.current) cancelDeleteHold();
+                        }}
                         className={cn(
                           buttonVariants({ variant: "destructive" }),
                           "relative overflow-hidden select-none touch-none"
@@ -819,7 +837,11 @@ const Account = () => {
                           ) : (
                             <Trash2 className="h-4 w-4" />
                           )}
-                          {deleteHoldProgress > 0 ? "Keep holding…" : "Hold to Delete Account"}
+                          {loading
+                            ? "Deleting..."
+                            : deleteHoldProgress > 0
+                              ? "Keep holding..."
+                              : "Hold to Delete Account"}
                         </span>
                       </button>
                     </AlertDialogFooter>
