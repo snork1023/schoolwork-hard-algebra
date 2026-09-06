@@ -155,6 +155,16 @@ function getPasswordChecks(password: string) {
   };
 }
 
+const isSafeImagePreviewUrl = (value: string | null): value is string => {
+  if (!value) return false;
+
+  try {
+    return new URL(value).protocol === "blob:";
+  } catch {
+    return false;
+  }
+};
+
 const Auth = () => {
   // Sign-up: which step of the request-otp -> verify-otp -> set-password flow we're on
   const [signUpStep, setSignUpStep] = useState<"request" | "otp" | "password" | "username">("request");
@@ -809,7 +819,7 @@ const Auth = () => {
                 ) : (
                   <div className="flex flex-col items-center gap-3 rounded-xl border border-black/10 bg-background/40 p-5 backdrop-blur-sm dark:border-white/10 dark:bg-background/25">
                     <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
-                      {onboardingAvatarPreview ? (
+                      {isSafeImagePreviewUrl(onboardingAvatarPreview) ? (
                         <img src={onboardingAvatarPreview} alt="Profile preview" className="h-full w-full object-cover" />
                       ) : (
                         <User className="h-10 w-10 text-muted-foreground" />
