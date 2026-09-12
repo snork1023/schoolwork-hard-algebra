@@ -1,184 +1,194 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Download } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Play, Pause } from "lucide-react";
 
 interface AudioPlayerProps {
   src: string;
   duration?: number;
+  isSender?: boolean;
 }
 
-export const AudioPlayer = ({ src, duration: initialDuration }: AudioPlayerProps) => {
+export const AudioPlayer = ({
+  src,
+  duration: initialDuration,
+  isSender = true,
+}: AudioPlayerProps) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(initialDuration || 0);
   const [isLoading, setIsLoading] = useState(true);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  // Generate static waveform bars (deterministic based on src hash)
-  const waveformBars = useMemo(() => {
-    // Simple hash from src string for consistent waveform per file
-    let hash = 0;
-    for (let i = 0; i < src.length; i++) {
-      hash = ((hash << 5) - hash) + src.charCodeAt(i);
-      hash |= 0;
-    }
-    
-    const bars: number[] = [];
-    const barCount = 32;
-    for (let i = 0; i < barCount; i++) {
-      // Pseudo-random height based on hash + position
-      const seed = Math.abs((hash * (i + 1)) % 100);
-      const height = 0.2 + (seed / 100) * 0.6; // 20-80% height
-      bars.push(height);
-    }
-    return bars;
-  }, [src]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
+    const onLoadedMetadata = () => {
+      if (Number.isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
       setIsLoading(false);
     };
 
-    const handleTimeUpdate = () => {
+    const onTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
     };
 
-    const handleEnded = () => {
+    const onEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
     };
 
-    const handleCanPlay = () => {
+    const onCanPlay = () => {
       setIsLoading(false);
     };
 
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("ended", handleEnded);
-    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("canplay", onCanPlay);
 
     return () => {
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("ended", handleEnded);
-      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("canplay", onCanPlay);
     };
   }, [src]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      audio.play();
+    try {
+      if (audio.paused) {
+        await audio.play();
+        setIsPlaying(true);
+      } else {
+        audio.pause();
+        setIsPlaying(false);
+      }
+    } catch (error) {
+      console.error("Audio playback failed:", error);
     }
-    setIsPlaying(!isPlaying);
   };
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleSeek = (event: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio || !duration) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
+    if (!audio || !duration || !Number.isFinite(duration)) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const percentage = Math.max(
+      0,
+      Math.min(1, (event.clientX - rect.left) / rect.width)
+    );
+
     const newTime = percentage * duration;
 
     audio.currentTime = newTime;
     setCurrentTime(newTime);
   };
 
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(src);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `voice_message.${blob.type.split("/")[1] || "webm"}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Download failed:", err);
-    }
-  };
-
   const formatTime = (seconds: number) => {
-    if (!isFinite(seconds) || isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      return "0:00";
+    }
+
+    const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const progress =
+    duration > 0
+      ? Math.min(100, Math.max(0, (currentTime / duration) * 100))
+      : 0;
+
+  const displayTime =
+    currentTime > 0 || isPlaying
+      ? formatTime(currentTime)
+      : formatTime(duration);
+
+  const containerClass = isSender
+    ? "bg-primary text-primary-foreground rounded-br-xs"
+    : "bg-muted/90 text-foreground rounded-bl-xs border border-border/20";
+
+  const buttonClass = isSender
+    ? "bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+    : "bg-background text-foreground hover:bg-background/80";
+
+  const trackClass = isSender
+    ? "bg-primary-foreground/25"
+    : "bg-muted-foreground/20";
+
+  const progressClass = isSender
+    ? "bg-primary-foreground"
+    : "bg-primary";
 
   return (
-    <div className="flex items-center gap-3 min-w-[240px] max-w-[320px] p-3 rounded-2xl">
-      <audio ref={audioRef} src={src} preload="metadata" />
-
-      {/* Play/Pause button */}
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-10 w-10 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
-        onClick={togglePlay}
-        disabled={isLoading}
+    <div className="flex w-full justify-center">
+      <div
+        className={`flex w-[235px] items-center gap-3 rounded-3xl px-3.5 py-2.5 shadow-xs transition-all ${containerClass}`}
       >
-        {isPlaying ? (
-          <Pause className="h-4 w-4" />
-        ) : (
-          <Play className="h-4 w-4 ml-0.5" />
-        )}
-      </Button>
+        <audio
+          ref={audioRef}
+          src={src}
+          preload="metadata"
+        />
 
-      {/* Waveform visualization */}
-      <div className="flex-1 flex flex-col gap-1">
-        <div
-          className="flex items-end gap-[2px] h-7 cursor-pointer group"
-          onClick={handleSeek}
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          disabled={isLoading}
+          onClick={togglePlay}
+          className={`h-8 w-8 shrink-0 rounded-full p-0 transition-transform active:scale-95 ${buttonClass}`}
         >
-          {waveformBars.map((height, index) => {
-            const barProgress = index / waveformBars.length;
-            const isPlayed = barProgress <= progress;
+          {isPlaying ? (
+            <Pause className="h-4 w-4 fill-current" />
+          ) : (
+            <Play className="ml-0.5 h-4 w-4 fill-current" />
+          )}
+        </Button>
 
-            return (
-              <div
-                key={index}
-                className={cn(
-                  "w-[3px] rounded-full transition-colors duration-75",
-                  isPlayed
-                    ? "bg-primary-foreground"
-                    : "bg-primary-foreground/30 group-hover:bg-primary-foreground/50"
-                )}
-                style={{ height: `${Math.max(height * 100, 12)}%` }}
-              />
-            );
-          })}
-        </div>
-
-        {/* Duration display */}
-        <div className="flex items-center justify-between px-0.5">
-          <span className="text-[10px] font-mono text-primary-foreground/70">
-            {isPlaying || currentTime > 0 ? formatTime(currentTime) : formatTime(duration)}
-          </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-5 w-5 shrink-0 rounded-full hover:bg-primary-foreground/10"
-            onClick={handleDownload}
-            title="Download voice message"
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div
+            role="slider"
+            aria-label="Audio progress"
+            aria-valuemin={0}
+            aria-valuemax={duration || 0}
+            aria-valuenow={currentTime}
+            tabIndex={0}
+            onClick={handleSeek}
+            className="group relative flex h-6 min-w-0 flex-1 cursor-pointer items-center"
           >
-            <Download className="h-3 w-3 text-primary-foreground/70" />
-          </Button>
+            <div
+              className={`absolute left-0 right-0 h-1.5 overflow-hidden rounded-full ${trackClass}`}
+            >
+              <div
+                className={`h-full rounded-full ${progressClass}`}
+                style={{
+                  width: `${progress}%`,
+                }}
+              />
+            </div>
+
+            <div
+              className={`absolute h-3.5 w-3.5 rounded-full shadow-sm transition-transform group-hover:scale-110 ${progressClass}`}
+              style={{
+                left: `calc(${progress}% - 7px)`,
+              }}
+            />
+          </div>
+
+          <span className="shrink-0 select-none text-xs font-medium tabular-nums opacity-90">
+            {displayTime}
+          </span>
         </div>
       </div>
     </div>

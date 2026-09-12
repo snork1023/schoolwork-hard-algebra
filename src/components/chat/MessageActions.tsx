@@ -34,7 +34,9 @@ type MessageActionsProps = {
   onEditingChange?: (value: boolean) => void;
 };
 
-const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🎉", "🔥", "👏"];
+const COMMON_EMOJIS = [
+  "👍", "❤️", "🤣", "😭", "🙏", "😍", "🎉", "💀"
+];
 
 const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, showEdit = true, showDelete = true, createdAt, senderName, readBy = [], className, isEditing: controlledIsEditing, onEditingChange }: MessageActionsProps) => {
   const [internalIsEditing, setInternalIsEditing] = useState(false);

@@ -1,12 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Button as StatefulButton } from "@/components/ui/stateful-button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, Camera, User, KeyRound, LogOut, Trash2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Camera, User, Eye, EyeOff, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,27 @@ import { compressImageFile } from "@/lib/image-utils";
 const usernameSchema = z.string().trim().min(1, "Username is required").max(20, "Username must be 20 characters or less");
 
 const DELETE_HOLD_DURATION_MS = 3000;
+
+// A single settings row: label/description on the left, control on the right
+const SettingsRow = ({
+  label,
+  description,
+  children,
+  align = "center",
+}: {
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+  align?: "center" | "start";
+}) => (
+  <div className={cn("flex gap-4 py-4", align === "start" ? "items-start" : "items-center", "flex-col sm:flex-row sm:justify-between")}>
+    <div className="min-w-0">
+      <Label className="text-sm font-medium">{label}</Label>
+      {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+    </div>
+    <div className="w-full sm:w-auto sm:max-w-[280px] shrink-0">{children}</div>
+  </div>
+);
 
 const Account = () => {
   const [username, setUsername] = useState("");
@@ -39,7 +61,7 @@ const Account = () => {
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
-  const [bioLoading, setBioLoading] = useState(false);
+  const [avatarHovering, setAvatarHovering] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -48,7 +70,11 @@ const Account = () => {
   const deleteHoldFrameRef = useRef<number | null>(null);
   const deleteHoldStartRef = useRef<number | null>(null);
   const deleteStartedRef = useRef(false);
-  
+
+  // Last-saved values. The profile form is "dirty" (and shows the single
+  // Save bar) when either of these differs from current state.
+  const [savedProfile, setSavedProfile] = useState({ username: "", bio: "" });
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -59,9 +85,12 @@ const Account = () => {
       .eq("id", uid)
       .single();
     if (profile) {
-      setUsername(profile.username || "");
+      const savedUsername = profile.username || "";
+      const savedBio = profile.bio || "";
+      setUsername(savedUsername);
+      setSavedProfile({ username: savedUsername, bio: savedBio });
       setDiscoverable(profile.discoverable ?? true);
-      setBio(profile.bio || "");
+      setBio(savedBio);
       setAvatarUrl(profile.avatar_url);
     }
   }, []);
@@ -139,40 +168,65 @@ const Account = () => {
     }
   };
 
-  const handleUpdateUsername = async () => {
+  // Single save action for the whole profile form (username + bio).
+  const handleSaveProfile = async () => {
     if (!userId) return;
-    
-    // Validate username with zod schema
-    const result = usernameSchema.safeParse(username);
-    if (!result.success) {
+
+    const updates: { username?: string; bio?: string } = {};
+
+    const trimmedUsername = username.trim();
+    if (trimmedUsername !== savedProfile.username) {
+      const result = usernameSchema.safeParse(trimmedUsername);
+      if (!result.success) {
+        toast({
+          title: "Validation Error",
+          description: result.error.errors[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
+      updates.username = result.data;
+    }
+
+    const trimmedBio = bio.trim();
+    if (trimmedBio !== savedProfile.bio) {
+      if (bio.length > 500) {
+        toast({
+          title: "Error",
+          description: "Bio must be 500 characters or less",
+          variant: "destructive",
+        });
+        return;
+      }
+      updates.bio = trimmedBio;
+    }
+
+    if (Object.keys(updates).length === 0) return;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", userId);
+
+    if (error) {
       toast({
-        title: "Validation Error",
-        description: result.error.errors[0].message,
+        title: "Error",
+        description: getUserFriendlyError(error),
         variant: "destructive",
       });
       return;
     }
-    
-    setLoading(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ username: result.data })
-      .eq("id", userId);
-    
-    setLoading(false);
-    
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update username",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: "Username updated successfully",
-      });
+
+    if (updates.username !== undefined) {
+      setUsername(updates.username);
     }
+    if (updates.bio !== undefined) {
+      setBio(updates.bio);
+    }
+    setSavedProfile((profile) => ({
+      username: updates.username ?? profile.username,
+      bio: updates.bio ?? profile.bio,
+    }));
   };
 
   const handleUpdatePassword = async () => {
@@ -351,37 +405,38 @@ const Account = () => {
     }
   };
 
-  const handleUpdateBio = async () => {
-    if (!userId) return;
+  // Removes the current profile picture entirely (storage object + profile column)
+  const handleRemoveAvatar = async () => {
+    if (!userId || !avatarUrl || avatarLoading) return;
 
-    if (bio.length > 500) {
+    setAvatarLoading(true);
+
+    try {
+      const oldPath = avatarUrl.split("/").pop();
+      if (oldPath) {
+        await supabase.storage.from("avatars").remove([`${userId}/${oldPath}`]);
+      }
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(null);
       toast({
-        title: "Error",
-        description: "Bio must be 500 characters or less",
-        variant: "destructive",
+        title: "Success",
+        description: "Profile picture removed",
       });
-      return;
-    }
-
-    setBioLoading(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ bio: bio.trim() })
-      .eq("id", userId);
-
-    setBioLoading(false);
-
-    if (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
         description: getUserFriendlyError(error),
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Bio updated successfully",
-      });
+    } finally {
+      setAvatarLoading(false);
     }
   };
 
@@ -507,6 +562,10 @@ const Account = () => {
     );
   }
 
+  const usernameDirty = username.trim() !== savedProfile.username;
+  const bioDirty = bio.trim() !== savedProfile.bio;
+  const profileDirty = usernameDirty || bioDirty;
+
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-4 pt-24 pb-12">
@@ -517,7 +576,7 @@ const Account = () => {
           </p>
 
           <div className="space-y-6">
-            {/* Profile: identity-related fields grouped together */}
+            {/* Profile: identity fields share one form and one Save action */}
             <ScrollRevealCard delay={0}>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
@@ -526,99 +585,112 @@ const Account = () => {
                     Your public identity and account information
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Profile Picture</Label>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-20 w-20">
-                      {avatarUrl ? (
-                        <AvatarImage src={avatarUrl} alt={username} />
-                      ) : (
-                        <AvatarFallback>
-                          <User className="h-10 w-10" />
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div className="flex flex-col gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                        className="hidden"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={avatarLoading}
+                <CardContent className="divide-y divide-border">
+                <div className="flex items-center gap-4 pb-4">
+                  <div
+                    className="relative group shrink-0"
+                    onMouseEnter={() => setAvatarHovering(true)}
+                    onMouseLeave={() => setAvatarHovering(false)}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={avatarLoading}
+                      className="relative block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="Change profile picture"
+                    >
+                      <Avatar className="h-20 w-20">
+                        {avatarUrl ? (
+                          <AvatarImage src={avatarUrl} alt={username} />
+                        ) : (
+                          <AvatarFallback>
+                            <User className="h-10 w-10" />
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div
+                        className={cn(
+                          "absolute inset-0 flex items-center justify-center rounded-full bg-black/50 transition-opacity",
+                          avatarLoading || avatarHovering ? "opacity-100" : "opacity-0"
+                        )}
                       >
                         {avatarLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <Loader2 className="h-6 w-6 animate-spin text-white" />
                         ) : (
-                          <Camera className="h-4 w-4 mr-2" />
+                          <Camera className="h-6 w-6 text-white" />
                         )}
-                        Upload Picture
-                      </Button>
-                      <p className="text-xs text-muted-foreground">
-                        Max 5MB • JPG, PNG, JPEG, WEBP
-                      </p>
-                    </div>
+                      </div>
+                    </button>
+
+                    {avatarUrl && !avatarLoading && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="Remove profile picture"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Profile Picture</p>
+                    <p className="text-xs text-muted-foreground">
+                      Click to change
+                    </p>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter your username"
-                    />
-                    <Button onClick={handleUpdateUsername} disabled={loading}>
-                      Update
-                    </Button>
-                  </div>
+                <div className="py-4 space-y-1.5">
+                  <Label htmlFor="username" className="text-sm font-medium">Username</Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your username"
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
+                <div className="py-4 space-y-1.5">
+                  <Label className="text-sm font-medium">Email</Label>
+                  <Input value={userEmail} disabled />
+                </div>
+
+                <div className="py-4 space-y-1.5">
+                  <Label htmlFor="bio" className="text-sm font-medium">Bio</Label>
                   <Textarea
                     id="bio"
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
                     placeholder="Tell us about yourself..."
                     className="resize-none min-h-[100px]"
-                    maxLength={500}
+                    maxLength={150}
                   />
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                      {bio.length}/500 characters
-                    </p>
-                    <Button 
-                      size="sm" 
-                      onClick={handleUpdateBio} 
-                      disabled={bioLoading}
-                    >
-                      {bioLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Update Bio
-                    </Button>
-                  </div>
+                  <p className="text-xs text-muted-foreground text-right">
+                    {bio.length}/150 characters
+                  </p>
                 </div>
 
-                {/* Email moved below the editable fields since it's read-only */}
-                <div className="space-y-2 pt-2 border-t border-border">
-                  <Label>Email</Label>
-                  <Input value={userEmail} disabled />
-                </div>
+                {profileDirty && (
+                  <div className="pt-4 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">You have unsaved changes</p>
+                    <StatefulButton onClick={handleSaveProfile} className="min-w-[110px] px-4 py-1.5 text-sm">
+                      Save changes
+                    </StatefulButton>
+                  </div>
+                )}
                 </CardContent>
               </Card>
             </ScrollRevealCard>
 
-            {/* Privacy & Security combined: both are "who can access my account" concerns */}
+            {/* Privacy & Security: settings that take effect immediately, no Save needed */}
             <ScrollRevealCard delay={80}>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
@@ -627,34 +699,26 @@ const Account = () => {
                     Control who can find you and keep your account secure
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="discoverable">Allow message requests</Label>
-                    <p className="text-sm text-muted-foreground">
-                      When off, you won't appear in user searches and others can't start new chats with you
-                    </p>
+                <CardContent className="divide-y divide-border">
+                <SettingsRow
+                  label="Allow message requests"
+                  description="When off, you won't appear in user searches and others can't start new chats with you"
+                  align="start"
+                >
+                  <div className="flex justify-end sm:block">
+                    <Switch
+                      id="discoverable"
+                      checked={discoverable}
+                      onCheckedChange={handleToggleDiscoverable}
+                      disabled={discoverableLoading}
+                    />
                   </div>
-                  <Switch
-                    id="discoverable"
-                    checked={discoverable}
-                    onCheckedChange={handleToggleDiscoverable}
-                    disabled={discoverableLoading}
-                  />
-                </div>
+                </SettingsRow>
 
-                {/* Password change now lives in a popup so it doesn't clutter the page with two extra fields */}
-                <div className="flex items-center justify-between pt-2 border-t border-border">
-                  <div className="space-y-0.5">
-                    <Label>Password</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Change the password used to sign in
-                    </p>
-                  </div>
+                <SettingsRow label="Password" description="Change the password used to sign in">
                   <Dialog open={passwordDialogOpen} onOpenChange={handlePasswordDialogChange}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <KeyRound className="h-4 w-4 mr-2" />
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto">
                         Change Password
                       </Button>
                     </DialogTrigger>
@@ -761,12 +825,14 @@ const Account = () => {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-                </div>
+                </SettingsRow>
                 </CardContent>
               </Card>
             </ScrollRevealCard>
 
-            {/* Account Actions: destructive/session actions kept separate and last */}
+            {/* Account Actions: Sign out is a plain row; Delete Account is boxed
+                off in destructive styling so it visually reads as the one
+                irreversible action on the page. */}
             <ScrollRevealCard delay={160}>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
@@ -776,77 +842,79 @@ const Account = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                <Button 
-                  variant="outline" 
-                  onClick={handleSignOut}
-                  className="w-full"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </Button>
-                
-                <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Account
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete your
-                        account and remove all your data from our servers. Press and hold
-                        the button below for 3 seconds to confirm.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <button
-                        type="button"
-                        disabled={loading}
-                        onPointerDown={(event) => {
-                          event.currentTarget.setPointerCapture(event.pointerId);
-                          startDeleteHold();
-                        }}
-                        onPointerUp={(event) => {
-                          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                            event.currentTarget.releasePointerCapture(event.pointerId);
-                          }
-                          if (!deleteStartedRef.current) cancelDeleteHold();
-                        }}
-                        onPointerCancel={() => {
-                          if (!deleteStartedRef.current) cancelDeleteHold();
-                        }}
-                        className={cn(
-                          buttonVariants({ variant: "destructive" }),
-                          "relative overflow-hidden select-none touch-none"
-                        )}
-                      >
-                        <span
-                          className="absolute inset-y-0 left-0 bg-white/25"
-                          style={{
-                            width: `${deleteHoldProgress}%`,
-                            transition: deleteHoldProgress === 0 ? "width 150ms ease-out" : "none",
-                          }}
-                        />
-                        <span className="relative flex items-center gap-2">
-                          {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                          {loading
-                            ? "Deleting..."
-                            : deleteHoldProgress > 0
-                              ? "Keep holding..."
-                              : "Hold to Delete Account"}
-                        </span>
-                      </button>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <SettingsRow label="Sign out" description="Sign out of your account on this device">
+                  <Button
+                    variant="outline"
+                    onClick={handleSignOut}
+                    className="w-full sm:w-auto"
+                  >
+                    Sign Out
+                  </Button>
+                </SettingsRow>
+
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
+                  <SettingsRow label="Delete account" description="Permanently delete your account and all your data">
+                    <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full sm:w-auto">
+                          Delete Account
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete your
+                            account and remove all your data from our servers. Press and hold
+                            the button below for 3 seconds to confirm.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onPointerDown={(event) => {
+                              event.currentTarget.setPointerCapture(event.pointerId);
+                              startDeleteHold();
+                            }}
+                            onPointerUp={(event) => {
+                              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                                event.currentTarget.releasePointerCapture(event.pointerId);
+                              }
+                              if (!deleteStartedRef.current) cancelDeleteHold();
+                            }}
+                            onPointerCancel={() => {
+                              if (!deleteStartedRef.current) cancelDeleteHold();
+                            }}
+                            className={cn(
+                              buttonVariants({ variant: "destructive" }),
+                              "relative overflow-hidden select-none touch-none"
+                            )}
+                          >
+                            <span
+                              className="absolute inset-y-0 left-0 bg-white/25"
+                              style={{
+                                width: `${deleteHoldProgress}%`,
+                                transition: deleteHoldProgress === 0 ? "width 150ms ease-out" : "none",
+                              }}
+                            />
+                            <span className="relative flex items-center gap-2">
+                              {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : null}
+                              {loading
+                                ? "Deleting..."
+                                : deleteHoldProgress > 0
+                                  ? "Keep holding..."
+                                  : "Hold to Delete Account"}
+                            </span>
+                          </button>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </SettingsRow>
+                </div>
                 </CardContent>
               </Card>
             </ScrollRevealCard>

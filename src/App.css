@@ -40,3 +40,31 @@
 .read-the-docs {
   color: #888;
 }
+
+.EmojiPickerReact.epr-dark-theme {
+  --epr-bg-color: hsl(var(--popover));
+  --epr-category-label-bg-color: hsl(var(--popover));
+  --epr-text-color: hsl(var(--popover-foreground));
+  --epr-border-color: transparent; /* Removes internal borders for a cleaner look */
+  --epr-search-border-color: hsl(var(--border));
+  --epr-search-input-bg-color: hsl(var(--muted) / 0.4);
+  --epr-search-input-text-color: hsl(var(--foreground));
+  --epr-hover-bg-color: hsl(var(--accent));
+  
+  /* Compact grid spacing */
+  --epr-emoji-size: 24px;
+  --epr-category-navigation-button-size: 24px;
+
+  border-radius: 1rem !important;
+  box-shadow: 0 15px 30px -5px rgb(0 0 0 / 0.4) !important;
+  backdrop-filter: blur(16px);
+}
+
+/* Hides scrollbars inside the compact picker for a sleek look */
+.EmojiPickerReact .epr-body::-webkit-scrollbar {
+  width: 4px;
+}
+.EmojiPickerReact .epr-body::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
