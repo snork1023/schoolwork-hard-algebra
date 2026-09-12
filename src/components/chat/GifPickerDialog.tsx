@@ -182,6 +182,7 @@ export const GifPickerDialog = ({
                     alt={gif.title}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
                     loading="lazy"
                     onError={(event) => {
                       event.currentTarget.style.display = "none";
