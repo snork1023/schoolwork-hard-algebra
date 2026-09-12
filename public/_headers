@@ -1,7 +1,6 @@
 # --- GLOBAL SITE HEADERS ---
 /*
   Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: require-corp
 
 # --- SYSTEM DIRECTORY PROTECTION ---
 /.git*
