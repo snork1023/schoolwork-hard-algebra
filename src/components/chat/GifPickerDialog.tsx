@@ -181,6 +181,7 @@ export const GifPickerDialog = ({
                     src={gif.thumbnail}
                     alt={gif.title}
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                     loading="lazy"
                     onError={(event) => {
                       event.currentTarget.style.display = "none";

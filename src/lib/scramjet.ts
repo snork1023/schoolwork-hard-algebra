@@ -1,11 +1,9 @@
 /**
  * Scramjet client-side bootstrap.
  *
- * - Loads the Scramjet bundle into the page (via a <script> tag).
- * - Configures bare-mux to use the Epoxy transport over our local Wisp
- *   WebSocket endpoint at /wisp/.
- * - Registers the service worker and exposes a singleton ScramjetController
- *   used to encode proxied URLs.
+ * Scramjet is initialized only on the search page.
+ * Its service worker is restricted to /search/ and will not
+ * intercept requests from the rest of the application.
  */
 
 interface ScramjetControllerConfig {
@@ -25,27 +23,69 @@ type ScramjetControllerConstructor = new (
   config: ScramjetControllerConfig,
 ) => ScramjetControllerInstance;
 
-// Not instantiated directly in this file today, but declared so the global
-// shape matches what the Scramjet bundle actually registers.
-type ScramjetServiceWorkerConstructor = new (...args: unknown[]) => unknown;
+type ScramjetServiceWorkerConstructor = new (
+  ...args: unknown[]
+) => unknown;
 
 declare global {
   interface Window {
-    $scramjetLoadController?: () => { ScramjetController: ScramjetControllerConstructor };
-    $scramjetVersion?: { build: string; version: string };
-    $scramjetLoadWorker?: () => { ScramjetServiceWorker: ScramjetServiceWorkerConstructor };
+    $scramjetLoadController?: () => {
+      ScramjetController: ScramjetControllerConstructor;
+    };
+
+    $scramjetVersion?: {
+      build: string;
+      version: string;
+    };
+
+    $scramjetLoadWorker?: () => {
+      ScramjetServiceWorker: ScramjetServiceWorkerConstructor;
+    };
   }
 }
 
 export const SCRAMJET_PREFIX = "/scramjet/";
 const SCRAM_ASSETS = "/scram/";
+const SCRAMJET_SCOPE = "/search/";
+const SCRAMJET_SERVICE_WORKER_VERSION = "1";
 
 const LOG_BUFFER_SIZE = 200;
-const logBuffer: Array<{ level: string; message: string; timestamp: string }> = [];
+
+const logBuffer: Array<{
+  level: string;
+  message: string;
+  timestamp: string;
+}> = [];
+
 let consoleCaptured = false;
 
+let controllerPromise: Promise<ScramjetControllerInstance> | null = null;
+
+interface LoadedScriptElement extends HTMLScriptElement {
+  __loaded?: boolean;
+}
+
+interface BareMuxConnectionInstance {
+  setTransport: (
+    transportPath: string,
+    options: unknown[],
+  ) => Promise<void>;
+}
+
+function isSearchPage(): boolean {
+  const pathname = window.location.pathname;
+
+  return (
+    pathname === "/search/" ||
+    pathname.startsWith("/search/")
+  );
+}
+
 function formatConsoleArg(value: unknown): string {
-  if (typeof value === "string") return value;
+  if (typeof value === "string") {
+    return value;
+  }
+
   if (typeof value === "object" && value !== null) {
     try {
       return JSON.stringify(value);
@@ -53,19 +93,29 @@ function formatConsoleArg(value: unknown): string {
       return String(value);
     }
   }
+
   return String(value);
 }
 
-function pushLog(level: string, args: unknown[]) {
+function pushLog(level: string, args: unknown[]): void {
   const message = args.map(formatConsoleArg).join(" ");
-  logBuffer.push({ level, message, timestamp: new Date().toISOString() });
+
+  logBuffer.push({
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+  });
+
   if (logBuffer.length > LOG_BUFFER_SIZE) {
     logBuffer.shift();
   }
 }
 
-function captureConsoleLogs() {
-  if (consoleCaptured) return;
+function captureConsoleLogs(): void {
+  if (consoleCaptured) {
+    return;
+  }
+
   consoleCaptured = true;
 
   const originalConsole = {
@@ -80,28 +130,26 @@ function captureConsoleLogs() {
     pushLog("log", args);
     originalConsole.log(...args);
   };
+
   console.warn = (...args: unknown[]) => {
     pushLog("warn", args);
     originalConsole.warn(...args);
   };
+
   console.error = (...args: unknown[]) => {
     pushLog("error", args);
     originalConsole.error(...args);
   };
+
   console.info = (...args: unknown[]) => {
     pushLog("info", args);
     originalConsole.info(...args);
   };
+
   console.debug = (...args: unknown[]) => {
     pushLog("debug", args);
     originalConsole.debug(...args);
   };
-}
-
-let controllerPromise: Promise<ScramjetControllerInstance> | null = null;
-
-interface LoadedScriptElement extends HTMLScriptElement {
-  __loaded?: boolean;
 }
 
 function loadScript(src: string): Promise<void> {
@@ -109,89 +157,230 @@ function loadScript(src: string): Promise<void> {
     const existing = document.querySelector<LoadedScriptElement>(
       `script[data-scram-src="${src}"]`,
     );
+
     if (existing) {
-      if (existing.__loaded) return resolve();
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () =>
-        reject(new Error(`Failed to load ${src}`)),
+      if (existing.__loaded) {
+        resolve();
+        return;
+      }
+
+      existing.addEventListener("load", () => resolve(), {
+        once: true,
+      });
+
+      existing.addEventListener(
+        "error",
+        () => reject(new Error(`Failed to load ${src}`)),
+        { once: true },
       );
+
       return;
     }
 
-    const s = document.createElement("script") as LoadedScriptElement;
-    s.src = src;
-    s.async = false;
-    s.dataset.scramSrc = src;
-    s.addEventListener("load", () => {
-      s.__loaded = true;
-      resolve();
-    });
-    s.addEventListener("error", () =>
-      reject(new Error(`Failed to load ${src}`)),
+    const script = document.createElement(
+      "script",
+    ) as LoadedScriptElement;
+
+    script.src = src;
+    script.async = false;
+    script.dataset.scramSrc = src;
+
+    script.addEventListener(
+      "load",
+      () => {
+        script.__loaded = true;
+        resolve();
+      },
+      { once: true },
     );
-    document.head.appendChild(s);
+
+    script.addEventListener(
+      "error",
+      () => reject(new Error(`Failed to load ${src}`)),
+      { once: true },
+    );
+
+    document.head.appendChild(script);
   });
 }
 
 function buildWispUrl(): string {
-  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}/wisp/`;
-}
+  const protocol =
+    window.location.protocol === "https:" ? "wss:" : "ws:";
 
-interface BareMuxConnectionInstance {
-  setTransport: (transportPath: string, options: unknown[]) => Promise<void>;
+  return `${protocol}//${window.location.host}/wisp/`;
 }
 
 async function setupTransport(): Promise<void> {
   const bareMux = (await import(
-    /* @vite-ignore */ `${SCRAM_ASSETS}bare-mux/index.mjs`
-  )) as { BareMuxConnection: new (workerPath: string) => BareMuxConnectionInstance };
-  const conn = new bareMux.BareMuxConnection(`${SCRAM_ASSETS}bare-mux/worker.js`);
-  await conn.setTransport(`${SCRAM_ASSETS}epoxy/index.mjs`, [
-    { wisp: buildWispUrl() },
-  ]);
+    /* @vite-ignore */
+    `${SCRAM_ASSETS}bare-mux/index.mjs`
+  )) as {
+    BareMuxConnection: new (
+      workerPath: string,
+    ) => BareMuxConnectionInstance;
+  };
+
+  const connection = new bareMux.BareMuxConnection(
+    `${SCRAM_ASSETS}bare-mux/worker.js`,
+  );
+
+  await connection.setTransport(
+    `${SCRAM_ASSETS}epoxy/index.mjs`,
+    [
+      {
+        wisp: buildWispUrl(),
+      },
+    ],
+  );
 }
 
-async function registerServiceWorker(): Promise<void> {
+/**
+ * Finds and removes the old root-scoped Scramjet service worker.
+ *
+ * Run this once after deploying this change if the old worker was
+ * previously registered with scope "/".
+ */
+export async function removeLegacyScramjetWorker(): Promise<boolean> {
   if (!("serviceWorker" in navigator)) {
-    throw new Error("Service workers are not supported in this browser.");
+    return false;
   }
 
-  const reg = await navigator.serviceWorker.register(`/sw.js?v=${Date.now()}`, { scope: "/" });
-  await navigator.serviceWorker.ready;
+  const registrations =
+    await navigator.serviceWorker.getRegistrations();
 
-  if (!navigator.serviceWorker.controller) {
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error("Service worker controller was not available after registration")),
-        10000,
+  let removed = false;
+
+  for (const registration of registrations) {
+    const scopePathname = new URL(
+      registration.scope,
+    ).pathname;
+
+    const scriptUrl =
+      registration.active?.scriptURL ||
+      registration.waiting?.scriptURL ||
+      registration.installing?.scriptURL ||
+      "";
+
+    const isRootScopedScramjetWorker =
+      scopePathname === "/" &&
+      (
+        scriptUrl.includes("/sw.js") ||
+        scriptUrl.includes("scramjet")
       );
 
-      const onControllerChange = () => {
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-          clearTimeout(timeout);
-          resolve();
-        }
-      };
+    if (isRootScopedScramjetWorker) {
+      const didUnregister = await registration.unregister();
 
-      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-    });
+      if (didUnregister) {
+        removed = true;
+        console.info(
+          "[Scramjet] Removed legacy root-scoped service worker.",
+        );
+      }
+    }
   }
+
+  return removed;
+}
+
+async function waitForServiceWorkerController(): Promise<void> {
+  if (navigator.serviceWorker.controller) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        onControllerChange,
+      );
+
+      reject(
+        new Error(
+          "Service worker controller was not available after registration.",
+        ),
+      );
+    }, 10000);
+
+    function onControllerChange(): void {
+      if (!navigator.serviceWorker.controller) {
+        return;
+      }
+
+      navigator.serviceWorker.removeEventListener(
+        "controllerchange",
+        onControllerChange,
+      );
+
+      window.clearTimeout(timeout);
+      resolve();
+    }
+
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      onControllerChange,
+    );
+  });
+}
+
+async function registerServiceWorker(): Promise<ServiceWorkerRegistration> {
+  if (!("serviceWorker" in navigator)) {
+    throw new Error(
+      "Service workers are not supported in this browser.",
+    );
+  }
+
+  if (!isSearchPage()) {
+    throw new Error(
+      "Scramjet service worker registration is only allowed on /search/.",
+    );
+  }
+
+  const registration = await navigator.serviceWorker.register(
+    `/sw.js?v=${SCRAMJET_SERVICE_WORKER_VERSION}`,
+    {
+      scope: SCRAMJET_SCOPE,
+    },
+  );
+
+  await registration.update();
+
+  if (registration.active) {
+    await waitForServiceWorkerController();
+  } else {
+    await navigator.serviceWorker.ready;
+    await waitForServiceWorkerController();
+  }
+
+  return registration;
 }
 
 async function initInternal(): Promise<ScramjetControllerInstance> {
+  if (!isSearchPage()) {
+    throw new Error(
+      "Scramjet can only be initialized on the search page.",
+    );
+  }
+
   captureConsoleLogs();
+
   await registerServiceWorker();
+
   await loadScript(`${SCRAM_ASSETS}scramjet.all.js`);
 
   if (typeof window.$scramjetLoadController !== "function") {
-    throw new Error("Scramjet bundle did not register loader");
+    throw new Error(
+      "Scramjet bundle did not register its controller loader.",
+    );
   }
 
-  const { ScramjetController } = window.$scramjetLoadController();
+  const { ScramjetController } =
+    window.$scramjetLoadController();
+
   const controller = new ScramjetController({
     prefix: SCRAMJET_PREFIX,
+
     files: {
       wasm: `${SCRAM_ASSETS}scramjet.wasm.wasm`,
       all: `${SCRAM_ASSETS}scramjet.all.js`,
@@ -200,20 +389,34 @@ async function initInternal(): Promise<ScramjetControllerInstance> {
   });
 
   await controller.init();
+
   await setupTransport();
+
   return controller;
 }
 
 export function getScramjetLogs(): string[] {
-  return logBuffer.map((entry) => `[${entry.timestamp}] [${entry.level}] ${entry.message}`);
+  return logBuffer.map(
+    (entry) =>
+      `[${entry.timestamp}] [${entry.level}] ${entry.message}`,
+  );
 }
 
 export function initScramjet(): Promise<ScramjetControllerInstance> {
+  if (!isSearchPage()) {
+    return Promise.reject(
+      new Error(
+        "initScramjet() was called outside the /search/ page.",
+      ),
+    );
+  }
+
   if (!controllerPromise) {
-    controllerPromise = initInternal().catch((err) => {
+    controllerPromise = initInternal().catch((error) => {
       controllerPromise = null;
-      throw err;
+      throw error;
     });
   }
+
   return controllerPromise;
 }
