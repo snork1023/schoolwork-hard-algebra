@@ -23,6 +23,15 @@ import { ProfileViewDialog } from "@/components/chat/ProfileViewDialog";
 import { useAutoIdle } from "@/hooks/useAutoIdle";
 import { Send, FileText, Loader2, MessageSquare, Users } from "lucide-react";
 import { getUserFriendlyError } from "@/lib/error-utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 type Attachment = {
   path?: string;
   url?: string;
@@ -85,6 +94,7 @@ type PollVote = {
 };
 
 const Chat = () => {
+  const [messagesInfoOpen, setMessagesInfoOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -481,11 +491,6 @@ const Chat = () => {
         }))
       }));
       setConversations(formattedConversations);
-
-      // Auto-select first conversation if none selected
-      if (!selectedConversationId && formattedConversations.length > 0) {
-        setSelectedConversationId(formattedConversations[0].id);
-      }
     }
   };
   const fetchMessages = async () => {
@@ -1042,8 +1047,22 @@ const Chat = () => {
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
                   <MessageSquare className="h-7 w-7" />
                 </div>
-                <h1 className="text-lg font-semibold">Your conversations</h1>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Select a conversation from the rail or create a new chat to get started.</p>
+                <h1 className="text-lg font-semibold">
+                  Start or open a conversation
+                </h1>
+
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Select a conversation from the sidebar or create a new chat to get started.
+                </p>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 h-8 px-3 text-xs"
+                  onClick={() => setMessagesInfoOpen(true)}
+                >
+                  Where did my messages go?
+                </Button>
               </div>
             </div>}
         </div>
@@ -1064,6 +1083,29 @@ const Chat = () => {
         currentUserId={user?.id}
         onConversationCreated={fetchConversations}
       />
+
+      <AlertDialog
+        open={messagesInfoOpen}
+        onOpenChange={setMessagesInfoOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Where did my messages go?
+            </AlertDialogTitle>
+
+            <AlertDialogDescription>
+              Messages older than 3 days will be deleted automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogAction>
+              Got it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>;
 };
 export default Chat;

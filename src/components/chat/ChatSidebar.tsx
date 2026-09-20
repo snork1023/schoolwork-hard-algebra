@@ -97,7 +97,6 @@ const ChatSidebar = ({
         <div className="border-b border-border/50 p-5">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Messages</p>
               <p className="truncate text-lg font-semibold">{username || 'User'}</p>
               <button
                 onClick={() => setShowEmail(!showEmail)}

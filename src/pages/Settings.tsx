@@ -1,21 +1,22 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import Switch from '@/components/ui/switch';
+import Radio from "@/components/ui/radio";
 import { useState, useEffect, ChangeEvent } from "react";
 import { Link } from "react-router";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Code, ExternalLink, Keyboard, Info } from "lucide-react";
+import { Moon, Sun, ExternalLink } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import BackgroundEffectSettings from "@/components/BackgroundEffectSettings";
 import { ScrollRevealCard } from "@/components/ScrollRevealCard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { getTabCloakMetadata, TabCloakOption } from "@/components/SettingsProvider";
+import { cn } from "@/lib/utils";
 import GoogleDriveFavicon from '@/assets/google-drive-favicon.svg';
 import GoogleFavicon from '@/assets/google-favicon.ico';
 import GoogleDocsFavicon from '@/assets/google-docs-favicon.svg';
@@ -26,14 +27,43 @@ import CleverFavicon from '@/assets/clever-favicon.png';
 const accentColors = [
   { name: "Purple", value: "263 70% 50%", class: "bg-[hsl(263,70%,50%)]" },
   { name: "Blue", value: "217 91% 60%", class: "bg-[hsl(217,91%,60%)]" },
-  { name: "Green", value: "142 76% 36%", class: "bg-[hsl(142,76%,36%)]" },
-  { name: "Red", value: "0 84% 60%", class: "bg-[hsl(0,84%,60%)]" },
-  { name: "Orange", value: "25 95% 53%", class: "bg-[hsl(25,95%,53%)]" },
+  { name: "Teal", value: "174 72% 40%", class: "bg-[hsl(174,72%,40%)]" },
+  { name: "Amber", value: "38 92% 50%", class: "bg-[hsl(38,92%,50%)]" },
   { name: "Pink", value: "330 81% 60%", class: "bg-[hsl(330,81%,60%)]" },
 ];
 
 const DEVELOPER_PASSCODE = "snork";
 const appVersion = __APP_VERSION__;
+
+const SettingsRow = ({
+  label,
+  description,
+  children,
+  align = "center",
+}: {
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+  align?: "center" | "start";
+}) => (
+  <div
+    className={cn(
+      "flex gap-4 py-4",
+      align === "start" ? "items-start" : "items-center",
+      "flex-col sm:flex-row sm:justify-between"
+    )}
+  >
+    <div className="min-w-0">
+      <Label className="text-sm font-medium">{label}</Label>
+      {description && (
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {description}
+        </p>
+      )}
+    </div>
+    <div className="w-full sm:w-auto shrink-0">{children}</div>
+  </div>
+);
 
 const compareVersions = (current: string, latest: string) => {
   const currentParts = current.split(".").map((part) => Number(part) || 0);
@@ -43,6 +73,7 @@ const compareVersions = (current: string, latest: string) => {
   for (let i = 0; i < maxLength; i += 1) {
     const currentValue = currentParts[i] ?? 0;
     const latestValue = latestParts[i] ?? 0;
+
     if (currentValue > latestValue) return 1;
     if (currentValue < latestValue) return -1;
   }
@@ -53,22 +84,33 @@ const compareVersions = (current: string, latest: string) => {
 const Settings = () => {
   const { settings, updateSettings, isLoading } = useUserSettings();
   const { theme, setTheme } = useTheme();
+
   const [passcodeDialogOpen, setPasscodeDialogOpen] = useState(false);
   const [passcodeInput, setPasscodeInput] = useState("");
   const [passcodeError, setPasscodeError] = useState(false);
   const [isListeningForKey, setIsListeningForKey] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  const isBehind = latestVersion !== null && compareVersions(appVersion, latestVersion) < 0;
+  const isBehind =
+    latestVersion !== null &&
+    compareVersions(appVersion, latestVersion) < 0;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isListeningForKey) return;
+
     const handler = (e: KeyboardEvent) => {
       e.preventDefault();
       updateSettings({ panicKey: e.key });
       setIsListeningForKey(false);
     };
+
     window.addEventListener('keydown', handler);
+
     return () => window.removeEventListener('keydown', handler);
   }, [isListeningForKey, updateSettings]);
 
@@ -79,32 +121,53 @@ const Settings = () => {
       .catch(() => setLatestVersion(null));
   }, []);
 
-  const isCustomColor = settings.customAccentColor && settings.accentColor === settings.customAccentColor;
+  const isCustomColor =
+    settings.customAccentColor &&
+    settings.accentColor === settings.customAccentColor;
 
   const handleAccentColorChange = (value: string) => {
     updateSettings({ accentColor: value });
   };
 
   const handleCustomColorChange = (hsl: string) => {
-    updateSettings({ accentColor: hsl, customAccentColor: hsl });
+    updateSettings({
+      accentColor: hsl,
+      customAccentColor: hsl,
+    });
   };
 
-  const handleCustomFaviconUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleThemeChange = (next: "light" | "dark") => {
+    if (next === theme) return;
+    setTheme(next);
+  };
+
+  const handleCustomFaviconUpload = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
+
     if (!file) return;
+
     const reader = new FileReader();
+
     reader.onload = () => {
       if (typeof reader.result === "string") {
         updateSettings({ customFavicon: reader.result });
       }
     };
+
     reader.readAsDataURL(file);
   };
 
-  const updateTabCloakMeta = () => {
+  useEffect(() => {
     const cloak = getTabCloakMetadata(settings);
+
     document.title = cloak.title;
-    const existingIcon = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+
+    const existingIcon = document.querySelector(
+      "link[rel~='icon']"
+    ) as HTMLLinkElement | null;
+
     if (existingIcon) {
       existingIcon.href = cloak.favicon;
     } else {
@@ -113,11 +176,7 @@ const Settings = () => {
       link.href = cloak.favicon;
       document.head.appendChild(link);
     }
-  };
-
-  useEffect(() => {
-    updateTabCloakMeta();
-  }, [settings.tabCloak, settings.customTabTitle, settings.customFavicon]);
+  }, [settings]);
 
   const handleDeveloperModeToggle = (checked: boolean) => {
     if (checked) {
@@ -142,26 +201,87 @@ const Settings = () => {
 
   useEffect(() => {
     if (!isLoading && settings.accentColor) {
-      document.documentElement.style.setProperty('--primary', settings.accentColor);
-      const lightness = parseInt(settings.accentColor.split(' ')[2]);
-      document.documentElement.style.setProperty('--primary-glow', settings.accentColor.replace(/\d+%$/, `${Math.min(lightness + 15, 100)}%`));
-      document.documentElement.style.setProperty('--ring', settings.accentColor);
+      document.documentElement.style.setProperty(
+        '--primary',
+        settings.accentColor
+      );
+
+      const lightness = parseInt(
+        settings.accentColor.split(' ')[2]
+      );
+
+      document.documentElement.style.setProperty(
+        '--primary-glow',
+        settings.accentColor.replace(
+          /\d+%$/,
+          `${Math.min(lightness + 15, 100)}%`
+        )
+      );
+
+      document.documentElement.style.setProperty(
+        '--ring',
+        settings.accentColor
+      );
     }
   }, [isLoading, settings.accentColor]);
 
-  const devModeEnabled = localStorage.getItem('developerMode') === 'true';
+  const handleLaunchAboutBlank = () => {
+    const win = window.open('about:blank', '_blank');
+
+    if (!win) return;
+
+    const iframe = win.document.createElement('iframe');
+
+    iframe.style.cssText =
+      'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
+
+    iframe.src = window.location.href;
+
+    win.document.body.style.margin = '0';
+    win.document.body.style.overflow = 'hidden';
+    win.document.body.appendChild(iframe);
+
+    const cloak = getTabCloakMetadata(settings);
+
+    win.document.title = cloak.title;
+
+    const link = win.document.createElement('link');
+    link.rel = 'icon';
+    link.href = cloak.favicon;
+
+    win.document.head.appendChild(link);
+
+    window.location.href = 'https://google.com';
+  };
+
+  const themeOptions = [
+    {
+      value: "light" as const,
+      label: "Light",
+      Icon: Sun,
+    },
+    {
+      value: "dark" as const,
+      label: "Dark",
+      Icon: Moon,
+    },
+  ];
 
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2 glow-text">Settings</h1>
+          <h1 className="text-4xl font-bold mb-2 glow-text">
+            Settings
+          </h1>
+
           <p className="text-muted-foreground mb-8">
             Customize your experience
           </p>
 
           <div className="space-y-6">
-            {/* Appearance Card */}
+
+            {/* Appearance */}
             <ScrollRevealCard>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
@@ -170,172 +290,141 @@ const Settings = () => {
                     Customize how the app looks
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+
+                <CardContent>
                   {isLoading ? (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between"><Skeleton className="h-6 w-32" /><Skeleton className="h-9 w-24" /></div>
-                      <div className="flex items-center justify-between"><Skeleton className="h-6 w-32" /><Skeleton className="h-8 w-48" /></div>
-                      <div className="flex items-center justify-between"><Skeleton className="h-6 w-32" /><Skeleton className="h-6 w-12" /></div>
-                    </div>
-                  ) : (
-                    <>
                       <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Theme</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Toggle between light and dark theme
-                          </p>
-                        </div>
-                        <Button variant="outline" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="gap-2 min-w-[100px]">
-                          <div className="relative w-4 h-4">
-                            <Sun className="h-4 w-4 absolute inset-0 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                            <Moon className="h-4 w-4 absolute inset-0 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                          </div>
-                          <span>{theme === "dark" ? "Dark" : "Light"}</span>
-                        </Button>
+                        <Skeleton className="h-6 w-32" />
+                        <Skeleton className="h-9 w-44" />
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Accent Color</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Choose your preferred accent color
-                          </p>
+                        <Skeleton className="h-6 w-32" />
+                        <Skeleton className="h-8 w-48" />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-6 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+
+                      <SettingsRow
+                        label="Theme"
+                        description="Light or dark interface"
+                      >
+                        <div
+                          role="radiogroup"
+                          aria-label="Theme"
+                          className="flex gap-2 w-full sm:w-auto"
+                        >
+                          {themeOptions.map(
+                            ({ value, label, Icon }) => {
+                              const active =
+                                mounted && theme === value;
+
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={active}
+                                  onClick={() =>
+                                    handleThemeChange(value)
+                                  }
+                                  className={cn(
+                                    "flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium",
+                                    "transition-colors duration-150",
+                                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                                    active
+                                      ? "border-primary bg-primary/10 text-foreground"
+                                      : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                                  )}
+                                >
+                                  <Icon className="h-4 w-4" />
+                                  {label}
+                                </button>
+                              );
+                            }
+                          )}
                         </div>
-                        <div className="flex gap-2 items-center">
-                          {accentColors.map(color => (
-                            <button
-                              key={color.name}
-                              onClick={() => handleAccentColorChange(color.value)}
-                              className={`w-8 h-8 rounded-full ${color.class} transition-all hover:scale-110 ${settings.accentColor === color.value && !isCustomColor ? "ring-2 ring-offset-2 ring-offset-background ring-foreground" : ""}`}
-                              title={color.name}
-                            />
-                          ))}
-                          <ColorPicker
-                            value={settings.customAccentColor}
-                            onChange={handleCustomColorChange}
-                            isSelected={isCustomColor || false}
+                      </SettingsRow>
+
+                      <SettingsRow
+                        label="Accent color"
+                        description="Choose your prefered color"
+                        align="start"
+                      >
+                        <Radio
+                          items={[
+                            ...accentColors.map((color) => ({
+                              value: color.value,
+                              label: "",
+                              color: `hsl(${color.value})`,
+                            })),
+                            {
+                              value: "custom",
+                              label: "",
+                              color: settings.customAccentColor
+                                ? `hsl(${settings.customAccentColor})`
+                                : "hsl(var(--muted))",
+                              content: (
+                                <ColorPicker
+                                  value={settings.customAccentColor}
+                                  onChange={handleCustomColorChange}
+                                  isSelected={
+                                    isCustomColor || false
+                                  }
+                                />
+                              ),
+                            },
+                          ]}
+                          value={
+                            isCustomColor
+                              ? "custom"
+                              : settings.accentColor
+                          }
+                          onChange={(value) => {
+                            if (value === "custom") return;
+
+                            handleAccentColorChange(value);
+                          }}
+                          size="md"
+                          gap={8}
+                          swell={0.12}
+                          barge={2}
+                          shrink={0.02}
+                          jelly={1}
+                          bounce={0.15}
+                          stagger={10}
+                          stiffness={700}
+                          ariaLabel="Accent colors"
+                          className="color-preset-radio"
+                        />
+                      </SettingsRow>
+
+                      <SettingsRow
+                        label="Animated background"
+                        description="Show animated background"
+                      >
+                        <div className="flex justify-end sm:block">
+                          <Switch
+                            checked={settings.showBackground}
+                            onChange={(checked) =>
+                              updateSettings({
+                                showBackground: checked,
+                              })
+                            }
                           />
                         </div>
-                      </div>
+                      </SettingsRow>
 
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Background</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Animated background effect
-                          </p>
-                        </div>
-                        <Switch
-                          checked={settings.showBackground}
-                          onCheckedChange={(checked) => updateSettings({ showBackground: checked })}
-                        />
-                      </div>
-
-                      {settings.showBackground && <BackgroundEffectSettings />}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </ScrollRevealCard>
-
-            {/* Tab Cloak Card */}
-            <ScrollRevealCard>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
-                <CardHeader>
-                  <CardTitle>Tab Cloak</CardTitle>
-                  <CardDescription>
-                    Choose the tab title and favicon used when cloaking the site.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isLoading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="h-10 w-full" />
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <Select
-                        value={settings.tabCloak}
-                        onValueChange={(value) => updateSettings({ tabCloak: value as TabCloakOption })}
-                      >
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select a tab cloak" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="google-drive">
-                            <div className="flex items-center gap-2">
-                              <img className="h-4 w-4 rounded-sm" src={GoogleDriveFavicon} alt="Google Drive" />
-                              <span>Google Drive</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="google">
-                            <div className="flex items-center gap-2">
-                              <img className="h-4 w-4 rounded-sm" src={GoogleFavicon} alt="Google" />
-                              <span>Google</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="google-docs">
-                            <div className="flex items-center gap-2">
-                              <img className="h-4 w-4 rounded-sm" src={GoogleDocsFavicon} alt="Google Docs" />
-                              <span>Google Docs</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="google-slides">
-                            <div className="flex items-center gap-2">
-                              <img className="h-4 w-4 rounded-sm" src={GoogleSlidesFavicon} alt="Google Slides" />
-                              <span>Google Slides</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="outlook">
-                            <div className="flex items-center gap-2">
-                              <img className="h-4 w-4 rounded-sm" src={OutlookFavicon} alt="Outlook" />
-                              <span>Outlook</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="clever">
-                            <div className="flex items-center gap-2">
-                              <img className="h-4 w-4 rounded-sm" src={CleverFavicon} alt="Clever" />
-                              <span>Clever</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="custom">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-muted text-[10px]">C</span>
-                              <span>Custom</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {settings.tabCloak === 'custom' && (
-                        <div className="space-y-4">
-                          <div className="space-y-0.5">
-                            <Label htmlFor="custom-tab-title">Custom Tab Title</Label>
-                            <Input
-                              id="custom-tab-title"
-                              value={settings.customTabTitle}
-                              onChange={(e) => updateSettings({ customTabTitle: e.target.value })}
-                              placeholder="Enter title"
-                              className="bg-background"
-                            />
-                          </div>
-                          <div className="space-y-0.5">
-                            <Label htmlFor="custom-favicon">Custom Favicon</Label>
-                            <Input
-                              id="custom-favicon"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleCustomFaviconUpload}
-                              className="bg-background"
-                            />
-                            {settings.customFavicon && (
-                              <div className="flex items-center gap-2">
-                                <img src={settings.customFavicon} alt="Custom favicon preview" className="h-6 w-6 rounded-sm" />
-                                <span className="text-sm text-muted-foreground">Preview</span>
-                              </div>
-                            )}
-                          </div>
+                      {settings.showBackground && (
+                        <div className="pt-4">
+                          <BackgroundEffectSettings />
                         </div>
                       )}
                     </div>
@@ -344,224 +433,464 @@ const Settings = () => {
               </Card>
             </ScrollRevealCard>
 
-            {/* About:Blank Cloaking Card */}
+            {/* Tab Cloak */}
             <ScrollRevealCard>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
-                  <CardTitle>About:Blank Cloaking</CardTitle>
+                  <CardTitle>Tab Cloak</CardTitle>
                   <CardDescription>
-                    Open the site in an about:blank tab so the URL is hidden.
+                    Choose the tab title and favicon used when
+                    cloaking the site
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                <CardContent>
                   {isLoading ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between"><Skeleton className="h-6 w-32" /><Skeleton className="h-8 w-20" /></div>
-                      <div className="flex items-center justify-between"><Skeleton className="h-6 w-32" /><Skeleton className="h-6 w-12" /></div>
-                    </div>
+                    <Skeleton className="h-10 w-full" />
                   ) : (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Launch Cloak</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Open the current page in a hidden about:blank window.
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-2"
-                          onClick={() => {
-                            const win = window.open('about:blank', '_blank');
-                            if (win) {
-                              const iframe = win.document.createElement('iframe');
-                              iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;margin:0;padding:0;';
-                              iframe.src = window.location.href;
-                              win.document.body.style.margin = '0';
-                              win.document.body.style.overflow = 'hidden';
-                              win.document.body.appendChild(iframe);
-                              const cloak = getTabCloakMetadata(settings);
-                              win.document.title = cloak.title;
-                              const link = win.document.createElement('link');
-                              link.rel = 'icon';
-                              link.href = cloak.favicon;
-                              win.document.head.appendChild(link);
-                              window.location.href = 'https://google.com';
-                            }
-                          }}
+                    <div className="divide-y divide-border">
+
+                      <SettingsRow
+                        label="Disguise as"
+                        description="What the browser tab will look like"
+                      >
+                        <Select
+                          value={settings.tabCloak}
+                          onValueChange={(value) =>
+                            updateSettings({
+                              tabCloak:
+                                value as TabCloakOption,
+                            })
+                          }
                         >
-                          <ExternalLink className="h-4 w-4" />
-                          Launch
-                        </Button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Auto-Cloak on Startup</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Automatically open in an about:blank tab when you visit the site.
-                          </p>
-                        </div>
-                        <Switch
-                          checked={settings.autoAboutBlank}
-                          onCheckedChange={(checked) => updateSettings({ autoAboutBlank: checked })}
-                        />
-                      </div>
-                    </>
+                          <SelectTrigger className="bg-background w-full sm:w-[200px]">
+                            <SelectValue placeholder="Select a tab cloak" />
+                          </SelectTrigger>
+
+                          <SelectContent>
+                            <SelectItem value="google-drive">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  className="h-4 w-4 rounded-sm"
+                                  src={GoogleDriveFavicon}
+                                  alt=""
+                                />
+                                <span>Google Drive</span>
+                              </div>
+                            </SelectItem>
+
+                            <SelectItem value="google">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  className="h-4 w-4 rounded-sm"
+                                  src={GoogleFavicon}
+                                  alt=""
+                                />
+                                <span>Google</span>
+                              </div>
+                            </SelectItem>
+
+                            <SelectItem value="google-docs">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  className="h-4 w-4 rounded-sm"
+                                  src={GoogleDocsFavicon}
+                                  alt=""
+                                />
+                                <span>Google Docs</span>
+                              </div>
+                            </SelectItem>
+
+                            <SelectItem value="google-slides">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  className="h-4 w-4 rounded-sm"
+                                  src={GoogleSlidesFavicon}
+                                  alt=""
+                                />
+                                <span>Google Slides</span>
+                              </div>
+                            </SelectItem>
+
+                            <SelectItem value="outlook">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  className="h-4 w-4 rounded-sm"
+                                  src={OutlookFavicon}
+                                  alt=""
+                                />
+                                <span>Outlook</span>
+                              </div>
+                            </SelectItem>
+
+                            <SelectItem value="clever">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  className="h-4 w-4 rounded-sm"
+                                  src={CleverFavicon}
+                                  alt=""
+                                />
+                                <span>Clever</span>
+                              </div>
+                            </SelectItem>
+
+                            <SelectItem value="custom">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-muted text-[10px]">
+                                  C
+                                </span>
+                                <span>Custom</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </SettingsRow>
+
+                      {settings.tabCloak === 'custom' && (
+                        <>
+                          <div className="py-4 space-y-1.5">
+                            <Label
+                              htmlFor="custom-tab-title"
+                              className="text-sm font-medium"
+                            >
+                              Tab title
+                            </Label>
+
+                            <Input
+                              id="custom-tab-title"
+                              value={settings.customTabTitle}
+                              onChange={(e) =>
+                                updateSettings({
+                                  customTabTitle: e.target.value,
+                                })
+                              }
+                              placeholder="Enter title"
+                              className="bg-background"
+                            />
+                          </div>
+
+                          <div className="py-4 space-y-1.5">
+                            <Label
+                              htmlFor="custom-favicon"
+                              className="text-sm font-medium"
+                            >
+                              Favicon
+                            </Label>
+
+                            <Input
+                              id="custom-favicon"
+                              type="file"
+                              accept="image/*"
+                              onChange={
+                                handleCustomFaviconUpload
+                              }
+                              className="bg-background"
+                            />
+
+                            {settings.customFavicon && (
+                              <div className="flex items-center gap-2 pt-1">
+                                <img
+                                  src={settings.customFavicon}
+                                  alt=""
+                                  className="h-6 w-6 rounded-sm"
+                                />
+
+                                <span className="text-xs text-muted-foreground">
+                                  Current favicon
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
             </ScrollRevealCard>
 
-            {/* Panic Key Card */}
+            {/* About:Blank Cloaking */}
+            <ScrollRevealCard>
+              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+                <CardHeader>
+                  <CardTitle>About:Blank Cloaking</CardTitle>
+                  <CardDescription>
+                    Open the site in an about:blank tab so the URL
+                    is hidden
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent>
+                  {isLoading ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-6 w-32" />
+                        <Skeleton className="h-8 w-20" />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-6 w-32" />
+                        <Skeleton className="h-6 w-12" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+
+                      <SettingsRow
+                        label="Launch now"
+                        description="Opens this page in a hidden window and sends this tab to Google"
+                      >
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 w-full sm:w-auto"
+                          onClick={handleLaunchAboutBlank}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Launch
+                        </Button>
+                      </SettingsRow>
+
+                      <SettingsRow
+                        label="Auto-cloak on startup"
+                        description="Do this automatically every time you visit the site"
+                        align="start"
+                      >
+                        <div className="flex justify-end sm:block">
+                          <Switch
+                            checked={settings.autoAboutBlank}
+                            onChange={(checked) =>
+                              updateSettings({
+                                autoAboutBlank: checked,
+                              })
+                            }
+                          />
+                        </div>
+                      </SettingsRow>
+
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </ScrollRevealCard>
+
+            {/* Panic Key */}
             <ScrollRevealCard>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
                   <CardTitle>Panic Key</CardTitle>
                   <CardDescription>
-                    Set a key to instantly navigate away to a safe page.
+                    Press a key to instantly leave for a safe page
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+
+                <CardContent>
                   {isLoading ? (
                     <div className="space-y-3">
                       <Skeleton className="h-9 w-32" />
                       <Skeleton className="h-10 w-full" />
                     </div>
                   ) : (
-                    <>
-                      <div className="flex gap-2">
-                        <Button
-                          variant={isListeningForKey ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setIsListeningForKey(!isListeningForKey)}
-                          className="min-w-[140px]"
-                        >
-                          {isListeningForKey
-                            ? "Press any key..."
-                            : settings.panicKey
-                              ? `Key: ${settings.panicKey.length === 1 ? settings.panicKey.toUpperCase() : settings.panicKey}`
-                              : "Set Key"}
-                        </Button>
-                        {settings.panicKey && (
+                    <div className="divide-y divide-border">
+
+                      <SettingsRow
+                        label="Trigger key"
+                        description="The key that fires the escape"
+                      >
+                        <div className="flex gap-2 w-full sm:w-auto">
                           <Button
-                            variant="ghost"
+                            variant={
+                              isListeningForKey
+                                ? "default"
+                                : "outline"
+                            }
                             size="sm"
-                            onClick={() => updateSettings({ panicKey: null })}
+                            onClick={() =>
+                              setIsListeningForKey(
+                                !isListeningForKey
+                              )
+                            }
+                            className="flex-1 sm:flex-none sm:min-w-[140px]"
                           >
-                            Clear
+                            {isListeningForKey
+                              ? "Press any key..."
+                              : settings.panicKey
+                                ? `Key: ${
+                                    settings.panicKey.length === 1
+                                      ? settings.panicKey.toUpperCase()
+                                      : settings.panicKey
+                                  }`
+                                : "Set key"}
                           </Button>
-                        )}
-                      </div>
-                      <div className="flex gap-2 items-center mt-2">
-                        <Label className="text-sm whitespace-nowrap">Redirect URL</Label>
+
+                          {settings.panicKey && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                updateSettings({
+                                  panicKey: null,
+                                })
+                              }
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                      </SettingsRow>
+
+                      <div className="py-4 space-y-1.5">
+                        <Label
+                          htmlFor="panic-url"
+                          className="text-sm font-medium"
+                        >
+                          Redirect to
+                        </Label>
+
                         <Input
+                          id="panic-url"
                           value={settings.panicUrl}
-                          onChange={(e) => updateSettings({ panicUrl: e.target.value })}
+                          onChange={(e) =>
+                            updateSettings({
+                              panicUrl: e.target.value,
+                            })
+                          }
                           placeholder="https://google.com"
                           className="bg-background"
                         />
                       </div>
-                    </>
+
+                    </div>
                   )}
                 </CardContent>
               </Card>
             </ScrollRevealCard>
 
-            {/* Developer Options Card */}
+            {/* Developer Options */}
             <ScrollRevealCard>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Code className="h-5 w-5" />
-                    Developer Options
-                  </CardTitle>
+                  <CardTitle>Developer Options</CardTitle>
                   <CardDescription>
                     Advanced debugging and diagnostic tools
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+
+                <CardContent>
                   {isLoading ? (
-                    <div className="flex items-center justify-between"><Skeleton className="h-6 w-32" /><Skeleton className="h-6 w-12" /></div>
-                  ) : (
                     <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Enable Developer Mode</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Show debug info
-                        </p>
-                      </div>
-                      <Switch checked={settings.developerMode} onCheckedChange={handleDeveloperModeToggle} />
+                      <Skeleton className="h-6 w-32" />
+                      <Skeleton className="h-6 w-12" />
                     </div>
+                  ) : (
+                    <SettingsRow
+                      label="Developer mode"
+                      description="Show debug info. Requires a passcode to turn on"
+                      align="start"
+                    >
+                      <div className="flex justify-end sm:block">
+                        <Switch
+                          checked={settings.developerMode}
+                          onChange={handleDeveloperModeToggle}
+                        />
+                      </div>
+                    </SettingsRow>
                   )}
                 </CardContent>
               </Card>
             </ScrollRevealCard>
 
-            {/* App Info Card */}
+            {/* App Info */}
             <ScrollRevealCard>
               <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Info className="h-5 w-5" />
-                    App Info
-                  </CardTitle>
+                  <CardTitle>App Info</CardTitle>
                   <CardDescription>
                     Repository, legal, and version details
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4">
-                    <div className="grid gap-1">
-                      <div className="text-sm font-semibold text-foreground">Repository</div>
+
+                <CardContent>
+                  <div className="divide-y divide-border">
+
+                    <SettingsRow
+                      label="Repository"
+                      description="Source code on GitHub"
+                    >
                       <a
                         href="https://github.com/snork1023/schoolwork-hard-algebra"
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm text-muted-foreground underline"
+                        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
                       >
                         GitHub
                       </a>
-                    </div>
+                    </SettingsRow>
 
-                    <div className="grid gap-1">
-                      <div className="text-sm font-semibold text-foreground">Legal</div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                        <Link to="/termsofservice" className="text-sm text-muted-foreground underline">
+                    <SettingsRow label="Legal">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <Link
+                          to="/termsofservice"
+                          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+                        >
                           Terms of Service
                         </Link>
-                        <Link to="/privacypolicy" className="text-sm text-muted-foreground underline">
+
+                        <Link
+                          to="/privacypolicy"
+                          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+                        >
                           Privacy Policy
                         </Link>
                       </div>
-                    </div>
+                    </SettingsRow>
 
-                    <div className="inline-flex min-w-fit items-center gap-3 rounded-full border border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Version {appVersion}</span>
-                      {latestVersion ? (
-                        isBehind ? (
-                          <span className="text-xs text-foreground">Update available: {latestVersion}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Up to date</span>
-                        )
-                      ) : null}
-                    </div>
+                    <SettingsRow
+                      label="Version"
+                      description={
+                        latestVersion
+                          ? isBehind
+                            ? `Update available: ${latestVersion}`
+                            : "Up to date"
+                          : undefined
+                      }
+                    >
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full border px-3 py-1 text-sm",
+                          isBehind
+                            ? "border-primary/40 bg-primary/10 text-foreground"
+                            : "border-border bg-muted/60 text-muted-foreground"
+                        )}
+                      >
+                        {appVersion}
+                      </span>
+                    </SettingsRow>
+
                   </div>
                 </CardContent>
               </Card>
             </ScrollRevealCard>
+
           </div>
         </div>
       </main>
 
-      <Dialog open={passcodeDialogOpen} onOpenChange={setPasscodeDialogOpen}>
+      <Dialog
+        open={passcodeDialogOpen}
+        onOpenChange={setPasscodeDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enter Developer Passcode</DialogTitle>
+            <DialogTitle>
+              Enter Developer Passcode
+            </DialogTitle>
+
             <DialogDescription>
               Developer options require a passcode to enable.
             </DialogDescription>
           </DialogHeader>
+
           <div className="py-4">
             <Input
               type="password"
@@ -572,20 +901,34 @@ const Settings = () => {
                 setPasscodeError(false);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handlePasscodeSubmit();
+                if (e.key === "Enter") {
+                  handlePasscodeSubmit();
+                }
               }}
-              className={passcodeError ? "border-destructive" : ""}
+              className={
+                passcodeError
+                  ? "border-destructive"
+                  : ""
+              }
             />
+
             {passcodeError && (
               <p className="text-sm text-destructive mt-2">
                 Incorrect passcode. Please try again.
               </p>
             )}
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPasscodeDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setPasscodeDialogOpen(false)
+              }
+            >
               Cancel
             </Button>
+
             <Button onClick={handlePasscodeSubmit}>
               Unlock
             </Button>

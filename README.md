@@ -11,6 +11,7 @@ Our platform provides a smooth, reliable experience where users can access a wid
 - [Contributors](#contributors)
 - [Suggesting games and changes](#suggesting-games-and-changes)
 - [Version](#version)
+- [Credits](#credits)
 
 ---
 
@@ -85,9 +86,18 @@ Our platform provides a smooth, reliable experience where users can access a wid
 
 ### Contributors
 
-<a href="https://github.com/snork1023"><img src="https://github.com/snork1023.png" width="50px" alt="snork1023"/></a>
+<a href="https://github.com/snork1023/schoolwork-hard-algebra/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=snork1023/schoolwork-hard-algebra" />
+</a>
 
 ---
+
+### Credits
+
+- <a href="https://reactbits.dev">ReactBits</a> for various ui code
+
+---
+
 ### Suggesting games and changes
 
 https://forms.gle/QQrKfQjv4KxX1Wtu6

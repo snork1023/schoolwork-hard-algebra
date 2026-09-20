@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import Switch from "@/components/ui/switch";
 import { Plus, X, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -163,9 +163,8 @@ export const CreatePollDialog = ({
                 Allow multiple votes
               </Label>
               <Switch
-                id="multiple"
                 checked={multipleChoice}
-                onCheckedChange={setMultipleChoice}
+                onChange={setMultipleChoice}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -173,9 +172,8 @@ export const CreatePollDialog = ({
                 Anonymous voting
               </Label>
               <Switch
-                id="anonymous"
                 checked={anonymous}
-                onCheckedChange={setAnonymous}
+                onChange={setAnonymous}
               />
             </div>
           </div>

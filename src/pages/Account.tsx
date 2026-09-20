@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Button as StatefulButton } from "@/components/ui/stateful-button";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import Switch from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -22,6 +22,16 @@ import { compressImageFile } from "@/lib/image-utils";
 const usernameSchema = z.string().trim().min(1, "Username is required").max(20, "Username must be 20 characters or less");
 
 const DELETE_HOLD_DURATION_MS = 3000;
+
+// How long the save bar stays on screen after a successful save before it
+// starts fading out. The stateful button doesn't begin its checkmark
+// animation until our save promise resolves, and that animation itself takes
+// ~0.4s to play in, so this needs to comfortably exceed that or the check
+// gets cut off mid-animation.
+const SAVED_FLASH_VISIBLE_MS = 1400;
+// Length of the fade-out itself. Must match the duration-300 class below, or
+// the element will unmount before the transition finishes.
+const SAVED_FLASH_FADE_MS = 300;
 
 // A single settings row: label/description on the left, control on the right
 const SettingsRow = ({
@@ -75,8 +85,27 @@ const Account = () => {
   // Save bar) when either of these differs from current state.
   const [savedProfile, setSavedProfile] = useState({ username: "", bio: "" });
 
+  // Keeps the save bar mounted after a save completes, so the button has time
+  // to play its checkmark. "visible" holds it in place, "fading" runs the
+  // exit transition. Without this the bar would unmount the instant
+  // savedProfile updates, killing the animation before it starts.
+  const [savedFlash, setSavedFlash] = useState<"none" | "visible" | "fading">("none");
+  const flashHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashUnmountTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const clearFlashTimers = useCallback(() => {
+    if (flashHideTimeoutRef.current) {
+      clearTimeout(flashHideTimeoutRef.current);
+      flashHideTimeoutRef.current = null;
+    }
+    if (flashUnmountTimeoutRef.current) {
+      clearTimeout(flashUnmountTimeoutRef.current);
+      flashUnmountTimeoutRef.current = null;
+    }
+  }, []);
 
   const fetchProfile = useCallback(async (uid: string) => {
     const { data: profile } = await supabase
@@ -227,6 +256,17 @@ const Account = () => {
       username: updates.username ?? profile.username,
       bio: updates.bio ?? profile.bio,
     }));
+
+    // The form is clean now, so profileDirty is about to go false. Hold the
+    // bar on screen anyway until the checkmark has had its moment, then fade.
+    clearFlashTimers();
+    setSavedFlash("visible");
+    flashHideTimeoutRef.current = setTimeout(() => {
+      setSavedFlash("fading");
+      flashUnmountTimeoutRef.current = setTimeout(() => {
+        setSavedFlash("none");
+      }, SAVED_FLASH_FADE_MS);
+    }, SAVED_FLASH_VISIBLE_MS);
   };
 
   const handleUpdatePassword = async () => {
@@ -528,14 +568,15 @@ const Account = () => {
     }
   };
 
-  // Ensure any in-flight hold animation frame is cancelled on unmount
+  // Ensure any in-flight hold animation frame + flash timers are cancelled on unmount
   useEffect(() => {
     return () => {
       if (deleteHoldFrameRef.current !== null) {
         cancelAnimationFrame(deleteHoldFrameRef.current);
       }
+      clearFlashTimers();
     };
-  }, []);
+  }, [clearFlashTimers]);
 
   if (pageLoading) {
     return (
@@ -565,6 +606,11 @@ const Account = () => {
   const usernameDirty = username.trim() !== savedProfile.username;
   const bioDirty = bio.trim() !== savedProfile.bio;
   const profileDirty = usernameDirty || bioDirty;
+
+  // Dirty state always wins: if the user starts editing again during the
+  // post-save flash, the bar snaps back to full opacity as a live Save bar.
+  const showSaveBar = profileDirty || savedFlash !== "none";
+  const saveBarFading = !profileDirty && savedFlash === "fading";
 
   return (
     <div className="min-h-screen">
@@ -678,9 +724,16 @@ const Account = () => {
                   </p>
                 </div>
 
-                {profileDirty && (
-                  <div className="pt-4 flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">You have unsaved changes</p>
+                {showSaveBar && (
+                  <div
+                    className={cn(
+                      "pt-4 flex items-center justify-between transition-all duration-300 ease-out",
+                      saveBarFading ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
+                    )}
+                  >
+                    <p className="text-xs text-muted-foreground">
+                      {profileDirty ? "You have unsaved changes" : "All changes saved"}
+                    </p>
                     <StatefulButton onClick={handleSaveProfile} className="min-w-[110px] px-4 py-1.5 text-sm">
                       Save changes
                     </StatefulButton>
@@ -707,9 +760,8 @@ const Account = () => {
                 >
                   <div className="flex justify-end sm:block">
                     <Switch
-                      id="discoverable"
                       checked={discoverable}
-                      onCheckedChange={handleToggleDiscoverable}
+                      onChange={handleToggleDiscoverable}
                       disabled={discoverableLoading}
                     />
                   </div>
