@@ -191,11 +191,7 @@ const Ai = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase.rpc("get_chat_quota", {
-        p_user_id: user.id,
-        p_limit: RATE_LIMIT,
-        p_window_minutes: 60,
-      });
+      const { data, error } = await supabase.rpc("get_my_chat_quota");
 
       if (error) throw error;
 
@@ -530,14 +526,6 @@ const Ai = () => {
 
   const composerBlock = (
     <div className="w-full">
-      {rateLimited && (
-        <div className="mb-2 flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            Message limit reached. Resets in <span className="font-mono font-semibold">{countdown}</span>.
-          </span>
-        </div>
-      )}
       <div className="flex items-end gap-2 rounded-2xl border border-black/10 bg-white/60 p-2 pl-4 shadow-sm transition-all focus-within:border-primary/40 focus-within:shadow-md dark:border-white/10 dark:bg-black/40">
         <textarea
           ref={textareaRef}
@@ -603,7 +591,13 @@ const Ai = () => {
                   <Sparkles className="h-5 w-5 text-primary" />
                 </div>
                 <h1 className="text-2xl font-semibold text-foreground">Kepler AI</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Ask anything</p>
+                <p
+                  className={`mt-1 text-xs ${
+                    rateLimited ? "font-medium text-destructive" : "text-muted-foreground/70"
+                  }`}
+                >
+                  {rateLimited ? `Resets in ${countdown}` : `${remainingMessages}/${limitMessages} messages remaining`}
+                </p>
               </div>
 
               <div className="w-full max-w-lg">{composerBlock}</div>

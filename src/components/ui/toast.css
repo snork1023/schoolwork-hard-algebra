@@ -1,0 +1,411 @@
+.toast {
+  --toast-bg: hsl(var(--primary));
+  --toast-ink: hsl(var(--primary-foreground));
+  --toast-fuse: hsl(var(--primary));
+
+  --toast-fuse-h: 4px;
+  --toast-w: 400px;
+  --toast-radius: 14px;
+  --toast-slide: 400ms;
+  --toast-gap: 10px;
+  --toast-offset: 32px;
+  --toast-z: 999999999;
+
+  --toast-ease-out: cubic-bezier(
+    0.23,
+    1,
+    0.32,
+    1
+  );
+
+  display: grid;
+  grid-template-rows: 1fr;
+
+  width: min(
+    var(--toast-w),
+    100%
+  );
+
+  color: var(--toast-ink);
+
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.toast[data-inline='false'] {
+  position: fixed;
+  right: var(--toast-offset);
+  bottom: calc(
+    var(--toast-offset) +
+      env(
+        safe-area-inset-bottom,
+        0px
+      )
+  );
+
+  z-index: var(--toast-z);
+
+  width: min(
+    var(--toast-w),
+    calc(
+      100vw -
+        2 *
+          var(--toast-offset)
+    )
+  );
+}
+
+@media (max-width: 600px) {
+  .toast[data-inline='false'] {
+    --toast-offset: 16px;
+  }
+}
+
+.toast[data-inline='true'] {
+  transition:
+    grid-template-rows
+      var(--toast-slide)
+      var(--toast-ease-out);
+}
+
+.toast[data-inline='true'][data-mounted='false'] {
+  grid-template-rows: 0fr;
+}
+
+.toast[data-inline='true'][data-phase='closing'],
+.toast[data-inline='true'][data-phase='gone'] {
+  grid-template-rows: 0fr;
+}
+
+.toast[data-inline='true'][data-phase='closing'] {
+  transition-duration:
+    calc(
+      var(--toast-slide) *
+        0.7
+    );
+}
+
+.toast[data-inline='true'][data-phase='gone'] {
+  transition-duration: 200ms;
+}
+
+.toast__gate {
+  min-height: 0;
+}
+
+.toast[data-inline='true']
+  .toast__lift {
+  margin-top: var(--toast-gap);
+}
+
+.toast__lift {
+  opacity: 1;
+
+  transform:
+    translateY(0);
+
+  transition:
+    transform
+      var(--toast-slide)
+      var(--toast-ease-out),
+    opacity
+      calc(
+        var(--toast-slide) *
+          0.6
+      )
+      ease;
+}
+
+@starting-style {
+  .toast[data-inline='true'] {
+    grid-template-rows: 0fr;
+  }
+
+  .toast__lift {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+.toast[data-mounted='false']
+  .toast__lift {
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+.toast[data-phase='closing']
+  .toast__lift {
+  opacity: 0;
+  transform: translateY(100%);
+
+  transition:
+    transform
+      calc(
+        var(--toast-slide) *
+          0.7
+      )
+      var(--toast-ease-out),
+    opacity
+      calc(
+        var(--toast-slide) *
+          0.5
+      )
+      ease;
+}
+
+.toast[data-phase='gone']
+  .toast__lift {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(100%);
+}
+
+.toast[data-instant]
+  .toast__lift {
+  transition-duration: 0s;
+}
+
+.toast__card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--toast-radius);
+  overflow: hidden;
+
+  background: color-mix(in srgb, var(--toast-bg) 36%, transparent);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+
+  color: var(--toast-ink);
+
+  border: 1px solid color-mix(in srgb, var(--toast-ink) 14%, transparent);
+
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 8%, transparent);
+
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+
+.toast__card[data-swiping] {
+  cursor: grabbing;
+}
+
+.toast[data-dismissible='false']
+  .toast__card {
+  cursor: default;
+  touch-action: auto;
+}
+
+.toast__icon {
+  display: inline-flex;
+
+  flex: none;
+
+  width: 22px;
+  height: 22px;
+
+  align-items: center;
+  justify-content: center;
+}
+
+.toast__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.toast__body {
+  display: flex;
+
+  flex: 1 1 auto;
+
+  flex-direction: column;
+
+  gap: 2px;
+
+  min-width: 0;
+}
+
+.toast__title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.toast__desc {
+  color: color-mix(
+    in srgb,
+    var(--toast-ink) 72%,
+    transparent
+  );
+
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.toast__action,
+.toast__close {
+  flex: none;
+
+  border: 0;
+
+  font: inherit;
+
+  cursor: pointer;
+
+  outline: none;
+
+  touch-action: manipulation;
+
+  -webkit-tap-highlight-color: transparent;
+
+  transition:
+    transform 160ms
+      var(--toast-ease-out),
+    background-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.toast__action {
+  height: 30px;
+
+  padding: 0 10px;
+
+  border-radius: 6px;
+
+  background: var(--toast-ink);
+  color: var(--toast-bg);
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toast__close {
+  position: relative;
+
+  display: grid;
+  place-items: center;
+
+  width: 32px;
+  height: 32px;
+
+  padding: 0;
+
+  border-radius: 7px;
+
+  background: color-mix(
+    in srgb,
+    var(--toast-ink) 10%,
+    transparent
+  );
+
+  color: var(--toast-ink);
+
+  z-index: 2;
+}
+
+.toast__close::before {
+  content: '';
+
+  position: absolute;
+
+  inset: -6px;
+}
+
+.toast__close svg {
+  display: block;
+
+  width: 18px;
+  height: 18px;
+
+  stroke: currentColor;
+}
+
+.toast__action:active,
+.toast__close:active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .toast__action:hover {
+    opacity: 0.88;
+  }
+
+  .toast__close:hover {
+    background: color-mix(
+      in srgb,
+      var(--toast-ink) 18%,
+      transparent
+    );
+  }
+}
+
+.toast__fuse {
+  position: absolute;
+
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  display: block;
+
+  width: 100%;
+  height: var(--toast-fuse-h);
+
+  background: var(--toast-fuse);
+
+  box-shadow:
+    0 0 6px
+      color-mix(
+        in srgb,
+        var(--toast-fuse) 70%,
+        transparent
+      ),
+    0 0 12px
+      color-mix(
+        in srgb,
+        var(--toast-fuse) 35%,
+        transparent
+      );
+
+  transform-origin: left center;
+
+  pointer-events: none;
+
+  z-index: 3;
+}
+
+.toast[data-fuse='top']
+  .toast__fuse {
+  top: 0;
+  bottom: auto;
+}
+
+.toast[data-fuse='none']
+  .toast__fuse {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast__lift {
+    transform: none !important;
+
+    transition:
+      opacity 200ms ease;
+  }
+
+  .toast__action:active,
+  .toast__close:active {
+    transform: none;
+  }
+}

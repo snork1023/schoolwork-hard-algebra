@@ -151,7 +151,7 @@ const CreateConversationDialog = ({
       if (existingDmId) {
         // DM already exists, just navigate to it
         toast({
-          title: "Opening existing conversation"
+          title: "A DM with this user already exists",
         });
         onConversationCreated();
         onOpenChange(false);

@@ -16,9 +16,11 @@ interface AttachmentRendererProps {
   onImageClick?: (url: string, name: string) => void;
 }
 
-// Cache for signed URLs
-const urlCache = new Map<string, { url: string; expiry: number }>();
-const URL_EXPIRY_SECONDS = 3600;
+// Signed URLs must be short-lived and generated fresh at render time.
+// Do NOT cache or persist these anywhere (module scope, state that outlives
+// the component, storage, etc.) — that would defeat the point of a
+// short-lived URL for a private bucket.
+const SIGNED_URL_EXPIRY_SECONDS = 60;
 
 export const AttachmentRenderer = ({ attachment, onImageClick }: AttachmentRendererProps) => {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
@@ -26,51 +28,49 @@ export const AttachmentRenderer = ({ attachment, onImageClick }: AttachmentRende
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    // If attachment has a direct URL (legacy data), use it
+    let cancelled = false;
+
+    // Legacy rows that only ever stored a public/direct URL (pre-migration
+    // data). Nothing to sign here — just use what's there.
     if (attachment.url && !attachment.path) {
       setSignedUrl(attachment.url);
       return;
     }
 
-    // If attachment has a path, generate signed URL
-    if (attachment.path) {
-      const generateUrl = async () => {
-        // Check cache first
-        const cached = urlCache.get(attachment.path!);
-        const now = Date.now();
-        
-        if (cached && cached.expiry > now + 300000) {
-          setSignedUrl(cached.url);
-          return;
-        }
-
-        setLoading(true);
-        setError(false);
-
-        try {
-          const { data, error: signError } = await supabase.storage
-            .from("chat-attachments")
-            .createSignedUrl(attachment.path!, URL_EXPIRY_SECONDS);
-
-          if (signError) throw signError;
-
-          if (data?.signedUrl) {
-            urlCache.set(attachment.path!, {
-              url: data.signedUrl,
-              expiry: now + URL_EXPIRY_SECONDS * 1000,
-            });
-            setSignedUrl(data.signedUrl);
-          }
-        } catch (err) {
-          console.error("Failed to generate signed URL:", err);
-          setError(true);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      generateUrl();
+    if (!attachment.path) {
+      return;
     }
+
+    const generateUrl = async () => {
+      setLoading(true);
+      setError(false);
+
+      try {
+        // supabase client here carries the caller's auth session, so the
+        // signed URL is only ever minted for a request Storage/RLS has
+        // already authorized against the private chat-attachments bucket.
+        const { data, error: signError } = await supabase.storage
+          .from("chat-attachments")
+          .createSignedUrl(attachment.path!, SIGNED_URL_EXPIRY_SECONDS);
+
+        if (signError) throw signError;
+
+        if (!cancelled && data?.signedUrl) {
+          setSignedUrl(data.signedUrl);
+        }
+      } catch (err) {
+        console.error("Failed to generate signed URL:", err);
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    generateUrl();
+
+    return () => {
+      cancelled = true;
+    };
   }, [attachment.path, attachment.url]);
 
   if (loading) {

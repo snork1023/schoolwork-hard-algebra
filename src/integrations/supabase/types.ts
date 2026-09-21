@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -18,7 +43,7 @@ export type Database = {
         Row: {
           attachments: Json | null
           content: string
-          conversation_id: string | null
+          conversation_id: string
           created_at: string
           edited_at: string | null
           id: string
@@ -26,8 +51,8 @@ export type Database = {
         }
         Insert: {
           attachments?: Json | null
-          content: string
-          conversation_id?: string | null
+          content?: string
+          conversation_id: string
           created_at?: string
           edited_at?: string | null
           id?: string
@@ -36,7 +61,7 @@ export type Database = {
         Update: {
           attachments?: Json | null
           content?: string
-          conversation_id?: string | null
+          conversation_id?: string
           created_at?: string
           edited_at?: string | null
           id?: string
@@ -51,13 +76,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fk_chat_messages_profiles"
+            foreignKeyName: "chat_messages_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
+      }
+      chat_rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       conversation_participants: {
         Row: {
@@ -101,53 +144,42 @@ export type Database = {
           created_by: string
           id: string
           name: string | null
-          type: Database["public"]["Enums"]["conversation_type"]
+          type: string | null
         }
         Insert: {
           created_at?: string | null
           created_by: string
           id?: string
           name?: string | null
-          type: Database["public"]["Enums"]["conversation_type"]
+          type?: string | null
         }
         Update: {
           created_at?: string | null
           created_by?: string
           id?: string
           name?: string | null
-          type?: Database["public"]["Enums"]["conversation_type"]
+          type?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      custom_games: {
+      edge_rate_limit_counters: {
         Row: {
-          added_by: string
-          created_at: string
-          id: string
-          iframe_src: string
-          name: string
+          bucket: string
+          request_count: number
+          user_id: string
+          window_start: string
         }
         Insert: {
-          added_by: string
-          created_at?: string
-          id?: string
-          iframe_src: string
-          name: string
+          bucket: string
+          request_count?: number
+          user_id: string
+          window_start: string
         }
         Update: {
-          added_by?: string
-          created_at?: string
-          id?: string
-          iframe_src?: string
-          name?: string
+          bucket?: string
+          request_count?: number
+          user_id?: string
+          window_start?: string
         }
         Relationships: []
       }
@@ -179,13 +211,6 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_reactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -256,13 +281,6 @@ export type Database = {
             referencedRelation: "polls"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "poll_votes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       polls: {
@@ -305,13 +323,6 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "polls_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -360,39 +371,78 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_klipy_gifs_rate_limit:
+        | {
+            Args: never
+            Returns: {
+              allowed: boolean
+              hour_remaining: number
+              minute_remaining: number
+              retry_after_seconds: number
+            }[]
+          }
+        | {
+            Args: { p_user_id: string }
+            Returns: {
+              allowed: boolean
+              hour_remaining: number
+              minute_remaining: number
+              retry_after_seconds: number
+            }[]
+          }
+      cleanup_ai_rate_limits: { Args: never; Returns: number }
+      cleanup_klipy_rate_limits: { Args: never; Returns: number }
       consume_chat_request: {
-        Args: {
-          p_user_id: string
-          p_limit?: number
-          p_window_minutes?: number
-        }
+        Args: { p_limit?: number; p_user_id: string; p_window_minutes?: number }
         Returns: {
           allowed: boolean
-          used_count: number
-          resets_at: string | null
           limit_count: number
-          reservation_id: string | null
+          reservation_id: string
+          resets_at: string
+          used_count: number
         }[]
       }
-      release_chat_request: {
-        Args: { p_reservation_id: string }
-        Returns: boolean
+      consume_chat_request_fixed: {
+        Args: { p_limit?: number; p_user_id: string; p_window_minutes?: number }
+        Returns: {
+          allowed: boolean
+          limit_count: number
+          resets_at: string
+          used_count: number
+        }[]
+      }
+      consume_my_chat_request: {
+        Args: never
+        Returns: {
+          allowed: boolean
+          limit_count: number
+          reservation_id: string
+          resets_at: string
+          used_count: number
+        }[]
       }
       find_existing_dm: {
         Args: { user1_id: string; user2_id: string }
         Returns: string
       }
       get_chat_quota: {
-        Args: {
-          p_user_id: string
-          p_limit?: number
-          p_window_minutes?: number
-        }
+        Args: never
         Returns: {
           allowed: boolean
-          used_count: number
-          resets_at: string | null
           limit_count: number
+          remaining_messages: number
+          resets_at: string
+          used_count: number
+        }[]
+      }
+      get_my_chat_quota: {
+        Args: never
+        Returns: {
+          allowed: boolean
+          limit_count: number
+          remaining_messages: number
+          resets_at: string
+          used_count: number
         }[]
       }
       is_conversation_participant: {
@@ -401,6 +451,14 @@ export type Database = {
       }
       is_participant_in_attachment_conversation: {
         Args: { object_path: string }
+        Returns: boolean
+      }
+      release_chat_request: {
+        Args: { p_reservation_id: string }
+        Returns: boolean
+      }
+      release_my_chat_request: {
+        Args: { p_reservation_id: string }
         Returns: boolean
       }
     }
@@ -421,12 +479,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -450,11 +508,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -475,11 +533,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -500,11 +558,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -517,11 +575,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -531,6 +589,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       conversation_type: ["dm", "group"],
