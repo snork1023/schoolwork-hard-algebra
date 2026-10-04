@@ -86,6 +86,8 @@ const Switch: React.FC<SwitchProps> = ({
   const trackRef = useRef<HTMLSpanElement>(null);
   const grip = useRef<Grip | null>(null);
   const onRef = useRef(on);
+  // Keep pointer handlers synchronized with controlled state before commit.
+  // eslint-disable-next-line react-hooks/refs -- handlers need the latest value synchronously
   onRef.current = on;
   const skipClick = useRef(false);
   const autoId = useId();
@@ -143,7 +145,9 @@ const Switch: React.FC<SwitchProps> = ({
     };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      // Pointer capture may be unavailable if the pointer was already released.
+    }
     setDragging(true);
   };
   const move = (e: PointerEvent<HTMLButtonElement>) => {
@@ -166,7 +170,9 @@ const Switch: React.FC<SwitchProps> = ({
     grip.current = null;
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      // The browser may release pointer capture before this handler runs.
+    }
     if (cancelled) commit(g.onAtPress);
     else if (!g.moved) commit(!onRef.current);
     skipClick.current = true;

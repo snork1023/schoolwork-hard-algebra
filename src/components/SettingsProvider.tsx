@@ -184,8 +184,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<UserSettings>(loadFromLocalStorage);
   const [userId, setUserId] = useState<string | null>(null);
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   // Global panic key listener – directly navigates to the panic URL
   useEffect(() => {
@@ -247,7 +250,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     applyAccentColor(settings.accentColor);
-  }, []);
+  }, [settings.accentColor]);
 
   // Listen for auth and merge DB settings
   useEffect(() => {

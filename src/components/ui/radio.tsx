@@ -34,6 +34,7 @@ interface RadioProps
   defaultValue?: string;
   onChange?: (value: string, index: number) => void;
   size?: "sm" | "md" | "lg";
+  shape?: "circle" | "pill";
   gap?: number;
   swell?: number;
   barge?: number;
@@ -64,12 +65,55 @@ const spring = (
   mass,
 });
 
+type RadioMotionValues = {
+  x: ReturnType<typeof motionValue<number>>;
+  sx: ReturnType<typeof motionValue<number>>;
+  sy: ReturnType<typeof motionValue<number>>;
+};
+
+const RadioCircle = ({
+  values,
+  selected,
+  color,
+  label,
+  content,
+}: {
+  values: RadioMotionValues;
+  selected: boolean;
+  color?: string;
+  label?: ReactNode;
+  content?: ReactNode;
+}) => {
+  const transform = useTransform(
+    [values.x, values.sx, values.sy],
+    ([x, sx, sy]) => `translateX(${x}px) scale(${sx}, ${sy})`,
+  );
+
+  return (
+    <motion.span
+      className="radio__circle"
+      style={{
+        transform,
+        backgroundColor: color ?? "hsl(var(--muted))",
+      }}
+      data-on={selected ? "true" : "false"}
+    >
+      {content ? (
+        <span className="radio__content">{content}</span>
+      ) : (
+        label && !selected && <span className="radio__label">{label}</span>
+      )}
+    </motion.span>
+  );
+};
+
 const Radio = ({
   items,
   value,
   defaultValue,
   onChange,
   size = "md",
+  shape = "circle",
   gap = 8,
   swell = 0.18,
   barge = 4,
@@ -111,13 +155,7 @@ const Radio = ({
     Array<HTMLButtonElement | null>
   >([]);
 
-  const mvs = useRef<
-    Array<{
-      x: ReturnType<typeof motionValue<number>>;
-      sx: ReturnType<typeof motionValue<number>>;
-      sy: ReturnType<typeof motionValue<number>>;
-    }>
-  >([]);
+  const mvs = useRef<RadioMotionValues[]>([]);
 
   const applied = useRef(selectedIndex);
 
@@ -211,9 +249,9 @@ const Radio = ({
   useEffect(() => {
     return () => {
       mvs.current.forEach((mv) => {
-        mv?.x.destroy();
-        mv?.sx.destroy();
-        mv?.sy.destroy();
+        mv.x.destroy();
+        mv.sx.destroy();
+        mv.sy.destroy();
       });
     };
   }, []);
@@ -289,6 +327,7 @@ const Radio = ({
       data-disabled={
         disabled ? "" : undefined
       }
+      data-shape={shape}
       className={`radio ${className}`}
       style={
         {
@@ -297,16 +336,11 @@ const Radio = ({
         } as React.CSSProperties
       }
     >
+      {/* The motion values are lazily created for each option's animated child. */}
+      {/* eslint-disable-next-line react-hooks/refs -- create stable motion values for options */}
       {list.map((item, index) => {
-        const mv = mvFor(index);
         const selected =
           index === selectedIndex;
-
-        const transform = useTransform(
-          [mv.x, mv.sx, mv.sy],
-          ([x, sx, sy]) =>
-            `translateX(${x}px) scale(${sx}, ${sy})`
-        );
 
         return (
           <button
@@ -333,33 +367,13 @@ const Radio = ({
             }
             {...buttonProps}
           >
-            <motion.span
-              className="radio__circle"
-              style={{
-                transform,
-                backgroundColor:
-                  item.color ??
-                  "hsl(var(--muted))",
-              }}
-              data-on={
-                selected ? "true" : "false"
-              }
-            >
-              {item.content ? (
-                <span className="radio__content">
-                  {item.content}
-                </span>
-              ) : (
-                <>
-
-                  {item.label && !selected && (
-                    <span className="radio__label">
-                      {item.label}
-                    </span>
-                  )}
-                </>
-              )}
-            </motion.span>
+            <RadioCircle
+              values={mvFor(index)}
+              selected={selected}
+              color={item.color}
+              label={item.label}
+              content={item.content}
+            />
           </button>
         );
       })}

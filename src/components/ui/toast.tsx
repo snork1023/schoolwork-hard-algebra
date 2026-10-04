@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -212,17 +213,18 @@ const Toast: React.FC<ToastProps> = ({
   const phaseRef =
     useRef<ToastPhase>(phase);
 
-  phaseRef.current = phase;
-
   const latest =
     useRef<Latest>({} as Latest);
 
-  latest.current = {
-    onClose,
-    onAction,
-    slideMs,
-    inline
-  };
+  useLayoutEffect(() => {
+    phaseRef.current = phase;
+    latest.current = {
+      onClose,
+      onAction,
+      slideMs,
+      inline
+    };
+  }, [phase, onClose, onAction, slideMs, inline]);
 
   const y = useMotionValue(0);
   const fade = useMotionValue(1);
@@ -410,7 +412,7 @@ const Toast: React.FC<ToastProps> = ({
       syncFuse();
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [pauseOnHover]);
 
   useEffect(() => {
@@ -439,7 +441,7 @@ const Toast: React.FC<ToastProps> = ({
       anim.current?.cancel();
     };
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const swipeOut = (
@@ -511,7 +513,9 @@ const Toast: React.FC<ToastProps> = ({
       cardRef.current?.setPointerCapture(
         e.pointerId
       );
-    } catch {}
+    } catch {
+      // The pointer capture can already be released when the toast closes.
+    }
 
     y.stop();
 
@@ -612,7 +616,9 @@ const Toast: React.FC<ToastProps> = ({
       cardRef.current?.releasePointerCapture(
         e.pointerId
       );
-    } catch {}
+    } catch {
+      // Pointer capture is optional and may have been released by the browser.
+    }
 
     flags.current.interacting =
       false;

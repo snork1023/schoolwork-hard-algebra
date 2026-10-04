@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import { readFileSync } from "fs";
 import wispPlugin from "./scripts/wisp-vite-plugin.mjs";
@@ -13,7 +14,7 @@ export default defineConfig(() => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), wispPlugin({ path: "/wisp/" })],
+  plugins: [tailwindcss(), react(), wispPlugin({ path: "/wisp/" })],
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
   },

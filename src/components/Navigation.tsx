@@ -12,6 +12,10 @@ const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleAuthAction = async () => {
+    if (isSignupInProgress()) {
+      navigate("/chat");
+      return;
+    }
     if (isLoggedIn) {
       sessionStorage.removeItem(SIGNUP_IN_PROGRESS_KEY);
       await supabase.auth.signOut();
@@ -19,11 +23,6 @@ const Navigation = () => {
   };
 
   const handleNavigation = (path: string) => {
-    if (isSignupInProgress() && path !== "/auth") {
-      window.alert("Account must first be created before you can leave signup.");
-      navigate("/auth");
-      return;
-    }
     navigate(path);
   };
 

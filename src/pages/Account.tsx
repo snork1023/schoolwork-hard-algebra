@@ -431,7 +431,7 @@ const Account = () => {
         title: "Success",
         description: "Profile picture updated",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description: getUserFriendlyError(error),
@@ -469,7 +469,7 @@ const Account = () => {
         title: "Success",
         description: "Profile picture removed",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description: getUserFriendlyError(error),
@@ -480,9 +480,20 @@ const Account = () => {
     }
   };
 
-  const handleDeleteAccount = async () => {
+  // Cancels the hold-to-delete progress and resets the fill bar
+  const cancelDeleteHold = useCallback(() => {
+    if (deleteHoldFrameRef.current !== null) {
+      cancelAnimationFrame(deleteHoldFrameRef.current);
+      deleteHoldFrameRef.current = null;
+    }
+    deleteHoldStartRef.current = null;
+    deleteStartedRef.current = false;
+    setDeleteHoldProgress(0);
+  }, []);
+
+  const handleDeleteAccount = useCallback(async () => {
     if (!userId) return;
-    
+
     setLoading(true);
 
     const { error } = await supabase.functions.invoke("delete-account", {
@@ -508,20 +519,9 @@ const Account = () => {
       title: "Account Deleted",
       description: "Your account has been permanently deleted",
     });
-    
-    navigate("/auth");
-  };
 
-  // Cancels the hold-to-delete progress and resets the fill bar
-  const cancelDeleteHold = useCallback(() => {
-    if (deleteHoldFrameRef.current !== null) {
-      cancelAnimationFrame(deleteHoldFrameRef.current);
-      deleteHoldFrameRef.current = null;
-    }
-    deleteHoldStartRef.current = null;
-    deleteStartedRef.current = false;
-    setDeleteHoldProgress(0);
-  }, []);
+    navigate("/auth");
+  }, [userId, cancelDeleteHold, toast, navigate]);
 
   // Tracks a press-and-hold on the delete button; only fires the actual
   // deletion once the user has held for the full DELETE_HOLD_DURATION_MS
@@ -547,7 +547,7 @@ const Account = () => {
     };
 
     deleteHoldFrameRef.current = requestAnimationFrame(tick);
-  }, [loading]);
+  }, [loading, handleDeleteAccount]);
 
   // Reset hold progress whenever the delete dialog is closed
   const handleDeleteDialogChange = (open: boolean) => {
@@ -941,7 +941,7 @@ const Account = () => {
                             }}
                             className={cn(
                               buttonVariants({ variant: "destructive" }),
-                              "relative overflow-hidden select-none touch-none"
+                              "relative overflow-hidden select-none touch-none hover:scale-100 active:scale-100"
                             )}
                           >
                             <span

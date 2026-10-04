@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +9,7 @@ import Radio from "@/components/ui/radio";
 import { useState, useEffect, ChangeEvent } from "react";
 import { Link } from "react-router";
 import { useTheme } from "next-themes";
-import { Moon, Sun, ExternalLink } from "lucide-react";
+import { ExternalLink, Moon, Sun } from "lucide-react";
 import ColorPicker from "@/components/ColorPicker";
 import BackgroundEffectSettings from "@/components/BackgroundEffectSettings";
 import { ScrollRevealCard } from "@/components/ScrollRevealCard";
@@ -90,15 +90,10 @@ const Settings = () => {
   const [passcodeError, setPasscodeError] = useState(false);
   const [isListeningForKey, setIsListeningForKey] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   const isBehind =
     latestVersion !== null &&
     compareVersions(appVersion, latestVersion) < 0;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isListeningForKey) return;
@@ -316,41 +311,31 @@ const Settings = () => {
                         label="Theme"
                         description="Light or dark interface"
                       >
-                        <div
-                          role="radiogroup"
-                          aria-label="Theme"
-                          className="flex gap-2 w-full sm:w-auto"
-                        >
-                          {themeOptions.map(
-                            ({ value, label, Icon }) => {
-                              const active =
-                                mounted && theme === value;
-
-                              return (
-                                <button
-                                  key={value}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={active}
-                                  onClick={() =>
-                                    handleThemeChange(value)
-                                  }
-                                  className={cn(
-                                    "flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium",
-                                    "transition-colors duration-150",
-                                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                                    active
-                                      ? "border-primary bg-primary/10 text-foreground"
-                                      : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-                                  )}
-                                >
+                        <Radio
+                          items={themeOptions.map(
+                            ({ value, label, Icon }) => ({
+                              value,
+                              label,
+                              color: "hsl(var(--muted))",
+                              content: (
+                                <span className="flex items-center gap-1.5 text-xs font-semibold text-secondary-foreground">
                                   <Icon className="h-4 w-4" />
                                   {label}
-                                </button>
-                              );
-                            }
+                                </span>
+                              ),
+                            }),
                           )}
-                        </div>
+                          value={theme ?? "light"}
+                          onChange={(value) => {
+                            if (value === "light" || value === "dark") {
+                              handleThemeChange(value);
+                            }
+                          }}
+                          size="md"
+                          shape="pill"
+                          gap={8}
+                          ariaLabel="Theme"
+                        />
                       </SettingsRow>
 
                       <SettingsRow
@@ -454,96 +439,84 @@ const Settings = () => {
                         label="Disguise as"
                         description="What the browser tab will look like"
                       >
-                        <Select
+                        <Dropdown
+                          ariaLabel="Tab cloak"
+                          className="w-full sm:w-[200px]"
+                          options={[
+                            {
+                              value: "google-drive",
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  <img className="h-4 w-4 rounded-sm" src={GoogleDriveFavicon} alt="" />
+                                  <span>Google Drive</span>
+                                </div>
+                              ),
+                            },
+                            {
+                              value: "google",
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  <img className="h-4 w-4 rounded-sm" src={GoogleFavicon} alt="" />
+                                  <span>Google</span>
+                                </div>
+                              ),
+                            },
+                            {
+                              value: "google-docs",
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  <img className="h-4 w-4 rounded-sm" src={GoogleDocsFavicon} alt="" />
+                                  <span>Google Docs</span>
+                                </div>
+                              ),
+                            },
+                            {
+                              value: "google-slides",
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  <img className="h-4 w-4 rounded-sm" src={GoogleSlidesFavicon} alt="" />
+                                  <span>Google Slides</span>
+                                </div>
+                              ),
+                            },
+                            {
+                              value: "outlook",
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  <img className="h-4 w-4 rounded-sm" src={OutlookFavicon} alt="" />
+                                  <span>Outlook</span>
+                                </div>
+                              ),
+                            },
+                            {
+                              value: "clever",
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  <img className="h-4 w-4 rounded-sm" src={CleverFavicon} alt="" />
+                                  <span>Clever</span>
+                                </div>
+                              ),
+                            },
+                            {
+                              value: "custom",
+                              label: (
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-muted text-[10px]">
+                                    C
+                                  </span>
+                                  <span>Custom</span>
+                                </div>
+                              ),
+                            },
+                          ]}
                           value={settings.tabCloak}
-                          onValueChange={(value) =>
+                          onChange={(value) =>
                             updateSettings({
                               tabCloak:
                                 value as TabCloakOption,
                             })
                           }
-                        >
-                          <SelectTrigger className="bg-background w-full sm:w-[200px]">
-                            <SelectValue placeholder="Select a tab cloak" />
-                          </SelectTrigger>
-
-                          <SelectContent>
-                            <SelectItem value="google-drive">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  className="h-4 w-4 rounded-sm"
-                                  src={GoogleDriveFavicon}
-                                  alt=""
-                                />
-                                <span>Google Drive</span>
-                              </div>
-                            </SelectItem>
-
-                            <SelectItem value="google">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  className="h-4 w-4 rounded-sm"
-                                  src={GoogleFavicon}
-                                  alt=""
-                                />
-                                <span>Google</span>
-                              </div>
-                            </SelectItem>
-
-                            <SelectItem value="google-docs">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  className="h-4 w-4 rounded-sm"
-                                  src={GoogleDocsFavicon}
-                                  alt=""
-                                />
-                                <span>Google Docs</span>
-                              </div>
-                            </SelectItem>
-
-                            <SelectItem value="google-slides">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  className="h-4 w-4 rounded-sm"
-                                  src={GoogleSlidesFavicon}
-                                  alt=""
-                                />
-                                <span>Google Slides</span>
-                              </div>
-                            </SelectItem>
-
-                            <SelectItem value="outlook">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  className="h-4 w-4 rounded-sm"
-                                  src={OutlookFavicon}
-                                  alt=""
-                                />
-                                <span>Outlook</span>
-                              </div>
-                            </SelectItem>
-
-                            <SelectItem value="clever">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  className="h-4 w-4 rounded-sm"
-                                  src={CleverFavicon}
-                                  alt=""
-                                />
-                                <span>Clever</span>
-                              </div>
-                            </SelectItem>
-
-                            <SelectItem value="custom">
-                              <div className="flex items-center gap-2">
-                                <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-muted text-[10px]">
-                                  C
-                                </span>
-                                <span>Custom</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                        />
                       </SettingsRow>
 
                       {settings.tabCloak === 'custom' && (

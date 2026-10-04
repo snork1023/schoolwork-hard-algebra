@@ -77,6 +77,8 @@ function Slider({
   const scale = useMotionValue(1);
 
   useEffect(() => {
+    // The slider keeps an interactive local value but follows its default when changed externally.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync externally updated slider value
     setValue(defaultValue);
   }, [defaultValue]);
 

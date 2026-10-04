@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router";
-import { useEffect, type ReactNode } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router";
+import { useEffect, useState, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
 import Background from "@/components/Background";
@@ -20,9 +20,49 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import BrowserView from "./components/BrowserView";
+import SiteDissolveEffect from "./components/SiteDissolveEffect";
+import SplashCursor from "./components/SplashCursor";
 import { isSignupInProgress } from "@/lib/signup-flow";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const queryClient = new QueryClient();
+const SPLASH_CURSOR_ACTIVE_KEY = "kepler-splash-cursor-active";
+
+const SplashCursorGate = () => {
+  const [isActive, setIsActive] = useState(
+    () => window.localStorage.getItem(SPLASH_CURSOR_ACTIVE_KEY) === "true",
+  );
+
+  useEffect(() => {
+    const setActive = (active: boolean) => {
+      window.localStorage.setItem(SPLASH_CURSOR_ACTIVE_KEY, String(active));
+      setIsActive(active);
+      window.dispatchEvent(new CustomEvent("kepler-splash-cursor-state", { detail: active }));
+    };
+    const activate = () => setActive(true);
+    const toggle = () => {
+      setActive(window.localStorage.getItem(SPLASH_CURSOR_ACTIVE_KEY) !== "true");
+    };
+    window.addEventListener("kepler-show-splash-cursor", activate);
+    window.addEventListener("kepler-toggle-splash-cursor", toggle);
+    window.addEventListener("kepler-constellation-solved", activate);
+    return () => {
+      window.removeEventListener("kepler-show-splash-cursor", activate);
+      window.removeEventListener("kepler-toggle-splash-cursor", toggle);
+      window.removeEventListener("kepler-constellation-solved", activate);
+    };
+  }, []);
+
+  return isActive ? <SplashCursor /> : null;
+};
 
 const Backgroundeffect = () => {
   const { settings } = useSettingsContext();
@@ -40,17 +80,38 @@ const NavigationGate = () => {
 
 const SignupRouteGuard = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const shouldBlock = location.pathname !== "/auth" && isSignupInProgress();
+  const showSignupReminder = location.state?.signupReminder === true;
 
   useEffect(() => {
     if (!shouldBlock) return;
-    window.alert("Account must first be created before you can leave signup.");
-    window.history.replaceState(null, "", "/auth");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, [shouldBlock]);
+    navigate("/auth", { replace: true, state: { signupReminder: true } });
+  }, [navigate, shouldBlock]);
 
-  if (shouldBlock) return null;
-  return children;
+  return (
+    <>
+      {shouldBlock ? null : children}
+      <AlertDialog
+        open={showSignupReminder}
+        onOpenChange={(open) => {
+          if (!open) navigate("/auth", { replace: true, state: null });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish creating your account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Complete account setup before leaving onboarding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Continue setup</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 };
 
 const App = () => (
@@ -63,6 +124,8 @@ const App = () => (
           <BrowserRouter>
             <Backgroundeffect />
             <NavigationGate />
+            <SiteDissolveEffect />
+            <SplashCursorGate />
             <div className="relative" style={{ zIndex: 1 }}>
             <SignupRouteGuard>
             <Routes>

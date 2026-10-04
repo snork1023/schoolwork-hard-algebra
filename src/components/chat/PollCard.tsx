@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BarChart3, Check, Users, Trash2 } from "lucide-react";
@@ -40,15 +40,19 @@ export const PollCard = ({ poll, currentUserId, votes, onVotesChange, creatorUse
   const [loading, setLoading] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
 
-  const userVotes = votes.filter(v => v.user_id === currentUserId);
+  const userVotes = useMemo(
+    () => votes.filter(v => v.user_id === currentUserId),
+    [votes, currentUserId],
+  );
   const hasVoted = userVotes.length > 0;
   const totalVoters = new Set(votes.map(v => v.user_id)).size;
   const isCreator = poll.created_by === currentUserId;
 
   useEffect(() => {
     // Pre-select user's existing votes
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror server-provided votes into selection state
     setSelectedOptions(userVotes.map(v => v.option_index));
-  }, [votes, currentUserId]);
+  }, [userVotes]);
 
   const getVotesForOption = (index: number) => {
     return votes.filter(v => v.option_index === index).length;

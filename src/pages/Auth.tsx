@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 import { Link, useNavigate } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CodeSlots, { type CodeSlotsStatus } from "@/components/ui/codeslots";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Check, X, Camera, User, LogIn, UserPlus } from "lucide-react";
@@ -10,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { loadHCaptcha, waitForHCaptcha } from "@/lib/hcaptcha-loader";
@@ -68,48 +69,52 @@ const resetPasswordSchema = z.object({
 // Assumes the container stays mounted for the lifetime of the component
 // (visibility toggled with CSS, not conditional render) since hcaptcha.render()
 // injects DOM that React doesn't manage, and unmount/remount cycles break it.
-function useHCaptchaWidget(containerRef: React.RefObject<HTMLDivElement>) {
-  const [token, setToken] = useState<string | null>(null);
+function useHCaptchaWidget(
+  containerRef: React.RefObject<HTMLDivElement>,
+  theme: "light" | "dark",
+) {
+  const [captchaState, setCaptchaState] = useState<{
+    token: string | null;
+    theme: "light" | "dark";
+  }>(() => ({ token: null, theme }));
   const widgetIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    const tryRender = () => {
-      if (cancelled || widgetIdRef.current !== null) return;
-      if (!containerRef.current) {
-        requestAnimationFrame(tryRender);
-        return;
-      }
-      waitForHCaptcha().then((hcaptcha) => {
-        if (cancelled || widgetIdRef.current !== null || !HCAPTCHA_SITEKEY) return;
-        const id = hcaptcha.render(containerRef.current!, {
-          sitekey: HCAPTCHA_SITEKEY,
-          callback: (t: string) => setToken(t),
-          "expired-callback": () => setToken(null),
-          "error-callback": () => setToken(null),
-        });
-        widgetIdRef.current = id;
-      });
-    };
+    const container = containerRef.current;
+    if (!container) return;
 
     loadHCaptcha();
-    tryRender();
+    waitForHCaptcha().then((hcaptcha) => {
+      if (cancelled || widgetIdRef.current !== null || !HCAPTCHA_SITEKEY) return;
+      const id = hcaptcha.render(container, {
+        sitekey: HCAPTCHA_SITEKEY,
+        theme,
+        callback: (t: string) => setCaptchaState({ token: t, theme }),
+        "expired-callback": () => setCaptchaState({ token: null, theme }),
+        "error-callback": () => setCaptchaState({ token: null, theme }),
+      });
+      widgetIdRef.current = id;
+    });
 
     return () => {
       cancelled = true;
+      if (widgetIdRef.current !== null) {
+        window.hcaptcha?.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+      container.replaceChildren();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [containerRef, theme]);
 
   const reset = () => {
-    setToken(null);
+    setCaptchaState({ token: null, theme });
     if (widgetIdRef.current !== null) {
       waitForHCaptcha().then((hcaptcha) => hcaptcha.reset(widgetIdRef.current));
     }
   };
 
-  return { token, reset };
+  return { token: captchaState.theme === theme ? captchaState.token : null, reset };
 }
 
 function PasswordRequirement({
@@ -166,11 +171,17 @@ const isSafeImagePreviewUrl = (value: string | null): value is string => {
 };
 
 const Auth = () => {
+  const { resolvedTheme, theme: selectedTheme } = useTheme();
+  const captchaTheme = resolvedTheme === "dark" || (!resolvedTheme && selectedTheme === "dark")
+    ? "dark"
+    : "light";
+
   // Sign-up: which step of the request-otp -> verify-otp -> set-password flow we're on
   const [signUpStep, setSignUpStep] = useState<"request" | "otp" | "password" | "username">("request");
   const [signUpUsername, setSignUpUsername] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpOtp, setSignUpOtp] = useState("");
+  const [signUpOtpStatus, setSignUpOtpStatus] = useState<CodeSlotsStatus>("idle");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpAgreementChecked, setSignUpAgreementChecked] = useState(false);
   const [signUpResendCooldown, setSignUpResendCooldown] = useState(0);
@@ -186,6 +197,7 @@ const Auth = () => {
   const [resetStep, setResetStep] = useState<"request" | "otp" | "password">("request");
   const [resetEmail, setResetEmail] = useState("");
   const [resetOtp, setResetOtp] = useState("");
+  const [resetOtpStatus, setResetOtpStatus] = useState<CodeSlotsStatus>("idle");
   const [resetPassword, setResetPassword] = useState("");
   const [resetResendCooldown, setResetResendCooldown] = useState(0);
   const [showResetResendModal, setShowResetResendModal] = useState(false);
@@ -227,6 +239,8 @@ const Auth = () => {
 
   // Controlled so we can animate a sliding indicator behind the active tab
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
+  const isSignUpSetup = activeTab === "signup" && signUpStep !== "request";
+  const hideAuthHeader = showOnboarding || isSignUpSetup;
 
   // hCaptcha containers + state. Each "request an OTP" action (sign-up send,
   // sign-up resend, reset send, reset resend) gets its own widget rather than
@@ -240,11 +254,11 @@ const Auth = () => {
   const resetCaptchaRef = useRef<HTMLDivElement>(null);
   const resetResendCaptchaRef = useRef<HTMLDivElement>(null);
 
-  const signInCaptcha = useHCaptchaWidget(signInCaptchaRef);
-  const signUpCaptcha = useHCaptchaWidget(signUpCaptchaRef);
-  const signUpResendCaptcha = useHCaptchaWidget(signUpResendCaptchaRef);
-  const resetCaptcha = useHCaptchaWidget(resetCaptchaRef);
-  const resetResendCaptcha = useHCaptchaWidget(resetResendCaptchaRef);
+  const signInCaptcha = useHCaptchaWidget(signInCaptchaRef, captchaTheme);
+  const signUpCaptcha = useHCaptchaWidget(signUpCaptchaRef, captchaTheme);
+  const signUpResendCaptcha = useHCaptchaWidget(signUpResendCaptchaRef, captchaTheme);
+  const resetCaptcha = useHCaptchaWidget(resetCaptchaRef, captchaTheme);
+  const resetResendCaptcha = useHCaptchaWidget(resetResendCaptchaRef, captchaTheme);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -303,7 +317,7 @@ const Auth = () => {
       });
       if (error) throw error;
       toast({ title: "Welcome back!" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Sign in failed", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
       signInCaptcha.reset();
@@ -326,10 +340,11 @@ const Auth = () => {
       });
       if (error) throw error;
       setSignUpOtp("");
+      setSignUpOtpStatus("idle");
       setSignUpStep("otp");
       setSignUpResendCooldown(60);
       toast({ title: "Code sent", description: "Check your email for the 6-digit code." });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Error", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -364,6 +379,7 @@ const Auth = () => {
   useEffect(() => {
     if (!showSignUpResendModal || !signUpResendCaptcha.token) return;
     const token = signUpResendCaptcha.token;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- close before starting the one-shot resend request
     setShowSignUpResendModal(false);
     (async () => {
       await requestSignUpOtp(token, signUpEmail);
@@ -375,15 +391,15 @@ const Auth = () => {
   const handleChangeSignUpEmail = () => {
     setSignUpStep("request");
     setSignUpOtp("");
+    setSignUpOtpStatus("idle");
     setSignUpResendCooldown(0);
     setShowSignUpResendModal(false);
     signUpResendCaptcha.reset();
   };
 
   // ── Sign Up: step 2 — verify the OTP ──────────────────────────────────────────
-  const handleVerifySignUpOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = signUpOtp.trim();
+  const handleVerifySignUpOtp = async (submittedCode = signUpOtp) => {
+    const code = submittedCode.trim();
     if (code.length !== 6) {
       toast({ title: "Enter the 6-digit code", variant: "destructive" });
       return;
@@ -421,6 +437,7 @@ const Auth = () => {
           setSignUpStep("request");
           setSignUpEmail("");
           setSignUpOtp("");
+          setSignUpOtpStatus("idle");
           setSignInEmail(signUpEmail);
           setActiveTab("signin");
           return;
@@ -428,9 +445,11 @@ const Auth = () => {
       }
 
       sessionStorage.setItem(SIGNUP_IN_PROGRESS_KEY, "true");
+      setSignUpOtpStatus("success");
       setSignUpStep("password");
-    } catch (error: any) {
+    } catch (error: unknown) {
       skipAuthRedirectRef.current = false;
+      setSignUpOtpStatus("error");
       toast({ title: "Invalid code", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -496,7 +515,7 @@ const Auth = () => {
       setSignUpUsername(usernameValidation.data);
       setOnboardingStep("bio");
       setShowOnboarding(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Could not check username",
         description: getUserFriendlyError(error),
@@ -576,7 +595,7 @@ const Auth = () => {
       sessionStorage.removeItem(SIGNUP_IN_PROGRESS_KEY);
       skipAuthRedirectRef.current = false;
       navigate("/account");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description: getUserFriendlyError(error),
@@ -623,13 +642,13 @@ const Auth = () => {
     setOnboardingStep("avatar");
   };
 
-  const handleSaveOnboardingAvatar = async () => {
+  const handleCompleteOnboarding = async () => {
     setOnboardingLoading(true);
     try {
       await handleCreateAccount();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
-        title: "Could not save profile picture",
+        title: "Could not complete account setup",
         description: getUserFriendlyError(error),
         variant: "destructive",
       });
@@ -647,10 +666,11 @@ const Auth = () => {
       });
       if (error) throw error;
       setResetOtp("");
+      setResetOtpStatus("idle");
       setResetStep("otp");
       setResetResendCooldown(60);
       toast({ title: "Code sent", description: "Check your email for the 6-digit code." });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Error", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -684,6 +704,7 @@ const Auth = () => {
   useEffect(() => {
     if (!showResetResendModal || !resetResendCaptcha.token) return;
     const token = resetResendCaptcha.token;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- close before starting the one-shot resend request
     setShowResetResendModal(false);
     (async () => {
       await requestPasswordResetOtp(token, resetEmail);
@@ -695,6 +716,7 @@ const Auth = () => {
   const handleChangeResetEmail = () => {
     setResetStep("request");
     setResetOtp("");
+    setResetOtpStatus("idle");
     setResetResendCooldown(0);
     setShowResetResendModal(false);
     resetResendCaptcha.reset();
@@ -717,9 +739,11 @@ const Auth = () => {
         type: "recovery",
       });
       if (error) throw error;
+      setResetOtpStatus("success");
       setResetStep("password");
-    } catch (error: any) {
+    } catch (error: unknown) {
       skipAuthRedirectRef.current = false;
+      setResetOtpStatus("error");
       toast({ title: "Invalid code", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -732,6 +756,7 @@ const Auth = () => {
     setResetStep("request");
     setResetEmail("");
     setResetOtp("");
+    setResetOtpStatus("idle");
     setResetPassword("");
     setResetResendCooldown(0);
     setShowResetResendModal(false);
@@ -756,10 +781,11 @@ const Auth = () => {
       setResetStep("request");
       setResetEmail("");
       setResetOtp("");
+      setResetOtpStatus("idle");
       setResetPassword("");
       setShowResetResendModal(false);
       navigate("/chat");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Error", description: getUserFriendlyError(error), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -769,60 +795,46 @@ const Auth = () => {
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 pt-24 pb-12 flex items-center justify-center">
-        <Card className="w-full max-w-md border-black/10 bg-card/85 shadow-xl backdrop-blur-md dark:border-white/15 dark:bg-card/75">
-          <CardHeader>
-            <CardTitle>Authentication</CardTitle>
-            <CardDescription>Sign in or create an account</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(showOnboarding || signUpStep === "password" || signUpStep === "username") && (
-              <div className="mb-6 space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Account setup</span>
-                  <span>
-                    Step {showOnboarding ? (onboardingStep === "bio" ? 3 : 4) : signUpStep === "username" ? 2 : 1}/4
-                  </span>
-                </div>
-                <Progress
-                  value={(showOnboarding ? (onboardingStep === "bio" ? 3 : 4) : signUpStep === "username" ? 2 : 1) * 25}
-                  className="h-2 bg-muted/60"
-                />
-              </div>
-            )}
+        <Card className={`w-full ${showOnboarding ? "max-w-lg" : "max-w-md"} border-black/10 bg-card/85 shadow-xl backdrop-blur-md dark:border-white/15 dark:bg-card/75`}>
+          {!hideAuthHeader && (
+            <CardHeader>
+              <CardTitle>Authentication</CardTitle>
+              <CardDescription>Sign in or create an account</CardDescription>
+            </CardHeader>
+          )}
+          <CardContent className={hideAuthHeader ? "pt-6" : undefined}>
             {showOnboarding ? (
-              <div className="space-y-5">
-                <div className="space-y-2 border-b border-border/60 pb-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Profile setup</p>
+              <div className="space-y-6">
+                <div className="space-y-2 text-center">
                   <h2 className="text-2xl font-semibold tracking-tight">
-                    {onboardingStep === "bio" ? "Tell us about you" : "Choose your picture"}
+                    {onboardingStep === "bio" ? "Introduce yourself" : "Add a profile photo"}
                   </h2>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {onboardingStep === "bio"
-                      ? "Write a short bio to help people get to know you."
-                      : "Add a profile picture so people can recognize you."}
+                      ? "Give your profile a personal touch. You can always update this later."
+                      : "Help friends recognize you. This step is optional."}
                   </p>
                 </div>
 
                 {onboardingStep === "bio" ? (
                   <div className="space-y-2">
-                    <Label htmlFor="onboarding-bio">Bio</Label>
                     <Textarea
                       id="onboarding-bio"
                       value={onboardingBio}
                       onChange={(e) => setOnboardingBio(e.target.value)}
-                      placeholder="Tell people a little about yourself"
+                      placeholder="What are you into? Share a few words..."
                       maxLength={500}
-                      className="min-h-[110px] resize-none bg-background/25"
+                      className="min-h-[140px] resize-none rounded-xl bg-background/50"
                     />
-                    <p className="text-right text-xs text-muted-foreground">{onboardingBio.length}/500</p>
+                    <p className="text-right text-xs tabular-nums text-muted-foreground">{onboardingBio.length}/500</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-3 rounded-xl border border-black/10 bg-background/40 p-5 backdrop-blur-sm dark:border-white/10 dark:bg-background/25">
-                    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                  <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-primary/25 bg-muted/20 px-5 py-8">
+                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-gradient-to-br from-primary/15 to-accent/15 shadow-lg ring-1 ring-border">
                       {isSafeImagePreviewUrl(onboardingAvatarPreview) ? (
                         <img src={onboardingAvatarPreview} alt="Profile preview" className="h-full w-full object-cover" />
                       ) : (
-                        <User className="h-10 w-10 text-muted-foreground" />
+                        <User className="h-11 w-11 text-primary/60" />
                       )}
                     </div>
                     <input
@@ -835,51 +847,40 @@ const Auth = () => {
                     <Button type="button" variant="outline" asChild>
                       <label htmlFor="onboarding-avatar" className="cursor-pointer">
                         <Camera className="mr-2 h-4 w-4" />
-                        {onboardingAvatarFile ? "Change picture" : "Upload picture"}
+                        {onboardingAvatarFile ? "Choose a different photo" : "Choose a photo"}
                       </label>
                     </Button>
-                    <p className="text-xs text-muted-foreground">Optional · JPG, PNG, WEBP, or GIF · Max 5MB</p>
+                    <p className="text-center text-xs text-muted-foreground">JPG, PNG, WEBP, or GIF · Up to 5 MB</p>
                   </div>
                 )}
 
-                <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
-                    className="flex-1"
-                    onClick={onboardingStep === "bio" ? handleSaveOnboardingBio : handleSaveOnboardingAvatar}
-                    disabled={
-                      onboardingLoading ||
-                      (onboardingStep === "bio" && onboardingBio.trim().length === 0) ||
-                      (onboardingStep === "avatar" && !onboardingAvatarFile)
-                    }
+                    variant="ghost"
+                    className="sm:min-w-32"
+                    onClick={onboardingStep === "bio" ? handleCompleteOnboarding : () => setOnboardingStep("bio")}
+                    disabled={onboardingLoading}
                   >
-                    {onboardingLoading
-                      ? "Creating account..."
-                      : onboardingStep === "bio"
-                        ? "Continue"
-                        : onboardingAvatarFile
-                          ? "Create account"
-                          : "Create account"}
+                    {onboardingStep === "bio" ? "Skip profile setup" : "Back"}
                   </Button>
                   {onboardingStep === "bio" ? (
                     <Button
                       type="button"
-                      variant="outline"
-                      className="flex-1"
+                      className="sm:min-w-40"
                       onClick={() => setOnboardingStep("avatar")}
                       disabled={onboardingLoading}
                     >
-                      Do later
+                      Continue
                     </Button>
                   ) : (
                     <Button
                       type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={handleSaveOnboardingAvatar}
+                      className="sm:min-w-40"
+                      onClick={handleCompleteOnboarding}
                       disabled={onboardingLoading}
                     >
-                      Skip
+                      {onboardingLoading ? "Creating account..." : "Create account"}
                     </Button>
                   )}
                 </div>
@@ -895,8 +896,8 @@ const Auth = () => {
             <div className={`space-y-5 ${showResetForm ? "" : "hidden"}`}>
               {/* Step 1: email + captcha, request the code */}
               <form onSubmit={handleSendResetOtp} className={`space-y-4 ${resetStep === "request" ? "" : "hidden"}`}>
-                <div className="space-y-1">
-                  <Label htmlFor="reset-email">Email address</Label>
+                <div className="space-y-3">
+                  <Label htmlFor="reset-email" className="-translate-y-1">Email address</Label>
                   <Input
                     id="reset-email"
                     type="email"
@@ -926,18 +927,20 @@ const Auth = () => {
                   <span className="font-medium text-foreground">{resetEmail}</span>.
                 </p>
 
-                <div className="space-y-1">
-                  <Label htmlFor="reset-otp">Verification code</Label>
-                  <Input
+                <div className="space-y-3">
+                  <Label htmlFor="reset-otp" className="-translate-y-1">Verification code</Label>
+                  <CodeSlots
                     id="reset-otp"
-                    type="text"
-                    inputMode="numeric"
+                    name="reset-otp"
+                    length={6}
                     autoComplete="one-time-code"
-                    maxLength={6}
                     value={resetOtp}
-                    onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="123456"
-                    className="text-center text-lg tracking-[0.5em]"
+                    status={resetOtpStatus}
+                    onChange={(code) => {
+                      setResetOtp(code);
+                      setResetOtpStatus("idle");
+                    }}
+                    disabled={loading}
                     required
                   />
                 </div>
@@ -995,8 +998,8 @@ const Auth = () => {
 
               {/* Step 3: set the new password */}
               <form onSubmit={handleSetNewPassword} className={`space-y-4 ${resetStep === "password" ? "" : "hidden"}`}>
-                <div className="space-y-2">
-                  <Label htmlFor="reset-password">New password</Label>
+                <div className="space-y-3">
+                  <Label htmlFor="reset-password" className="-translate-y-1">New password</Label>
                   <div className="relative">
                     <Input
                       id="reset-password"
@@ -1043,7 +1046,7 @@ const Auth = () => {
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "signin" | "signup")}>
                 <TabsList
                   className={`relative grid h-12 w-full grid-cols-2 overflow-hidden rounded-xl border border-black/10 bg-background/45 p-1 backdrop-blur-sm dark:border-white/10 ${
-                    signUpStep === "password" || signUpStep === "username" ? "hidden" : ""
+                    signUpStep !== "request" ? "hidden" : ""
                   }`}
                 >
                   <div
@@ -1066,8 +1069,8 @@ const Auth = () => {
                 {/* ── Sign In ── */}
                 <TabsContent value="signin" forceMount className="data-[state=inactive]:hidden">
                   <form onSubmit={handleSignIn} className="space-y-5">
-                    <div className="space-y-1">
-                      <Label htmlFor="signin-email">Email</Label>
+                    <div className="space-y-3">
+                      <Label htmlFor="signin-email" className="-translate-y-1">Email</Label>
                       <Input
                         id="signin-email"
                         type="email"
@@ -1077,8 +1080,8 @@ const Auth = () => {
                         required
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="signin-password">Password</Label>
+                    <div className="space-y-3">
+                      <Label htmlFor="signin-password" className="-translate-y-1">Password</Label>
                       <div className="relative">
                         <Input
                           id="signin-password"
@@ -1134,8 +1137,8 @@ const Auth = () => {
                   <div className="space-y-5">
                     {/* Step 1: email + captcha, request the code */}
                     <form onSubmit={handleSendSignUpOtp} className={`space-y-5 ${signUpStep === "request" ? "" : "hidden"}`}>
-                      <div className="space-y-1">
-                        <Label htmlFor="signup-email">Email</Label>
+                      <div className="space-y-3">
+                        <Label htmlFor="signup-email" className="-translate-y-1">Email</Label>
                         <Input
                           id="signup-email"
                           type="email"
@@ -1154,31 +1157,33 @@ const Auth = () => {
                     </form>
 
                     {/* Step 2: enter the 6-digit code */}
-                    <form onSubmit={handleVerifySignUpOtp} className={`space-y-5 ${signUpStep === "otp" ? "" : "hidden"}`}>
-                      <p className="text-sm text-muted-foreground">
-                        Enter the 6-digit code sent to{" "}
-                        <span className="font-medium text-foreground">{signUpEmail}</span>.
-                      </p>
+                    <div className={`space-y-5 ${signUpStep === "otp" ? "" : "hidden"}`}>
+                      <div className="space-y-2 text-center">
+                        <h2 className="text-2xl font-semibold tracking-tight">Check your email</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Enter the 6-digit code sent to{" "}
+                          <span className="font-medium text-foreground">{signUpEmail}</span>.
+                        </p>
+                      </div>
 
                       <div className="space-y-1">
-                        <Label htmlFor="signup-otp">Verification code</Label>
-                        <Input
+                        <CodeSlots
                           id="signup-otp"
-                          type="text"
-                          inputMode="numeric"
+                          name="signup-otp"
+                          aria-label="6-digit verification code"
+                          length={6}
                           autoComplete="one-time-code"
-                          maxLength={6}
                           value={signUpOtp}
-                          onChange={(e) => setSignUpOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                          placeholder="123456"
-                          className="text-center text-lg tracking-[0.5em]"
+                          status={signUpOtpStatus}
+                          onChange={(code) => {
+                            setSignUpOtp(code);
+                            setSignUpOtpStatus("idle");
+                          }}
+                          onComplete={(code) => handleVerifySignUpOtp(code)}
+                          disabled={loading}
                           required
                         />
                       </div>
-
-                      <Button type="submit" className="w-full" disabled={loading || signUpOtp.length !== 6}>
-                        {loading ? "Verifying…" : "Verify Code"}
-                      </Button>
 
                       <div className="flex items-center justify-between text-sm">
                         <Button type="button" variant="link" className="px-0" onClick={handleChangeSignUpEmail}>
@@ -1194,7 +1199,7 @@ const Auth = () => {
                           {signUpResendCooldown > 0 ? `Resend code (${signUpResendCooldown}s)` : "Resend code"}
                         </Button>
                       </div>
-                    </form>
+                    </div>
 
                     {/* Resend captcha popup — always laid out at full size (never
                         display:none), just faded/disabled when closed, so hCaptcha
@@ -1224,8 +1229,15 @@ const Auth = () => {
 
                     {/* Step 3: password */}
                     <form onSubmit={handleSetSignUpPassword} className={`space-y-5 ${signUpStep === "password" ? "" : "hidden"}`}>
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-password">Password</Label>
+                      <div className="space-y-2 text-center">
+                        <h2 className="text-2xl font-semibold tracking-tight">Create a password</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Choose a secure password to protect your account.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label htmlFor="signup-password" className="-translate-y-1">Password</Label>
                         <div className="relative">
                           <Input
                             id="signup-password"
@@ -1291,14 +1303,18 @@ const Auth = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/20 p-4 transition-colors hover:bg-muted/35">
                         <Checkbox
                           id="signup-agreement"
                           checked={signUpAgreementChecked}
                           onCheckedChange={(v) => setSignUpAgreementChecked(v === true)}
+                          className="h-5 w-5 rounded-md"
                         />
-                        <Label htmlFor="signup-agreement" className="text-sm cursor-pointer">
-                          I have read, understood, and agree to Kepler's <Link to="/termsofservice" className="underline">Terms of Service</Link> and <Link to="/privacypolicy" className="underline">Privacy Policy</Link>.
+                        <Label htmlFor="signup-agreement" className="mb-0 cursor-pointer text-sm leading-relaxed">
+                          By creating an account, you agree to Kepler's{" "}
+                          <Link to="/termsofservice" target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-4">Terms of Service</Link>
+                          {" "}and{" "}
+                          <Link to="/privacypolicy" target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-4">Privacy Policy</Link>.
                         </Label>
                       </div>
 
@@ -1317,8 +1333,15 @@ const Auth = () => {
 
                     {/* Step 4: username */}
                     <form onSubmit={handleContinueWithUsername} className={`space-y-5 ${signUpStep === "username" ? "" : "hidden"}`}>
-                      <div className="space-y-1">
-                        <Label htmlFor="signup-username">Username</Label>
+                      <div className="space-y-2 text-center">
+                        <h2 className="text-2xl font-semibold tracking-tight">Choose a username</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Pick a name people can use to find you.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label htmlFor="signup-username" className="-translate-y-1">Username</Label>
                         <Input
                           id="signup-username"
                           type="text"

@@ -242,11 +242,13 @@ const Ai = () => {
 
   useEffect(() => {
     if (!authReady || !user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize remote quota after authentication
     syncQuotaFromServer();
   }, [authReady, user, syncQuotaFromServer]);
 
   useEffect(() => {
     if (!resetsAt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the countdown when no reset time exists
       setCountdown("");
       return;
     }
@@ -272,6 +274,7 @@ const Ai = () => {
 
   // Track whether the user is near the bottom of the transcript, so
   // streamed tokens don't yank them back down if they scrolled up to reread.
+  const hasMessages = messages.length > 0;
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -282,7 +285,7 @@ const Ai = () => {
     el.addEventListener("scroll", handleScroll);
     handleScroll();
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [messages.length > 0]);
+  }, [hasMessages]);
 
   useEffect(() => {
     if (!isNearBottom) return;
@@ -501,8 +504,6 @@ const Ai = () => {
 
   const remainingMessages = Math.max(0, limitMessages - usedMessages);
   const isUserWaitingForResponse = isLoading && messages[messages.length - 1]?.role === "user";
-  const hasMessages = messages.length > 0;
-
   if (!authReady) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3">

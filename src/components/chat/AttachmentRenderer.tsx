@@ -33,6 +33,7 @@ export const AttachmentRenderer = ({ attachment, onImageClick }: AttachmentRende
     // Legacy rows that only ever stored a public/direct URL (pre-migration
     // data). Nothing to sign here — just use what's there.
     if (attachment.url && !attachment.path) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync the legacy URL into the rendered image state
       setSignedUrl(attachment.url);
       return;
     }

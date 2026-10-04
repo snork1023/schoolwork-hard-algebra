@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Smile } from "lucide-react";
@@ -24,7 +24,35 @@ export const MessageReactions = ({ messageId, currentUserId, showTrigger = true 
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const { toast } = useToast();
 
+  const fetchReactions = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("message_reactions")
+      .select("id, emoji, user_id")
+      .eq("message_id", messageId);
+
+    if (error) {
+      console.error("Error fetching reactions:", error);
+      return;
+    }
+
+    const grouped = data.reduce((acc: Record<string, Reaction>, reaction) => {
+      if (!acc[reaction.emoji]) {
+        acc[reaction.emoji] = {
+          id: reaction.id,
+          emoji: reaction.emoji,
+          user_id: reaction.user_id,
+          count: 0,
+        };
+      }
+      acc[reaction.emoji].count++;
+      return acc;
+    }, {});
+
+    setReactions(Object.values(grouped));
+  }, [messageId]);
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchReactions();
 
     const channel = supabase
@@ -46,35 +74,7 @@ export const MessageReactions = ({ messageId, currentUserId, showTrigger = true 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [messageId]);
-
-  const fetchReactions = async () => {
-    const { data, error } = await supabase
-      .from("message_reactions")
-      .select("id, emoji, user_id")
-      .eq("message_id", messageId);
-
-    if (error) {
-      console.error("Error fetching reactions:", error);
-      return;
-    }
-
-    // Group reactions by emoji
-    const grouped = data.reduce((acc: Record<string, Reaction>, reaction) => {
-      if (!acc[reaction.emoji]) {
-        acc[reaction.emoji] = {
-          id: reaction.id,
-          emoji: reaction.emoji,
-          user_id: reaction.user_id,
-          count: 0,
-        };
-      }
-      acc[reaction.emoji].count++;
-      return acc;
-    }, {});
-
-    setReactions(Object.values(grouped));
-  };
+  }, [fetchReactions, messageId]);
 
   const handleReaction = async (emoji: string) => {
     // Check if user already reacted with this emoji

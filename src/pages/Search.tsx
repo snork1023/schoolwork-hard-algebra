@@ -45,6 +45,7 @@ const Search = () => {
     if (!query) return;
 
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale search state before starting the new request
     setError(null);
     setProxyUrl(null);
     setIsLoading(true);

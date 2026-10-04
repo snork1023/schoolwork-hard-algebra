@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,17 @@ const BrowserView = () => {
   const [loading, setLoading] = useState(true);
   const [addressBar, setAddressBar] = useState("");
   const [scramjetReady, setScramjetReady] = useState(false);
+  const [browserError, setBrowserError] = useState<string | null>(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
 
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number>(-1);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const syncHistoryAvailability = useCallback(() => {
+    setCanGoBack(historyIndexRef.current > 0);
+    setCanGoForward(historyIndexRef.current < historyRef.current.length - 1);
+  }, []);
 
   // Ensure Scramjet is initialized on mount
   useEffect(() => {
@@ -48,14 +55,14 @@ const BrowserView = () => {
 
   const decodedParam = decodeURIComponent(encodedUrl);
   const [displayUrl, setDisplayUrl] = useState(decodedParam);
-  const [browserError, setBrowserError] = useState<string | null>(null);
 
   useEffect(() => {
     if (decodedParam && historyIndexRef.current === -1) {
       historyRef.current.push(decodedParam);
       historyIndexRef.current = 0;
+      syncHistoryAvailability();
     }
-  }, [decodedParam]);
+  }, [decodedParam, syncHistoryAvailability]);
 
   useEffect(() => {
     if (!iframeRef.current?.contentWindow || loading) return;
@@ -113,6 +120,7 @@ const BrowserView = () => {
       historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
       historyRef.current.push(proxied);
       historyIndexRef.current++;
+      syncHistoryAvailability();
 
       navigate(`/browser?url=${encodeURIComponent(proxied)}`);
       setLoading(true);
@@ -127,6 +135,7 @@ const BrowserView = () => {
     if (historyIndexRef.current > 0) {
       historyIndexRef.current--;
       const prev = historyRef.current[historyIndexRef.current];
+      syncHistoryAvailability();
       navigate(`/browser?url=${encodeURIComponent(prev)}`);
       setLoading(true);
       setReloadKey((k) => k + 1);
@@ -137,6 +146,7 @@ const BrowserView = () => {
     if (historyIndexRef.current < historyRef.current.length - 1) {
       historyIndexRef.current++;
       const next = historyRef.current[historyIndexRef.current];
+      syncHistoryAvailability();
       navigate(`/browser?url=${encodeURIComponent(next)}`);
       setLoading(true);
       setReloadKey((k) => k + 1);
@@ -157,7 +167,7 @@ const BrowserView = () => {
       link.href = cloak.favicon;
       document.head.appendChild(link);
     }
-  }, [settings.tabCloak, settings.customTabTitle, settings.customFavicon]);
+  }, [settings]);
 
   return (
     <div className="h-screen flex flex-col">
@@ -174,7 +184,7 @@ const BrowserView = () => {
 
         <div className="flex items-center gap-2 px-2">
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goBack} disabled={historyIndexRef.current <= 0}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goBack} disabled={!canGoBack}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <Button
@@ -182,7 +192,7 @@ const BrowserView = () => {
               size="icon"
               className="h-8 w-8"
               onClick={goForward}
-              disabled={historyIndexRef.current >= historyRef.current.length - 1}
+              disabled={!canGoForward}
             >
               <ArrowRight className="w-4 h-4" />
             </Button>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,18 +40,6 @@ const CreateConversationDialog = ({
   const {
     toast
   } = useToast();
-  useEffect(() => {
-    if (open) {
-      fetchUsers();
-      setSelectedUsers([]);
-      setSearchQuery("");
-      setFilteredUsers([]);
-      setHasSearched(false);
-      setActiveTab("dm");
-      setGroupName("");
-    }
-  }, [open]);
-
   const handleSearch = () => {
     setHasSearched(true);
     if (!searchQuery.trim()) {
@@ -80,7 +68,7 @@ const CreateConversationDialog = ({
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     // Only fetch users who are discoverable (allow message requests)
     const {
       data,
@@ -95,6 +83,24 @@ const CreateConversationDialog = ({
     } else {
       setUsers(data || []);
     }
+  }, [currentUserId, toast]);
+
+  useEffect(() => {
+    // Fetching profiles is an external synchronization; the callback updates state when it resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (open) fetchUsers();
+  }, [open, fetchUsers]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setSelectedUsers([]);
+      setSearchQuery("");
+      setFilteredUsers([]);
+      setHasSearched(false);
+      setActiveTab("dm");
+      setGroupName("");
+    }
+    onOpenChange(nextOpen);
   };
 
   const addUser = (user: Profile) => {
@@ -141,7 +147,7 @@ const CreateConversationDialog = ({
       let existingDmId: string | null = null;
       if (existingConvs) {
         for (const conv of existingConvs) {
-          const participantIds = (conv.conversation_participants as any[]).map(p => p.user_id);
+          const participantIds = conv.conversation_participants.map(p => p.user_id);
           if (participantIds.length === 2 && participantIds.includes(currentUserId) && participantIds.includes(targetUserId)) {
             existingDmId = conv.id;
             break;
@@ -184,7 +190,7 @@ const CreateConversationDialog = ({
       });
       onConversationCreated();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error creating DM",
         description: getUserFriendlyError(error),
@@ -243,7 +249,7 @@ const CreateConversationDialog = ({
       });
       onConversationCreated();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error creating group",
         description: getUserFriendlyError(error),
@@ -253,7 +259,7 @@ const CreateConversationDialog = ({
       setLoading(false);
     }
   };
-  return <Dialog open={open} onOpenChange={onOpenChange}>
+  return <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md rounded-3xl border border-black/10 bg-card/75 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-card/75">
         <DialogHeader>
           <DialogTitle>Create New Chat</DialogTitle>

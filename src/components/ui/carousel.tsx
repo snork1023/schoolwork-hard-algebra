@@ -93,6 +93,7 @@ const Carousel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
         return;
       }
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize the parent's selected index with the carousel
       onSelect(api);
       api.on("reInit", onSelect);
       api.on("select", onSelect);

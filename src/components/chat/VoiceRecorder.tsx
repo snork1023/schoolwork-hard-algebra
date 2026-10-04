@@ -129,7 +129,7 @@ export const VoiceRecorderInline = ({
       ];
 
       const chosenMime =
-        preferredTypes.find((t) => (window as any).MediaRecorder?.isTypeSupported?.(t)) ||
+        preferredTypes.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ||
         "";
 
       const mimeType = chosenMime || "audio/webm";
@@ -157,9 +157,9 @@ export const VoiceRecorderInline = ({
         }
       };
 
-      mediaRecorder.onerror = (e: any) => {
+      mediaRecorder.onerror = (e: Event) => {
         console.error("MediaRecorder error:", e);
-        pushDebug("error", `MediaRecorder error: ${String(e?.message || e)}`);
+        pushDebug("error", `MediaRecorder error: ${String(e)}`);
       };
 
       mediaRecorder.onstop = () => {
@@ -187,7 +187,7 @@ export const VoiceRecorderInline = ({
       }, 1000);
 
       updateVisualization();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const desc = getUserFriendlyError(error);
       pushDebug("error", `Mic permission/recording failed: ${desc}`);
       setLastError(desc);
@@ -319,7 +319,7 @@ export const VoiceRecorderInline = ({
           duration,
         });
         pushDebug("done", "DB insert OK");
-       } catch (dbError: any) {
+       } catch (dbError: unknown) {
          const desc = getUserFriendlyError(dbError);
          pushDebug("error", `DB insert failed: ${desc}`);
          setLastError(desc);
@@ -333,20 +333,29 @@ export const VoiceRecorderInline = ({
         audioRef.current = null;
       }
       onClose();
-      } catch (uploadErr: any) {
+      } catch (uploadErr: unknown) {
         // NOTE: Supabase storage errors can be vague; keep both user-friendly + raw details.
         const desc = getUserFriendlyError(uploadErr);
-        const status = uploadErr?.status || uploadErr?.cause?.status;
+        const uploadError =
+          typeof uploadErr === "object" && uploadErr !== null
+            ? uploadErr as Record<string, unknown>
+            : {};
+        const cause =
+          typeof uploadError.cause === "object" && uploadError.cause !== null
+            ? uploadError.cause as Record<string, unknown>
+            : {};
+        const status = uploadError.status || cause.status;
+        const message = typeof uploadError.message === "string" ? uploadError.message : "";
         const raw = (() => {
           try {
             return JSON.stringify(
               {
-                name: uploadErr?.name,
+                name: uploadError.name,
                 status,
-                message: uploadErr?.message,
-                details: uploadErr?.details,
-                hint: uploadErr?.hint,
-                code: uploadErr?.code,
+                message: uploadError.message,
+                details: uploadError.details,
+                hint: uploadError.hint,
+                code: uploadError.code,
               },
               null,
               0
@@ -359,7 +368,7 @@ export const VoiceRecorderInline = ({
         const isAuth =
           status === 401 ||
           status === 403 ||
-          /jwt|permission|auth/i.test(String(uploadErr?.message || ""));
+          /jwt|permission|auth/i.test(message);
 
         pushDebug("error", `Upload failed${status ? ` (${status})` : ""}: ${desc}`);
         pushDebug("error", `Upload raw: ${raw}`);

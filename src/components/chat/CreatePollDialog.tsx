@@ -12,6 +12,7 @@ import Switch from "@/components/ui/switch";
 import { Plus, X, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 interface CreatePollDialogProps {
   open: boolean;
@@ -87,10 +88,10 @@ export const CreatePollDialog = ({
       toast({ title: "Poll created!" });
       resetForm();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ 
         title: "Failed to create poll", 
-        description: error.message,
+        description: getUserFriendlyError(error),
         variant: "destructive" 
       });
     } finally {
@@ -159,7 +160,7 @@ export const CreatePollDialog = ({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label htmlFor="multiple" className="cursor-pointer">
+              <Label htmlFor="multiple" className="mb-0 cursor-pointer">
                 Allow multiple votes
               </Label>
               <Switch
@@ -168,7 +169,7 @@ export const CreatePollDialog = ({
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="anonymous" className="cursor-pointer">
+              <Label htmlFor="anonymous" className="mb-0 cursor-pointer">
                 Anonymous voting
               </Label>
               <Switch

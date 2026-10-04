@@ -40,6 +40,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.radio[data-shape="pill"] .radio__chip {
+  width: auto;
+}
+
 .radio__chip:disabled {
   opacity: 1 !important;
   cursor: pointer;
@@ -70,6 +74,19 @@
     border-color 150ms ease,
     box-shadow 150ms ease,
     filter 150ms ease;
+}
+
+.radio[data-shape="pill"] .radio__circle {
+  width: auto;
+  min-width: var(--radio-size);
+  padding: 0 12px;
+  border-radius: 9999px;
+}
+
+.radio[data-shape="pill"] .radio__content {
+  width: auto;
+  height: auto;
+  white-space: nowrap;
 }
 
 .radio__chip:hover .radio__circle {

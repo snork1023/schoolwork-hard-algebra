@@ -32,6 +32,7 @@ const RenameConversationDialog = ({
 
   useEffect(() => {
     if (conversation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initialize the dialog draft from the selected conversation
       setName(conversation.name || "");
     }
   }, [conversation]);
@@ -60,7 +61,7 @@ const RenameConversationDialog = ({
       toast({ title: "Conversation renamed successfully" });
       onRenamed();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error renaming conversation",
         description: getUserFriendlyError(error),

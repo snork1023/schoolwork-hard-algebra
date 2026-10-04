@@ -292,7 +292,7 @@ const Chat = () => {
       }
 
       // Normalize attachments (can arrive as JSON, stringified JSON, or null)
-      let parsedAttachments: any = (payload.new as any).attachments;
+      let parsedAttachments: unknown = payload.new.attachments;
       if (typeof parsedAttachments === "string") {
         try {
           parsedAttachments = JSON.parse(parsedAttachments);
@@ -320,7 +320,7 @@ const Chat = () => {
       event: 'sync'
     }, () => {
       const state = presenceChannel.presenceState();
-      const typing = Object.values(state).flat().filter((presence: any) => presence.typing && presence.user_id !== user.id).map((presence: any) => presence.username);
+      const typing = Object.values(state).flat().filter((presence) => presence.typing && presence.user_id !== user.id).map((presence) => presence.username);
       setTypingUsers(typing);
     }).subscribe();
     return () => {
@@ -356,7 +356,7 @@ const Chat = () => {
         event: "*",
         schema: "public",
         table: "poll_votes"
-      }, (payload: any) => {
+      }, (payload) => {
         const pollId = payload.new?.poll_id || payload.old?.poll_id;
         if (!pollId || polls.some(p => p.id === pollId)) {
           fetchPollVotesForConversation();
@@ -370,7 +370,7 @@ const Chat = () => {
     };
   }, [selectedConversationId]);
 
-  const fetchPolls = async () => {
+  async function fetchPolls() {
     if (!selectedConversationId) return;
     
     const { data } = await supabase
@@ -399,9 +399,8 @@ const Chat = () => {
         }
       }
     }
-  };
-
-  const fetchPollVotesForConversation = async () => {
+  }
+  async function fetchPollVotesForConversation() {
     if (!selectedConversationId) return;
     
     // Get all poll IDs for this conversation first
@@ -421,8 +420,8 @@ const Chat = () => {
     if (data) {
       setPollVotes(data as PollVote[]);
     }
-  };
-  const fetchParticipantCount = async () => {
+  }
+  async function fetchParticipantCount() {
     if (!selectedConversationId) return;
     const {
       count,
@@ -434,8 +433,8 @@ const Chat = () => {
     if (!error && count !== null) {
       setParticipantCount(count);
     }
-  };
-  const fetchConversations = async () => {
+  }
+  async function fetchConversations() {
     if (!user) return;
 
     // First get conversation IDs where user is a participant
@@ -477,13 +476,13 @@ const Chat = () => {
         variant: "destructive"
       });
     } else {
-      const formattedConversations = (data || []).map((conv: any) => ({
+      const formattedConversations = (data || []).map((conv) => ({
         id: conv.id,
         name: conv.name,
         type: conv.type,
         created_at: conv.created_at,
         created_by: conv.created_by,
-        participants: (conv.conversation_participants || []).filter((p: any) => p.user_id !== user?.id).map((p: any) => ({
+        participants: (conv.conversation_participants || []).filter((p) => p.user_id !== user?.id).map((p) => ({
           username: p.profiles?.username || "Unknown",
           user_id: p.user_id,
           status: p.profiles?.status || 'offline',
@@ -492,8 +491,8 @@ const Chat = () => {
       }));
       setConversations(formattedConversations);
     }
-  };
-  const fetchMessages = async () => {
+  }
+  async function fetchMessages() {
     if (!selectedConversationId || !user) return;
     const {
       data,
@@ -516,7 +515,7 @@ const Chat = () => {
         variant: "destructive"
       });
     } else {
-      const formattedMessages = (data || []).map((msg: any) => {
+      const formattedMessages = (data || []).map((msg) => {
         // Handle attachments that may be a string (double-stringified) or array
         let parsedAttachments = msg.attachments;
         if (typeof parsedAttachments === 'string') {
@@ -529,7 +528,7 @@ const Chat = () => {
         return {
           ...msg,
           attachments: Array.isArray(parsedAttachments) ? parsedAttachments : []
-        };
+        }
       });
       setMessages(formattedMessages);
 
@@ -604,7 +603,7 @@ const Chat = () => {
         user_id: user.id,
         typing: false
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error sending message",
         description: getUserFriendlyError(error),
@@ -634,7 +633,7 @@ const Chat = () => {
         setSelectedConversationId(null);
       }
       fetchConversations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting conversation",
         description: getUserFriendlyError(error),
@@ -660,7 +659,7 @@ const Chat = () => {
         setSelectedConversationId(null);
       }
       fetchConversations();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error leaving conversation",
         description: getUserFriendlyError(error),
@@ -687,7 +686,7 @@ const Chat = () => {
       toast({
         title: "Message updated"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating message",
         description: getUserFriendlyError(error),
@@ -707,7 +706,7 @@ const Chat = () => {
       toast({
         title: "Message deleted"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting message",
         description: getUserFriendlyError(error),
@@ -1006,7 +1005,7 @@ const Chat = () => {
                           attachments: files
                         });
                         if (error) throw error;
-                      } catch (error: any) {
+                      } catch (error: unknown) {
                         toast({
                           title: "Error sending voice message",
                           description: getUserFriendlyError(error),

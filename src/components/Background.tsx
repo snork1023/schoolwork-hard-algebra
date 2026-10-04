@@ -16,7 +16,7 @@ const Background = () => {
 
   return (
     <div
-      className="fixed top-0 left-0 w-screen h-screen pointer-events-none overflow-hidden blur-[var(--veil-blur,0px)] brightness-[var(--veil-brightness-light,1)] dark:brightness-[var(--veil-brightness-dark,1)]"
+      className="fixed top-0 left-0 w-screen h-screen pointer-events-none overflow-hidden"
       style={{ zIndex: 0 }}
     >
       <DarkVeil

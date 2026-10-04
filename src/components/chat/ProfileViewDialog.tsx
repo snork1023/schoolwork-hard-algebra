@@ -68,7 +68,7 @@ export const ProfileViewDialog = ({ open, onOpenChange, userId, currentUserId, o
       let existingDmId: string | null = null;
       if (existingConvs) {
         for (const conv of existingConvs) {
-          const participantIds = (conv.conversation_participants as any[]).map(p => p.user_id);
+          const participantIds = conv.conversation_participants.map(p => p.user_id);
           if (participantIds.length === 2 && 
               participantIds.includes(currentUserId) && 
               participantIds.includes(userId)) {
@@ -114,7 +114,7 @@ export const ProfileViewDialog = ({ open, onOpenChange, userId, currentUserId, o
       });
       onConversationCreated?.();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error creating DM",
         description: getUserFriendlyError(error),

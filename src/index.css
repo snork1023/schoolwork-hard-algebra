@@ -1,8 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "../tailwind.config.ts";
+@import "tailwindcss";
 
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
@@ -89,10 +88,18 @@ All colors MUST be HSL.
   }
 }
 
+html.dark iframe[src*="hcaptcha.com"] {
+  filter: brightness(0.82);
+}
+
 @layer base {
 
   html {
     scrollbar-gutter: stable;
+  }
+
+  html body[data-scroll-locked] {
+    padding-right: 0 !important;
   }
 
   * {

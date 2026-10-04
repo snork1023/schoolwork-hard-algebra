@@ -131,7 +131,7 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
       setSelectedFiles([]);
       selectedFiles.forEach(({ preview }) => URL.revokeObjectURL(preview));
       setIsOpen(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Upload failed",
         description: getUserFriendlyError(error),

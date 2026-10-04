@@ -15,6 +15,19 @@ type GifResult = {
   thumbnail: string;
 };
 
+type GiphyResponse = {
+  data?: Array<{
+    id: string;
+    title?: string;
+    images?: {
+      original?: { url?: string };
+      downsized?: { url?: string };
+      fixed_width_small?: { url?: string };
+      preview_gif?: { url?: string };
+    };
+  }>;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -83,8 +96,8 @@ serve(async (req) => {
       throw new Error(`Giphy API error ${res.status}: ${text.slice(0, 200)}`);
     }
 
-    const data = await res.json();
-    const gifs: GifResult[] = (data.data || []).map((item: any) => ({
+    const data: GiphyResponse = await res.json();
+    const gifs: GifResult[] = (data.data || []).map((item) => ({
       id: item.id,
       title: item.title || "GIF",
       url: item.images?.original?.url || item.images?.downsized?.url || "",
@@ -99,7 +112,7 @@ serve(async (req) => {
         "Cache-Control": "public, max-age=60",
       },
     });
-  } catch (e) {
+  } catch (e: unknown) {
     console.error("gif-search error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),

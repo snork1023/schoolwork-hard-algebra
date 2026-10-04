@@ -48,6 +48,9 @@ const getThemeMode = (): ThemeMode => {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 };
 
+const BACKGROUND_FPS = 30;
+const BACKGROUND_RESOLUTION_SCALE = 0.8;
+
 const vertex = `
 attribute vec2 position;
 void main(){gl_Position=vec4(position,0.0,1.0);}
@@ -107,6 +110,7 @@ vec4 cppn_fn(vec2 coordinate,float in0,float in1,float in2){
 void mainImage(out vec4 fragColor,in vec2 fragCoord){
     vec2 uv=fragCoord/uResolution.xy*2.-1.;
     uv.y*=-1.;
+    uv.y+=-0.8;
     uv+=uWarp*vec2(sin(uv.y*6.283+uTime*0.5),cos(uv.x*6.283+uTime*0.5))*0.05;
     fragColor=cppn_fn(uv,0.1*sin(0.3*uTime),0.1*sin(0.69*uTime),0.1*sin(0.44*uTime));
 }
@@ -131,7 +135,7 @@ export default function DarkVeil({
   speed = 0.5,
   scanlineFrequency: scanlineFrequencyProp,
   warpAmount: warpAmountProp,
-  resolutionScale = 1,
+  resolutionScale = BACKGROUND_RESOLUTION_SCALE,
 }: DarkVeilProps) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const programRef = useRef<Program | null>(null);
@@ -192,7 +196,7 @@ export default function DarkVeil({
     if (!parent) return;
 
     const renderer = new Renderer({
-      dpr: Math.min(window.devicePixelRatio, 2),
+      dpr: resolutionScale,
       canvas,
     });
 
@@ -211,26 +215,48 @@ export default function DarkVeil({
     const resize = () => {
       const w = (window.innerWidth + 20);
       const h = (window.innerHeight + 20);
-      renderer.setSize(w * resolutionScale, h * resolutionScale);
-      program.uniforms.uResolution.value.set(w, h);
+      renderer.setSize(w, h);
+      program.uniforms.uResolution.value.set(w * resolutionScale, h * resolutionScale);
     };
 
     window.addEventListener("resize", resize);
     resize();
 
     const start = performance.now();
+    const frameInterval = 1000 / BACKGROUND_FPS;
+    let lastRender = 0;
     let frame = 0;
 
-    const loop = () => {
-      program.uniforms.uTime.value = ((performance.now() - start) / 1000) * speedRef.current;
-      renderer.render({ scene: mesh });
+    const loop = (now: number) => {
+      if (document.hidden) {
+        frame = 0;
+        return;
+      }
+
+      if (now - lastRender >= frameInterval) {
+        program.uniforms.uTime.value = ((now - start) / 1000) * speedRef.current;
+        renderer.render({ scene: mesh });
+        lastRender = now;
+      }
       frame = window.requestAnimationFrame(loop);
     };
 
-    loop();
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        window.cancelAnimationFrame(frame);
+        frame = 0;
+      } else if (!frame) {
+        lastRender = 0;
+        frame = window.requestAnimationFrame(loop);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    frame = window.requestAnimationFrame(loop);
 
     return () => {
-      cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("resize", resize);
       programRef.current = null;
     };

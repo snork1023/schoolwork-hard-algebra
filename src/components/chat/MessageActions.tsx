@@ -4,15 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Edit2, Trash2, Check, X, Smile } from "lucide-react";
 import { Info } from "lucide-react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
-} from "@/components/ui/dropdown-menu";
+  Dropdown,
+  DropdownContent,
+  DropdownItem,
+  DropdownTrigger,
+  DropdownSub,
+  DropdownSubTrigger,
+  DropdownSubContent,
+  DropdownPortal,
+} from "@/components/ui/dropdown";
 import { MoreVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +48,8 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
   const isEditing = controlledIsEditing ?? internalIsEditing;
 
   useEffect(() => {
+    // Discard the previous draft when the message content changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset draft from updated message props
     setEditContent(content);
   }, [content]);
 
@@ -178,8 +180,8 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
 
   return (
     <>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Dropdown>
+      <DropdownTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
@@ -187,15 +189,15 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
         >
           <MoreVertical className="h-4 w-4" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={8} className="z-50 min-w-[180px] rounded-2xl border border-border/60 bg-popover/80 p-1 shadow-2xl backdrop-blur-xl">
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="rounded-lg focus:bg-accent/80">
+      </DropdownTrigger>
+      <DropdownContent align="end" sideOffset={8} className="z-50 min-w-[180px] rounded-2xl border border-border/60 bg-popover/80 p-1 shadow-2xl backdrop-blur-xl">
+        <DropdownSub>
+          <DropdownSubTrigger className="rounded-lg focus:bg-accent/80">
             <Smile className="mr-2 h-4 w-4" />
             React
-          </DropdownMenuSubTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-popover/90 p-2 shadow-xl backdrop-blur-md">
+          </DropdownSubTrigger>
+          <DropdownPortal>
+            <DropdownSubContent className="rounded-xl border border-border/60 bg-popover/90 p-2 shadow-xl backdrop-blur-md">
               <div className="grid grid-cols-4 gap-1">
                 {COMMON_EMOJIS.map((emoji) => (
                   <Button
@@ -208,33 +210,33 @@ const MessageActions = ({ messageId, content, currentUserId, onEdit, onDelete, s
                   </Button>
                 ))}
               </div>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-        <DropdownMenuItem
+            </DropdownSubContent>
+          </DropdownPortal>
+        </DropdownSub>
+        <DropdownItem
           onSelect={() => setInfoOpen(true)}
           className="rounded-lg focus:bg-accent/80"
         >
           <Info className="mr-2 h-4 w-4" />
           Message info
-        </DropdownMenuItem>
+        </DropdownItem>
         {showEdit && (
-          <DropdownMenuItem onClick={() => updateEditingState(true)} className="rounded-lg focus:bg-accent/80">
+          <DropdownItem onClick={() => updateEditingState(true)} className="rounded-lg focus:bg-accent/80">
             <Edit2 className="mr-2 h-4 w-4" />
             Edit
-          </DropdownMenuItem>
+          </DropdownItem>
         )}
         {showDelete && (
-          <DropdownMenuItem
+          <DropdownItem
             onClick={handleDelete}
             className="rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
-          </DropdownMenuItem>
+          </DropdownItem>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownContent>
+    </Dropdown>
     <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
       <DialogContent className="max-w-sm border border-border/60 bg-card/90 shadow-xl backdrop-blur-md">
         <DialogHeader>

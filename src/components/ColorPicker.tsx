@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Plus } from "lucide-react";
@@ -96,6 +96,8 @@ export default function ColorPicker({ value, onChange, isSelected }: ColorPicker
   useEffect(() => {
     if (value) {
       const { h, s, l } = parseHslString(value);
+      // Keep the editable controls synchronized with the externally selected color.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync controlled color into local drag state
       setHue(h);
       setSaturation(s);
       setLightness(l);
@@ -103,14 +105,14 @@ export default function ColorPicker({ value, onChange, isSelected }: ColorPicker
     }
   }, [value]);
 
-  const updateColor = (h: number, s: number, l: number) => {
+  const updateColor = useCallback((h: number, s: number, l: number) => {
     setHue(h);
     setSaturation(s);
     setLightness(l);
     const hex = hslToHex(h, s, l);
     setHexInput(hex);
     onChange(`${h} ${s}% ${l}%`);
-  };
+  }, [onChange]);
 
   const handleShadeBoxClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!shadeBoxRef.current) return;
@@ -172,7 +174,7 @@ export default function ColorPicker({ value, onChange, isSelected }: ColorPicker
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDraggingShade, isDraggingHue, hue, saturation, lightness]);
+  }, [isDraggingShade, isDraggingHue, hue, saturation, lightness, updateColor]);
 
   const shadeX = saturation / 100;
   const shadeY = 1 - (lightness - (1 - saturation / 100) * 50) / 50;
