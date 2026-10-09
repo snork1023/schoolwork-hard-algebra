@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const require = createRequire(import.meta.url);
 const projectRoot = resolve(__dirname, "..");
-const publicDir = join(projectRoot, "public", "scram");
+const publicDir = join(projectRoot, "public");
 
 async function ensureDir(p) {
   if (!existsSync(p)) await mkdir(p, { recursive: true });
@@ -17,8 +17,7 @@ async function ensureDir(p) {
 function pkgDir(name) {
   const candidates = {
     "@mercuryworkshop/scramjet": "@mercuryworkshop/scramjet/path",
-    "@mercuryworkshop/bare-mux": "@mercuryworkshop/bare-mux",
-    "@mercuryworkshop/epoxy-transport": "@mercuryworkshop/epoxy-transport",
+    "@mercuryworkshop/scramjet-controller": "@mercuryworkshop/scramjet-controller",
   };
   const entry = candidates[name] || name;
   const resolved = require.resolve(entry, { paths: [projectRoot] });
@@ -47,16 +46,30 @@ async function copy(srcAbs, destRel) {
 async function main() {
   await ensureDir(publicDir);
   const scramDir = pkgDir("@mercuryworkshop/scramjet");
-  await copy(join(scramDir, "dist", "scramjet.all.js"), "scramjet.all.js");
-  await copy(join(scramDir, "dist", "scramjet.sync.js"), "scramjet.sync.js");
-  await copy(join(scramDir, "dist", "scramjet.wasm.wasm"), "scramjet.wasm.wasm");
+  await copy(join(scramDir, "dist", "scramjet.js"), "scram/scramjet.js");
+  await copy(join(scramDir, "dist", "scramjet.wasm"), "scram/scramjet.wasm");
 
-  const bareMuxDir = pkgDir("@mercuryworkshop/bare-mux");
-  await copy(join(bareMuxDir, "dist", "index.mjs"), "bare-mux/index.mjs");
-  await copy(join(bareMuxDir, "dist", "worker.js"), "bare-mux/worker.js");
+  const controllerDir = pkgDir("@mercuryworkshop/scramjet-controller");
+  await copy(
+    join(controllerDir, "dist", "controller.api.js"),
+    "controller/controller.api.js",
+  );
+  await copy(
+    join(controllerDir, "dist", "controller.inject.js"),
+    "controller/controller.inject.js",
+  );
+  await copy(
+    join(controllerDir, "dist", "controller.sw.js"),
+    "controller/controller.sw.js",
+  );
 
-  const epoxyDir = pkgDir("@mercuryworkshop/epoxy-transport");
-  await copy(join(epoxyDir, "dist", "index.mjs"), "epoxy/index.mjs");
+  const epoxyWasm = fileURLToPath(
+    import.meta.resolve("@mercuryworkshop/epoxy-tls"),
+  );
+  await copy(
+    join(dirname(epoxyWasm), "epoxy.wasm"),
+    "assets/epoxy.wasm",
+  );
 
   console.log(`[scram-assets] copied bundles to ${publicDir}`);
 }

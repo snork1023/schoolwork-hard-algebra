@@ -1,5 +1,5 @@
-import { useSettingsContext } from '@/components/SettingsProvider';
+import { useSettingsContext } from '@/components/providers/SettingsProvider';
 
-export type { UserSettings } from '@/components/SettingsProvider';
+export type { UserSettings } from '@/components/providers/SettingsProvider';
 
 export const useUserSettings = () => useSettingsContext();

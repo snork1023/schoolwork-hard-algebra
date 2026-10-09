@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
 import { Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { restoreGameStorage } from "@/lib/gameStorage";
 
 interface GameEntry {
   folder: string;
@@ -70,12 +71,18 @@ const Games = () => {
                 {filteredGames.map((game) =>
                   <button
                     key={game.folder}
-                    onClick={() =>
+                    onClick={() => {
+                      const url = `/games/${game.folder}/index.html`;
+                      try {
+                        restoreGameStorage(url);
+                      } catch (error) {
+                        console.error("[game-storage] Could not restore existing game progress:", error);
+                      }
                       setSelectedGame({
                         name: game.name,
-                        url: `/games/${game.folder}/index.html`
-                      })
-                    }
+                        url
+                      });
+                    }}
                     className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted animate-in fade-in duration-500"
                     title={game.name}>
                     <img

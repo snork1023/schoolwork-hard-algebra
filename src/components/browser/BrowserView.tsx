@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Frame } from "@mercuryworkshop/scramjet-controller";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { getTabCloakMetadata } from "@/components/SettingsProvider";
-import { buildProxiedUrl, decodeProxiedUrl, PROXY_PREFIX } from "@/lib/searchProxy";
+import { getTabCloakMetadata } from "@/components/providers/SettingsProvider";
+import { decodeProxiedUrl } from "@/lib/searchProxy";
 import { initScramjet } from "@/lib/scramjet";
 
 const BrowserView = () => {
@@ -13,9 +14,6 @@ const BrowserView = () => {
   const { settings } = useUserSettings();
 
   const encodedUrl = searchParams.get("url") || "";
-  const browserType = settings.browserType;
-
-  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [addressBar, setAddressBar] = useState("");
   const [scramjetReady, setScramjetReady] = useState(false);
@@ -26,6 +24,7 @@ const BrowserView = () => {
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number>(-1);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const frameRef = useRef<Frame | null>(null);
   const syncHistoryAvailability = useCallback(() => {
     setCanGoBack(historyIndexRef.current > 0);
     setCanGoForward(historyIndexRef.current < historyRef.current.length - 1);
@@ -53,16 +52,49 @@ const BrowserView = () => {
     };
   }, []);
 
-  const decodedParam = decodeURIComponent(encodedUrl);
-  const [displayUrl, setDisplayUrl] = useState(decodedParam);
+  const [displayUrl, setDisplayUrl] = useState("");
 
   useEffect(() => {
-    if (decodedParam && historyIndexRef.current === -1) {
-      historyRef.current.push(decodedParam);
+    if (encodedUrl && historyIndexRef.current === -1) {
+      historyRef.current.push(encodedUrl);
       historyIndexRef.current = 0;
       syncHistoryAvailability();
     }
-  }, [decodedParam, syncHistoryAvailability]);
+  }, [encodedUrl, syncHistoryAvailability]);
+
+  useEffect(() => {
+    if (!scramjetReady || !iframeRef.current || !encodedUrl) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const controller = await initScramjet();
+        if (cancelled || !iframeRef.current) return;
+
+        const iframe = iframeRef.current;
+        const frame = frameRef.current?.element === iframe
+          ? frameRef.current
+          : controller.createFrame(iframe);
+        frameRef.current = frame;
+
+        const target = await decodeProxiedUrl(encodedUrl);
+        if (cancelled) return;
+        frame.go(target);
+        setDisplayUrl(target);
+        setLoading(true);
+      } catch (err) {
+        console.error("[browser] frame navigation failed:", err);
+        if (!cancelled) {
+          setBrowserError("Could not open this page. Try entering the URL again.");
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [encodedUrl, scramjetReady]);
 
   useEffect(() => {
     if (!iframeRef.current?.contentWindow || loading) return;
@@ -71,8 +103,12 @@ const BrowserView = () => {
       try {
         const currentUrl = iframeRef.current?.contentWindow?.location.href;
         if (currentUrl && currentUrl !== displayUrl) {
-          setDisplayUrl(currentUrl);
-          setAddressBar(currentUrl);
+          void decodeProxiedUrl(currentUrl).then((decodedUrl) => {
+            setDisplayUrl(decodedUrl);
+            setAddressBar(decodedUrl);
+          }).catch((err: unknown) => {
+            console.error("[browser] failed to decode current URL:", err);
+          });
         }
       } catch {
         // Ignore errors accessing location
@@ -91,19 +127,6 @@ const BrowserView = () => {
     }
   })();
 
-  const getBrowserStyles = () => {
-    switch (browserType) {
-      case "firefox":
-        return { topBar: "bg-[#38383d]", urlBar: "bg-[#474749] text-white" };
-      case "safari":
-        return { topBar: "bg-[#f6f6f6] dark:bg-[#2d2d2d]", urlBar: "bg-white dark:bg-[#3d3d3d] text-foreground" };
-      case "edge":
-        return { topBar: "bg-[#e5e5e5] dark:bg-[#2d2d2d]", urlBar: "bg-white dark:bg-[#3d3d3d] text-foreground" };
-      default:
-        return { topBar: "bg-[#f1f3f4] dark:bg-[#202124]", urlBar: "bg-white dark:bg-[#303134] text-foreground" };
-    }
-  };
-
   const goToUrl = async (rawUrl: string) => {
     let target = rawUrl.trim();
     if (!/^https?:\/\//i.test(target)) {
@@ -111,20 +134,17 @@ const BrowserView = () => {
     }
 
     try {
-      // Ensure Scramjet is ready
-      if (!scramjetReady) {
-        await initScramjet();
-      }
-      
-      const proxied = await buildProxiedUrl(target);
+      await initScramjet();
+
       historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
-      historyRef.current.push(proxied);
+      historyRef.current.push(target);
       historyIndexRef.current++;
       syncHistoryAvailability();
 
-      navigate(`/browser?url=${encodeURIComponent(proxied)}`);
+      navigate(`/browser?url=${encodeURIComponent(target)}`);
       setLoading(true);
-      setReloadKey((k) => k + 1);
+      setDisplayUrl(target);
+      setAddressBar("");
     } catch (err) {
       console.error("[browser] proxy init failed:", err);
       setBrowserError("Could not start the proxy. Try refreshing the page.");
@@ -138,7 +158,6 @@ const BrowserView = () => {
       syncHistoryAvailability();
       navigate(`/browser?url=${encodeURIComponent(prev)}`);
       setLoading(true);
-      setReloadKey((k) => k + 1);
     }
   };
 
@@ -149,11 +168,8 @@ const BrowserView = () => {
       syncHistoryAvailability();
       navigate(`/browser?url=${encodeURIComponent(next)}`);
       setLoading(true);
-      setReloadKey((k) => k + 1);
     }
   };
-
-  const styles = getBrowserStyles();
 
   useEffect(() => {
     const cloak = getTabCloakMetadata(settings);
@@ -170,10 +186,10 @@ const BrowserView = () => {
   }, [settings]);
 
   return (
-    <div className="h-screen flex flex-col">
-      <div className={`${styles.topBar} border-b border-border p-2 space-y-2`}>
+    <div className="h-screen flex flex-col bg-background text-foreground">
+      <div className="bg-card border-b border-border p-2 space-y-2">
         <div className="flex items-center gap-1">
-          <div className={`${styles.urlBar} rounded-t-lg px-4 py-2 flex items-center gap-2 max-w-[200px]`}>
+          <div className="bg-muted text-foreground rounded-t-lg px-4 py-2 flex items-center gap-2 max-w-[200px]">
             <Lock className="w-3 h-3 text-muted-foreground" />
             <span className="text-sm truncate">{hostname}</span>
           </div>
@@ -200,7 +216,7 @@ const BrowserView = () => {
               className="h-8 w-8 px-0"
               onClick={() => {
                 setLoading(true);
-                setReloadKey((k) => k + 1);
+                frameRef.current?.reload();
               }}
             >
               <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -215,7 +231,7 @@ const BrowserView = () => {
             </Button>
           </div>
 
-          <div className={`${styles.urlBar} flex-1 rounded-full px-4 py-2 flex items-center gap-2`}>
+          <div className="bg-muted text-foreground flex-1 rounded-full px-4 py-2 flex items-center gap-2">
             <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
             <input
               type="text"
@@ -266,22 +282,11 @@ const BrowserView = () => {
         {scramjetReady && !browserError && (
           <iframe
             ref={iframeRef}
-            key={reloadKey}
-            src={/^(https?:\/\/)/i.test(decodedParam) ? decodedParam : `${window.location.origin}${decodedParam}`}
             className="w-full h-full border-0"
             title="Browser"
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-top-navigation allow-downloads"
             onLoad={async () => {
               setLoading(false);
-              if (iframeRef.current?.contentWindow) {
-                try {
-                  const currentUrl = iframeRef.current.contentWindow.location.href;
-                  setDisplayUrl(currentUrl);
-                  setAddressBar(currentUrl);
-                } catch {
-                  // Ignore errors accessing iframe location
-                }
-              }
             }}
             onError={() => {
               console.error("[browser] iframe load error");

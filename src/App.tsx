@@ -5,9 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
-import { SettingsProvider, useSettingsContext } from "@/components/SettingsProvider";
-import Background from "@/components/Background";
-import Navigation from "@/components/Navigation";
+import { SettingsProvider, useSettingsContext } from "@/components/providers/SettingsProvider";
+import Background from "@/components/background/Background";
+import Navigation from "@/components/layout/Navigation";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Ai from "./pages/Ai";
@@ -19,9 +19,9 @@ import Search from "./pages/Search";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
-import BrowserView from "./components/BrowserView";
-import SiteDissolveEffect from "./components/SiteDissolveEffect";
-import SplashCursor from "./components/SplashCursor";
+import BrowserView from "./components/browser/BrowserView";
+import SiteDissolveEffect from "./components/easteregg/SiteDissolveEffect";
+import SplashCursor from "./components/easteregg/SplashCursor";
 import { isSignupInProgress } from "@/lib/signup-flow";
 import {
   AlertDialog,
@@ -70,11 +70,12 @@ const Backgroundeffect = () => {
   return <Background />;
 };
 
-const DOCK_FREE_ROUTES = ["/browser", "/search", "/privacypolicy", "/termsofservice"];
+const DOCK_ENABLED_ROUTES = ["/", "/g", "/ai", "/chat", "/account", "/settings", "/auth"];
 
 const NavigationGate = () => {
   const location = useLocation();
-  if (DOCK_FREE_ROUTES.includes(location.pathname)) return null;
+  const pathname = location.pathname.replace(/\/+$/, "") || "/";
+  if (!DOCK_ENABLED_ROUTES.includes(pathname)) return null;
   return <Navigation />;
 };
 

@@ -1,5 +1,5 @@
 import DarkVeil from "./DarkVeil";
-import { useSettingsContext } from "@/components/SettingsProvider";
+import { useSettingsContext } from "@/components/providers/SettingsProvider";
 
 const FALLBACK_HUE = 263;
 

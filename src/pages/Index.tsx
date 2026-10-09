@@ -1,4 +1,4 @@
-import ProxyInput from "@/components/ProxyInput";
+import ProxyInput from "@/components/home/ProxyInput";
 import { useEffect, useState } from "react";
 import { Cookie } from "lucide-react";
 

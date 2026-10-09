@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import BorderGlow from "@/components/BorderGlow";
+import BorderGlow from "./BorderGlow";
 
 const ProxyInput = () => {
   const [query, setQuery] = useState("");

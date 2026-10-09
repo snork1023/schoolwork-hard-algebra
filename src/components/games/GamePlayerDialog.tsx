@@ -25,6 +25,33 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRootOverflow = root.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    root.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+
+    const preventOutsideScroll = (event: WheelEvent | TouchEvent) => {
+      const gameContainer = document.getElementById("game-container");
+      if (gameContainer && event.target instanceof Node && gameContainer.contains(event.target)) return;
+      event.preventDefault();
+    };
+
+    document.addEventListener("wheel", preventOutsideScroll, { capture: true, passive: false });
+    document.addEventListener("touchmove", preventOutsideScroll, { capture: true, passive: false });
+
+    return () => {
+      root.style.overflow = previousRootOverflow;
+      body.style.overflow = previousBodyOverflow;
+      document.removeEventListener("wheel", preventOutsideScroll, true);
+      document.removeEventListener("touchmove", preventOutsideScroll, true);
+    };
+  }, [open]);
+
   const handleReload = () => {
     setKey(prev => prev + 1);
   };
@@ -49,20 +76,18 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
   };
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={false}>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal forceMount>
-        {/* Custom overlay */}
-        <div
-          onClick={() => onOpenChange(false)}
-          className="fixed inset-0 z-50 transition-opacity duration-300"
-          style={{
-            backgroundColor: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            opacity: open ? 1 : 0,
-            pointerEvents: open ? "auto" : "none",
-          }}
-        />
+        {open && (
+          <DialogPrimitive.Overlay
+            className="fixed inset-0 z-50 transition-opacity duration-300"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          />
+        )}
         {open && (
           <DialogPrimitive.Content
             id="game-container"
@@ -123,9 +148,9 @@ const GamePlayerDialog = ({ open, onOpenChange, gameUrl, gameName }: GamePlayerD
                   ref={iframeRef}
                   src={gameUrl}
                   className="w-full h-full border-0"
+                  title={gameName}
                   sandbox="allow-same-origin allow-scripts allow-popups allow-pointer-lock allow-orientation-lock allow-forms allow-downloads allow-modals allow-top-navigation-by-user-activation"
                   allow="fullscreen; autoplay; clipboard-write; accelerometer; gyroscope; gamepad; cross-origin-isolated"
-                  allowFullScreen
                 />
               )}
             </div>

@@ -2,8 +2,8 @@ import React, {
   useEffect,
   useRef,
   useState,
+  type HTMLAttributes,
   type ReactNode,
-  type ButtonHTMLAttributes,
 } from "react";
 import {
   animate,
@@ -26,8 +26,8 @@ export type RadioValue = string | RadioItem;
 
 interface RadioProps
   extends Omit<
-    ButtonHTMLAttributes<HTMLButtonElement>,
-    "onChange" | "value"
+    HTMLAttributes<HTMLDivElement>,
+    "onChange"
   > {
   items: RadioValue[];
   value?: string;
@@ -45,6 +45,7 @@ interface RadioProps
   stiffness?: number;
   className?: string;
   ariaLabel?: string;
+  disabled?: boolean;
 }
 
 const SIZES = {
@@ -152,7 +153,7 @@ const Radio = ({
   const reduce = useReducedMotion();
 
   const itemRefs = useRef<
-    Array<HTMLButtonElement | null>
+    Array<HTMLDivElement | null>
   >([]);
 
   const mvs = useRef<RadioMotionValues[]>([]);
@@ -280,9 +281,13 @@ const Radio = ({
   };
 
   const handleKeyDown = (
-    event: React.KeyboardEvent<HTMLButtonElement>,
+    event: React.KeyboardEvent<HTMLDivElement>,
     index: number
   ) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
     let next = index;
 
     if (
@@ -343,22 +348,23 @@ const Radio = ({
           index === selectedIndex;
 
         return (
-          <button
+          <div
             key={item.value}
             ref={(el) => {
               itemRefs.current[index] = el;
             }}
-            type="button"
             role="radio"
             aria-checked={selected}
+            aria-disabled={
+              disabled || item.disabled ? true : undefined
+            }
             aria-label={
               typeof item.label === "string"
                 ? item.label
                 : item.value
             }
-            tabIndex={selected ? 0 : -1}
-            disabled={
-              disabled || !!item.disabled
+            tabIndex={
+              selected && !disabled && !item.disabled ? 0 : -1
             }
             className="radio__chip"
             onClick={() => commit(index)}
@@ -374,7 +380,7 @@ const Radio = ({
               label={item.label}
               content={item.content}
             />
-          </button>
+          </div>
         );
       })}
     </div>

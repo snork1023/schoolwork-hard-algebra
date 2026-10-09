@@ -11,7 +11,7 @@ import { Loader2, Camera, User, Eye, EyeOff, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router";
 import { useToast } from "@/hooks/use-toast";
-import { ScrollRevealCard } from "@/components/ScrollRevealCard";
+import { ScrollRevealCard } from "@/components/ui/scrollcard";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { z } from "zod";

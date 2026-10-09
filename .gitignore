@@ -13,6 +13,12 @@ dist-ssr
 *.local
 .env
 
+# Generated from the installed Scramjet and Epoxy packages.
+public/assets/epoxy.wasm
+public/controller/
+public/scram/scramjet.js
+public/scram/scramjet.wasm
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

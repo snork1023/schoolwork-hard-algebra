@@ -44,9 +44,10 @@
   width: auto;
 }
 
-.radio__chip:disabled {
+.radio__chip[aria-disabled="true"] {
   opacity: 1 !important;
   cursor: pointer;
+  pointer-events: none;
 }
 
 .radio__circle {

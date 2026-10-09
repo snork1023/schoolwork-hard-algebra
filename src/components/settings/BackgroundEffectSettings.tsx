@@ -1,4 +1,4 @@
-import ElasticSlider from "@/components/ElasticSlider";
+import ElasticSlider from "./ElasticSlider";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

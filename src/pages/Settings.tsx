@@ -10,12 +10,12 @@ import { useState, useEffect, ChangeEvent } from "react";
 import { Link } from "react-router";
 import { useTheme } from "next-themes";
 import { ExternalLink, Moon, Sun } from "lucide-react";
-import ColorPicker from "@/components/ColorPicker";
-import BackgroundEffectSettings from "@/components/BackgroundEffectSettings";
-import { ScrollRevealCard } from "@/components/ScrollRevealCard";
+import ColorPicker from "@/components/settings/ColorPicker";
+import BackgroundEffectSettings from "@/components/settings/BackgroundEffectSettings";
+import { ScrollRevealCard } from "@/components/ui/scrollcard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { getTabCloakMetadata, TabCloakOption } from "@/components/SettingsProvider";
+import { getTabCloakMetadata, TabCloakOption } from "@/components/providers/SettingsProvider";
 import { cn } from "@/lib/utils";
 import GoogleDriveFavicon from '@/assets/google-drive-favicon.svg';
 import GoogleFavicon from '@/assets/google-favicon.ico';
@@ -116,9 +116,11 @@ const Settings = () => {
       .catch(() => setLatestVersion(null));
   }, []);
 
-  const isCustomColor =
-    settings.customAccentColor &&
-    settings.accentColor === settings.customAccentColor;
+  const isCustomColor = Boolean(
+    (settings.customAccentColor &&
+      settings.accentColor === settings.customAccentColor) ||
+      !accentColors.some(({ value }) => value === settings.accentColor)
+  );
 
   const handleAccentColorChange = (value: string) => {
     updateSettings({ accentColor: value });
