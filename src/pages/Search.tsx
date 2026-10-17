@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { buildSearchTarget, decodeProxiedUrl } from "@/lib/searchProxy";
 import { initScramjet } from "@/lib/scramjet";
 import type { Frame } from "@mercuryworkshop/scramjet-controller";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/buttons/button";
 import { ArrowLeft, ArrowRight, Home, RotateCw } from "lucide-react";
 
 const Search = () => {

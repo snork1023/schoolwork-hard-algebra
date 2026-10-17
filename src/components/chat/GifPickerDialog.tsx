@@ -4,9 +4,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui/overlays/dialog";
+import { Input } from "@/components/ui/forms/input";
+import { ScrollArea } from "@/components/ui/layout/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Search } from "lucide-react";
 

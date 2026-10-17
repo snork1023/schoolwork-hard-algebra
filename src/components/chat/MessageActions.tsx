@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/buttons/button";
+import { Input } from "@/components/ui/forms/input";
 import { Edit2, Trash2, Check, X, Smile } from "lucide-react";
 import { Info } from "lucide-react";
 import {
@@ -12,11 +12,11 @@ import {
   DropdownSubTrigger,
   DropdownSubContent,
   DropdownPortal,
-} from "@/components/ui/dropdown";
+} from "@/components/ui/menus/dropdown";
 import { MoreVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/overlays/dialog";
 
 type MessageActionsProps = {
   messageId: string;

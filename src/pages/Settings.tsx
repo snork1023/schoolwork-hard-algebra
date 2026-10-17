@@ -1,21 +1,21 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Dropdown } from "@/components/ui/dropdown";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import Switch from '@/components/ui/switch';
-import Radio from "@/components/ui/radio";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/layout/card";
+import { Label } from "@/components/ui/forms/label";
+import { Dropdown } from "@/components/ui/menus/dropdown";
+import { Button } from "@/components/ui/buttons/button";
+import { Input } from "@/components/ui/forms/input";
+import { Skeleton } from "@/components/ui/feedback/skeleton";
+import Switch from '@/components/ui/buttons/switch';
+import Radio from "@/components/ui/buttons/radio";
 import { useState, useEffect, ChangeEvent } from "react";
 import { Link } from "react-router";
 import { useTheme } from "next-themes";
 import { ExternalLink, Moon, Sun } from "lucide-react";
-import ColorPicker from "@/components/settings/ColorPicker";
+import ColorPicker from "@/components/ui/buttons/ColorPicker";
 import BackgroundEffectSettings from "@/components/settings/BackgroundEffectSettings";
-import { ScrollRevealCard } from "@/components/ui/scrollcard";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollRevealCard } from "@/components/ui/data-display/scrollcard";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/overlays/dialog";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { getTabCloakMetadata, TabCloakOption } from "@/components/providers/SettingsProvider";
+import { getTabCloakMetadata, TabCloakOption } from "@/providers/SettingsProvider";
 import { cn } from "@/lib/utils";
 import GoogleDriveFavicon from '@/assets/google-drive-favicon.svg';
 import GoogleFavicon from '@/assets/google-favicon.ico';
@@ -802,7 +802,7 @@ const Settings = () => {
                       </a>
                     </SettingsRow>
 
-                    <SettingsRow label="Legal">
+                    <SettingsRow label="Legal" description="Terms of service and privacy policy">
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                         <Link
                           to="/termsofservice"

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/forms/input";
+import { Button } from "@/components/ui/buttons/button";
 import { Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import BorderGlow from "./BorderGlow";
+import BorderGlow from "@/components/effects/BorderGlow";
 
 const ProxyInput = () => {
   const [query, setQuery] = useState("");

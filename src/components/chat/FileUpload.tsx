@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/buttons/button";
 import { Plus, X, Image as ImageIcon, FileText, Video, Mic, BarChart3, Clock, Paperclip, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlays/popover";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { compressImageFile } from "@/lib/image-utils";
 import { VoiceRecorder } from "./VoiceRecorder";

@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/buttons/button";
+import { ScrollArea } from "@/components/ui/layout/scroll-area";
 import { Plus, MessageSquare, Users, Edit2, Trash2, LogOut } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/data-display/avatar";
 import { StatusIndicator, getStatusLabel, type Status } from "./StatusIndicator";
 import { StatusSelector } from "./StatusSelector";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/overlays/tooltip";
 
 type Conversation = {
   id: string;

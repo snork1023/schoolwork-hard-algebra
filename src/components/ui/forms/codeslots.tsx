@@ -2,7 +2,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { OTPInputContext } from "input-otp";
 
-import { InputOTP, InputOTPGroup } from "@/components/ui/input-otp";
+import { InputOTP, InputOTPGroup } from "@/components/ui/forms/input-otp";
 import { cn } from "@/lib/utils";
 
 export type CodeSlotsStatus = "idle" | "success" | "error";

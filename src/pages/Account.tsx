@@ -1,19 +1,24 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Button as StatefulButton } from "@/components/ui/stateful-button";
-import { Label } from "@/components/ui/label";
-import Switch from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/layout/card";
+import { Input } from "@/components/ui/forms/input";
+import { Button, buttonVariants } from "@/components/ui/buttons/button";
+import { Button as StatefulButton } from "@/components/ui/buttons/stateful-button";
+import { Label } from "@/components/ui/forms/label";
+import Switch from "@/components/ui/buttons/switch";
+import { Textarea } from "@/components/ui/forms/textarea";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/data-display/avatar";
+import CodeSlots, { type CodeSlotsStatus } from "@/components/ui/forms/codeslots";
+import PasswordGuide from "@/components/ui/forms/PasswordGuide";
+import { getPasswordChecks } from "@/components/ui/forms/password-rules";
+import HCaptchaWidget from "@/components/ui/forms/HCaptchaWidget";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, Camera, User, Eye, EyeOff, X } from "lucide-react";
+import { Loader2, Camera, User, Eye, EyeOff, X, ShieldCheck } from "lucide-react";
+import { useTheme } from "next-themes";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router";
 import { useToast } from "@/hooks/use-toast";
-import { ScrollRevealCard } from "@/components/ui/scrollcard";
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollRevealCard } from "@/components/ui/data-display/scrollcard";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/overlays/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/overlays/dialog";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
@@ -22,15 +27,24 @@ import { compressImageFile } from "@/lib/image-utils";
 const usernameSchema = z.string().trim().min(1, "Username is required").max(20, "Username must be 20 characters or less");
 
 const DELETE_HOLD_DURATION_MS = 3000;
+const DISCOVERABLE_SAVE_DELAY_MS = 15000;
+const discoverableStorageKey = (userId: string) => `pending-discoverable:${userId}`;
 
-// How long the save bar stays on screen after a successful save before it
-// starts fading out. The stateful button doesn't begin its checkmark
-// animation until our save promise resolves, and that animation itself takes
-// ~0.4s to play in, so this needs to comfortably exceed that or the check
-// gets cut off mid-animation.
+interface PendingDiscoverable {
+  value: boolean;
+  saveAt: number;
+}
+
+const isPendingDiscoverable = (value: unknown): value is PendingDiscoverable =>
+  typeof value === "object" &&
+  value !== null &&
+  "value" in value &&
+  typeof value.value === "boolean" &&
+  "saveAt" in value &&
+  typeof value.saveAt === "number" &&
+  Number.isFinite(value.saveAt);
+
 const SAVED_FLASH_VISIBLE_MS = 1400;
-// Length of the fade-out itself. Must match the duration-300 class below, or
-// the element will unmount before the transition finishes.
 const SAVED_FLASH_FADE_MS = 300;
 
 // A single settings row: label/description on the left, control on the right
@@ -56,18 +70,29 @@ const SettingsRow = ({
 
 const Account = () => {
   const [username, setUsername] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStep, setPasswordStep] = useState<"send" | "otp" | "password">("send");
+  const [passwordOtp, setPasswordOtp] = useState("");
+  const [passwordOtpStatus, setPasswordOtpStatus] = useState<CodeSlotsStatus>("idle");
+  const [passwordCaptchaToken, setPasswordCaptchaToken] = useState<string | null>(null);
+  const [passwordCaptchaAttempt, setPasswordCaptchaAttempt] = useState(0);
+  const [newPasswordFocused, setNewPasswordFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
   const [discoverable, setDiscoverable] = useState(true);
   const [discoverableLoading, setDiscoverableLoading] = useState(false);
+  const discoverableUpdateRef = useRef(false);
+  const discoverableSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [discoverableSaveAt, setDiscoverableSaveAt] = useState<number | null>(null);
+  const pendingDiscoverableRef = useRef(true);
+  const savedDiscoverableRef = useRef(true);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const profileSaveRef = useRef(false);
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
@@ -95,6 +120,17 @@ const Account = () => {
 
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
+  const captchaTheme = resolvedTheme === "dark" ? "dark" : "light";
+  const newPasswordChecks = getPasswordChecks(newPassword);
+  const newPasswordIsValid =
+    newPasswordChecks.length &&
+    newPasswordChecks.uppercase &&
+    newPasswordChecks.lowercase &&
+    newPasswordChecks.number &&
+    newPassword.length <= 64;
+  const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
+  const showNewPasswordRequirements = newPasswordFocused || newPassword.length > 0;
 
   const clearFlashTimers = useCallback(() => {
     if (flashHideTimeoutRef.current) {
@@ -118,11 +154,38 @@ const Account = () => {
       const savedBio = profile.bio || "";
       setUsername(savedUsername);
       setSavedProfile({ username: savedUsername, bio: savedBio });
-      setDiscoverable(profile.discoverable ?? true);
+      const savedDiscoverable = profile.discoverable ?? true;
+      savedDiscoverableRef.current = savedDiscoverable;
+      let pendingDiscoverable: PendingDiscoverable | null = null;
+      try {
+        const pendingValue = sessionStorage.getItem(discoverableStorageKey(uid));
+        if (pendingValue) {
+          const parsedValue: unknown = JSON.parse(pendingValue);
+          if (isPendingDiscoverable(parsedValue)) {
+            pendingDiscoverable = parsedValue;
+          } else {
+            sessionStorage.removeItem(discoverableStorageKey(uid));
+          }
+        }
+      } catch (error: unknown) {
+        toast({
+          title: "Error",
+          description: getUserFriendlyError(error),
+          variant: "destructive",
+        });
+      }
+      if (pendingDiscoverable) {
+        setDiscoverable(pendingDiscoverable.value);
+        pendingDiscoverableRef.current = pendingDiscoverable.value;
+        setDiscoverableSaveAt(pendingDiscoverable.saveAt);
+      } else {
+        setDiscoverable(savedDiscoverable);
+        pendingDiscoverableRef.current = savedDiscoverable;
+      }
       setBio(savedBio);
       setAvatarUrl(profile.avatar_url);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     let active = true;
@@ -169,189 +232,306 @@ const Account = () => {
     };
   }, [fetchProfile]);
 
-  const handleToggleDiscoverable = async (checked: boolean) => {
-    if (!userId) return;
-    
+  const sendDiscoverableUpdate = useCallback(async (uid: string) => {
+    if (discoverableUpdateRef.current) return;
+
+    discoverableSaveTimerRef.current = null;
+    discoverableUpdateRef.current = true;
     setDiscoverableLoading(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ discoverable: checked })
-      .eq("id", userId);
-    
-    setDiscoverableLoading(false);
-    
-    if (error) {
+    const valueToSave = pendingDiscoverableRef.current;
+    const clearPendingValue = () => {
+      try {
+        sessionStorage.removeItem(discoverableStorageKey(uid));
+      } catch (error: unknown) {
+        toast({
+          title: "Error",
+          description: getUserFriendlyError(error),
+          variant: "destructive",
+        });
+      }
+      setDiscoverableSaveAt(null);
+    };
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ discoverable: valueToSave })
+        .eq("id", uid);
+
+      if (error) throw error;
+      savedDiscoverableRef.current = valueToSave;
+      savedDiscoverableRef.current = valueToSave;
+      clearPendingValue();
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description: getUserFriendlyError(error),
         variant: "destructive",
       });
-    } else {
-      setDiscoverable(checked);
+      setDiscoverable(savedDiscoverableRef.current);
+      pendingDiscoverableRef.current = savedDiscoverableRef.current;
+      clearPendingValue();
+    } finally {
+      discoverableUpdateRef.current = false;
+      setDiscoverableLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!userId || discoverableSaveAt === null) return;
+
+    const remainingDelay = Math.max(0, discoverableSaveAt - Date.now());
+    discoverableSaveTimerRef.current = setTimeout(() => {
+      void sendDiscoverableUpdate(userId);
+    }, remainingDelay);
+    return () => {
+      if (discoverableSaveTimerRef.current) clearTimeout(discoverableSaveTimerRef.current);
+      discoverableSaveTimerRef.current = null;
+    };
+  }, [userId, discoverableSaveAt, sendDiscoverableUpdate]);
+
+  const handleToggleDiscoverable = (checked: boolean) => {
+    if (!userId || discoverableUpdateRef.current) return;
+
+    setDiscoverable(checked);
+    pendingDiscoverableRef.current = checked;
+    try {
+      const storedPending = sessionStorage.getItem(discoverableStorageKey(userId));
+      const parsedPending: unknown = storedPending ? JSON.parse(storedPending) : null;
+      const previousPending = isPendingDiscoverable(parsedPending) ? parsedPending : null;
+      const saveAt = previousPending
+        ? previousPending.saveAt
+        : Date.now() + DISCOVERABLE_SAVE_DELAY_MS;
+      sessionStorage.setItem(discoverableStorageKey(userId), JSON.stringify({ value: checked, saveAt }));
+      setDiscoverableSaveAt(saveAt);
+    } catch (error: unknown) {
       toast({
-        title: "Privacy updated",
-        description: checked 
-          ? "Others can now find you when creating new chats" 
-          : "You are now hidden from new chat searches",
+        title: "Error",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
       });
+      setDiscoverable(savedDiscoverableRef.current);
+      pendingDiscoverableRef.current = savedDiscoverableRef.current;
     }
   };
 
   // Single save action for the whole profile form (username + bio).
   const handleSaveProfile = async () => {
-    if (!userId) return;
+    if (!userId || profileSaveRef.current) return;
 
-    const updates: { username?: string; bio?: string } = {};
+    profileSaveRef.current = true;
+    setProfileSaving(true);
+    try {
+      const updates: { username?: string; bio?: string } = {};
 
-    const trimmedUsername = username.trim();
-    if (trimmedUsername !== savedProfile.username) {
-      const result = usernameSchema.safeParse(trimmedUsername);
-      if (!result.success) {
-        toast({
-          title: "Validation Error",
-          description: result.error.errors[0].message,
-          variant: "destructive",
-        });
-        return;
+      const trimmedUsername = username.trim();
+      if (trimmedUsername !== savedProfile.username) {
+        const result = usernameSchema.safeParse(trimmedUsername);
+        if (!result.success) {
+          toast({
+            title: "Validation Error",
+            description: result.error.errors[0].message,
+            variant: "destructive",
+          });
+          return;
+        }
+        updates.username = result.data;
       }
-      updates.username = result.data;
-    }
 
-    const trimmedBio = bio.trim();
-    if (trimmedBio !== savedProfile.bio) {
-      if (bio.length > 500) {
+      const trimmedBio = bio.trim();
+      if (trimmedBio !== savedProfile.bio) {
+        if (bio.length > 500) {
+          toast({
+            title: "Error",
+            description: "Bio must be 500 characters or less",
+            variant: "destructive",
+          });
+          return;
+        }
+        updates.bio = trimmedBio;
+      }
+
+      if (Object.keys(updates).length === 0) return;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", userId);
+
+      if (error) {
         toast({
           title: "Error",
-          description: "Bio must be 500 characters or less",
+          description: getUserFriendlyError(error),
           variant: "destructive",
         });
         return;
       }
-      updates.bio = trimmedBio;
-    }
 
-    if (Object.keys(updates).length === 0) return;
+      if (updates.username !== undefined) {
+        setUsername(updates.username);
+      }
+      if (updates.bio !== undefined) {
+        setBio(updates.bio);
+      }
+      setSavedProfile((profile) => ({
+        username: updates.username ?? profile.username,
+        bio: updates.bio ?? profile.bio,
+      }));
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", userId);
-
-    if (error) {
+      // The form is clean now, so profileDirty is about to go false. Hold the
+      // bar on screen anyway until the checkmark has had its moment, then fade.
+      clearFlashTimers();
+      setSavedFlash("visible");
+      flashHideTimeoutRef.current = setTimeout(() => {
+        setSavedFlash("fading");
+        flashUnmountTimeoutRef.current = setTimeout(() => {
+          setSavedFlash("none");
+        }, SAVED_FLASH_FADE_MS);
+      }, SAVED_FLASH_VISIBLE_MS);
+    } catch (error: unknown) {
       toast({
         title: "Error",
         description: getUserFriendlyError(error),
         variant: "destructive",
       });
+    } finally {
+      profileSaveRef.current = false;
+      setProfileSaving(false);
+    }
+  };
+
+  const handleSendPasswordOtp = async () => {
+    if (!userEmail) {
+      toast({
+        title: "Unable to send verification code",
+        description: "Your account email could not be found. Please sign in again and retry.",
+        variant: "destructive",
+      });
       return;
     }
 
-    if (updates.username !== undefined) {
-      setUsername(updates.username);
+    if (!passwordCaptchaToken) {
+      toast({
+        title: "Complete the CAPTCHA",
+        description: "Verify that you’re human before requesting a recovery code.",
+        variant: "destructive",
+      });
+      return;
     }
-    if (updates.bio !== undefined) {
-      setBio(updates.bio);
-    }
-    setSavedProfile((profile) => ({
-      username: updates.username ?? profile.username,
-      bio: updates.bio ?? profile.bio,
-    }));
 
-    // The form is clean now, so profileDirty is about to go false. Hold the
-    // bar on screen anyway until the checkmark has had its moment, then fade.
-    clearFlashTimers();
-    setSavedFlash("visible");
-    flashHideTimeoutRef.current = setTimeout(() => {
-      setSavedFlash("fading");
-      flashUnmountTimeoutRef.current = setTimeout(() => {
-        setSavedFlash("none");
-      }, SAVED_FLASH_FADE_MS);
-    }, SAVED_FLASH_VISIBLE_MS);
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+        captchaToken: passwordCaptchaToken,
+      });
+      if (error) throw error;
+
+      setPasswordCaptchaToken(null);
+      setPasswordOtp("");
+      setPasswordOtpStatus("idle");
+      setPasswordStep("otp");
+      toast({
+        title: "Verification code sent",
+        description: `Check ${userEmail} for your 6-digit code.`,
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Could not send verification code",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+      setPasswordCaptchaToken(null);
+      setPasswordCaptchaAttempt((attempt) => attempt + 1);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPasswordOtp = async (submittedCode = passwordOtp) => {
+    const code = submittedCode.trim();
+    if (code.length !== 6) {
+      toast({
+        title: "Enter the 6-digit code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: userEmail,
+        token: code,
+        type: "recovery",
+      });
+      if (error) throw error;
+
+      setPasswordOtpStatus("success");
+      setPasswordStep("password");
+    } catch (error: unknown) {
+      setPasswordOtpStatus("error");
+      toast({
+        title: "Invalid verification code",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend goes back to the captcha step, since tokens are single use
+  const handleResendPasswordOtp = () => {
+    setPasswordOtp("");
+    setPasswordOtpStatus("idle");
+    setPasswordCaptchaToken(null);
+    setPasswordCaptchaAttempt((attempt) => attempt + 1);
+    setPasswordStep("send");
   };
 
   const handleUpdatePassword = async () => {
-    if (!currentPassword) {
-      toast({
-        title: "Error",
-        description: "Please enter your current password",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (newPassword !== confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (newPassword.length < 8) { 
-      toast({ 
-        title: "Error", 
-        description: "New password must be at least 8 characters", 
-        variant: "destructive", 
-      }); 
-      return; 
-    }
-
-    // Check for at least one number
-    if (!/\d/.test(newPassword)) {
-      toast({
-        title: "Error",
-        description: "New password must contain at least one number",
+        title: "Passwords do not match",
+        description: "Enter the same new password in both fields.",
         variant: "destructive",
       });
       return;
     }
 
-    // Check for at least one lowercase letter
-    if (!/[a-z]/.test(newPassword)) {
+    if (!newPasswordIsValid) {
       toast({
-        title: "Error",
-        description: "New password must contain at least one lowercase letter",
+        title: "Password does not meet the requirements",
+        description: "Follow the password guide before continuing.",
         variant: "destructive",
       });
       return;
     }
 
-    // Check for at least one uppercase letter
-    if (!/[A-Z]/.test(newPassword)) {
-      toast({
-        title: "Error",
-        description: "New password must contain at least one uppercase letter",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
 
-    // This project requires the current password when setting a new one.
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-      current_password: currentPassword,
-    });
-    
-    setLoading(false);
-    
-    if (error) {
       toast({
-        title: "Error",
-        description: getUserFriendlyError(error),
+        title: "Password updated",
+        description: "Your password has been changed successfully.",
+      });
+      handlePasswordDialogChange(false);
+    } catch (error: unknown) {
+      const rawMessage =
+        typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
+          ? error.message
+          : "";
+      const passwordReuseError = /same password|different from the old password|old password/i.test(rawMessage);
+      toast({
+        title: passwordReuseError ? "Choose a different password" : "Could not update password",
+        description: passwordReuseError
+          ? "Your new password must be different from your current password."
+          : getUserFriendlyError(error),
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Password updated successfully",
-      });
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordDialogOpen(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -559,12 +739,16 @@ const Account = () => {
   const handlePasswordDialogChange = (open: boolean) => {
     setPasswordDialogOpen(open);
     if (!open) {
-      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setShowCurrentPassword(false);
       setShowNewPassword(false);
+      setNewPasswordFocused(false);
       setShowConfirmPassword(false);
+      setPasswordStep("send");
+      setPasswordOtp("");
+      setPasswordOtpStatus("idle");
+      setPasswordCaptchaToken(null);
+      setPasswordCaptchaAttempt((attempt) => attempt + 1);
     }
   };
 
@@ -734,7 +918,7 @@ const Account = () => {
                     <p className="text-xs text-muted-foreground">
                       {profileDirty ? "You have unsaved changes" : "All changes saved"}
                     </p>
-                    <StatefulButton onClick={handleSaveProfile} className="min-w-[110px] px-4 py-1.5 text-sm">
+                    <StatefulButton onClick={handleSaveProfile} disabled={profileSaving} className="min-w-[110px] px-4 py-1.5 text-sm">
                       Save changes
                     </StatefulButton>
                   </div>
@@ -775,106 +959,217 @@ const Account = () => {
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Change Password</DialogTitle>
+                      <DialogHeader className="space-y-2 text-center sm:text-center">
+                        <DialogTitle className="text-2xl font-semibold tracking-tight">
+                          {passwordStep === "send"
+                            ? "Change password"
+                            : passwordStep === "otp"
+                              ? "Check your email"
+                              : "Choose a new password"}
+                        </DialogTitle>
                         <DialogDescription>
-                          Enter your current password and a new password (at least 8 characters).
+                          {passwordStep === "send"
+                            ? (
+                              <>
+                                We’ll email a verification code to{" "}
+                                <strong className="font-semibold text-foreground">{userEmail}</strong>
+                                {" "}before you can change your password.
+                              </>
+                            )
+                            : passwordStep === "otp"
+                              ? (
+                                <>
+                                  Enter the 6-digit code sent to{" "}
+                                  <span className="font-medium text-foreground">{userEmail}</span>.
+                                </>
+                              )
+                              : "Set a strong password you haven’t used before."}
                         </DialogDescription>
+                        {passwordStep === "send"}
                       </DialogHeader>
-                      <div className="space-y-4 py-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="current-password">Current Password</Label>
-                          <div className="relative">
-                            <Input
-                              id="current-password"
-                              type={showCurrentPassword ? "text" : "password"}
-                              value={currentPassword}
-                              onChange={(e) => setCurrentPassword(e.target.value)}
-                              placeholder="Enter current password"
-                              className="pr-10"
+
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (passwordStep === "otp") {
+                            void handleVerifyPasswordOtp();
+                          } else if (passwordStep === "password") {
+                            void handleUpdatePassword();
+                          }
+                        }}
+                        className="space-y-5"
+                      >
+                        {/* Step 1: captcha */}
+                        {passwordStep === "send" && (
+                          <div className="space-y-3">
+                            <HCaptchaWidget
+                              key={passwordCaptchaAttempt}
+                              theme={captchaTheme}
+                              onToken={setPasswordCaptchaToken}
+                              onError={(error) => {
+                                toast({
+                                  title: "CAPTCHA unavailable",
+                                  description: error.message,
+                                  variant: "destructive",
+                                });
+                              }}
                             />
-                            <button
-                              type="button"
-                              onClick={() => setShowCurrentPassword((prev) => !prev)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                              tabIndex={-1}
-                              aria-label={showCurrentPassword ? "Hide password" : "Show password"}
-                            >
-                              {showCurrentPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </button>
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="new-password">New Password</Label>
-                          <div className="relative">
-                            <Input
-                              id="new-password"
-                              type={showNewPassword ? "text" : "password"}
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
-                              placeholder="Enter new password"
-                              className="pr-10"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowNewPassword((prev) => !prev)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                              tabIndex={-1}
-                              aria-label={showNewPassword ? "Hide password" : "Show password"}
-                            >
-                              {showNewPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
+                        )}
+
+                        {/* Step 2: enter the code */}
+                        {passwordStep === "otp" && (
+                          <>
+                            <div className="space-y-1">
+                              <CodeSlots
+                                id="account-password-otp"
+                                name="account-password-otp"
+                                aria-label="6-digit recovery code"
+                                length={6}
+                                autoComplete="one-time-code"
+                                value={passwordOtp}
+                                status={passwordOtpStatus}
+                                onChange={(code) => {
+                                  setPasswordOtp(code);
+                                  setPasswordOtpStatus("idle");
+                                }}
+                                onComplete={(code) => void handleVerifyPasswordOtp(code)}
+                                disabled={loading}
+                                required
+                              />
+                            </div>
+
+                            <div className="flex justify-center text-sm">
+                              <Button
+                                type="button"
+                                variant="link"
+                                className="px-0"
+                                onClick={handleResendPasswordOtp}
+                                disabled={loading}
+                              >
+                                Resend code
+                              </Button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Step 3: new password */}
+                        {passwordStep === "password" && (
+                          <>
+                            <div className="space-y-3">
+                              <Label htmlFor="new-password" className="-translate-y-1">New password</Label>
+                              <div className="relative">
+                                <Input
+                                  id="new-password"
+                                  type={showNewPassword ? "text" : "password"}
+                                  value={newPassword}
+                                  onChange={(e) => setNewPassword(e.target.value)}
+                                  onFocus={() => setNewPasswordFocused(true)}
+                                  onBlur={() => setNewPasswordFocused(false)}
+                                  placeholder="Enter a new password"
+                                  autoComplete="new-password"
+                                  maxLength={64}
+                                  className="pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowNewPassword((prev) => !prev)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                                >
+                                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                              </div>
+
+                              <div
+                                className={cn(
+                                  "overflow-hidden transition-all duration-300 ease-out",
+                                  showNewPasswordRequirements ? "max-h-48 opacity-100" : "max-h-0 opacity-0",
+                                )}
+                              >
+                                <div className="mt-2">
+                                  <PasswordGuide password={newPassword} />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label htmlFor="confirm-password" className="-translate-y-1">Confirm new password</Label>
+                              <div className="relative">
+                                <Input
+                                  id="confirm-password"
+                                  type={showConfirmPassword ? "text" : "password"}
+                                  value={confirmPassword}
+                                  onChange={(e) => setConfirmPassword(e.target.value)}
+                                  placeholder="Enter the new password again"
+                                  autoComplete="new-password"
+                                  maxLength={64}
+                                  className={cn(
+                                    "pr-10",
+                                    confirmPassword && !passwordsMatch && "border-destructive focus-visible:ring-destructive",
+                                    passwordsMatch && "border-emerald-500 focus-visible:ring-emerald-500",
+                                  )}
+                                  aria-invalid={confirmPassword.length > 0 && !passwordsMatch}
+                                  aria-describedby={confirmPassword ? "password-match-status" : undefined}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                  aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+                                >
+                                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                              </div>
+                              {confirmPassword && (
+                                <p
+                                  id="password-match-status"
+                                  className={cn(
+                                    "text-xs",
+                                    passwordsMatch ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+                                  )}
+                                  aria-live="polite"
+                                >
+                                  {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                                </p>
                               )}
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="confirm-password">Confirm Password</Label>
-                          <div className="relative">
-                            <Input
-                              id="confirm-password"
-                              type={showConfirmPassword ? "text" : "password"}
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                              placeholder="Confirm new password"
-                              className="pr-10"
-                            />
-                            <button
+                            </div>
+                          </>
+                        )}
+
+                        {/* No footer buttons on the code step, it auto submits */}
+                        {passwordStep !== "otp" && (
+                          <DialogFooter className="gap-2 sm:gap-2">
+                            <Button
                               type="button"
-                              onClick={() => setShowConfirmPassword((prev) => !prev)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                              tabIndex={-1}
-                              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                              variant="outline"
+                              onClick={() => handlePasswordDialogChange(false)}
+                              disabled={loading}
                             >
-                              {showConfirmPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => handlePasswordDialogChange(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button onClick={handleUpdatePassword} disabled={loading}>
-                          {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
-                          Update Password
-                        </Button>
-                      </DialogFooter>
+                              Cancel
+                            </Button>
+                            {passwordStep === "send" && (
+                              <Button
+                                type="button"
+                                onClick={() => void handleSendPasswordOtp()}
+                                disabled={loading || !userEmail || !passwordCaptchaToken}
+                              >
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Send code
+                              </Button>
+                            )}
+                            {passwordStep === "password" && (
+                              <Button
+                                type="submit"
+                                disabled={loading || !newPasswordIsValid || !passwordsMatch}
+                              >
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Update password
+                              </Button>
+                            )}
+                          </DialogFooter>
+                        )}
+                      </form>
                     </DialogContent>
                   </Dialog>
                 </SettingsRow>

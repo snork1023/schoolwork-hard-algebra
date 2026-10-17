@@ -1,10 +1,10 @@
 import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from 'motion/react';
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
-import './ElasticSlider.css';
+import './slider.css';
 
 const MAX_OVERFLOW = 50;
 
-interface ElasticSliderProps {
+interface SliderProps {
   defaultValue?: number;
   startingValue?: number;
   maxValue?: number;
@@ -17,7 +17,7 @@ interface ElasticSliderProps {
   formatValue?: (value: number) => string;
 }
 
-export default function ElasticSlider({
+export default function Slider({
   defaultValue = 50,
   startingValue = 0,
   maxValue = 100,
@@ -28,10 +28,10 @@ export default function ElasticSlider({
   rightIcon = <span>+</span>,
   onChange,
   formatValue,
-}: ElasticSliderProps) {
+}: SliderProps) {
   return (
     <div className={`slider-container ${className}`}>
-      <Slider
+      <SliderControl
         defaultValue={defaultValue}
         startingValue={startingValue}
         maxValue={maxValue}
@@ -46,7 +46,7 @@ export default function ElasticSlider({
   );
 }
 
-interface SliderProps {
+interface SliderControlProps {
   defaultValue: number;
   startingValue: number;
   maxValue: number;
@@ -58,7 +58,7 @@ interface SliderProps {
   formatValue?: (value: number) => string;
 }
 
-function Slider({
+function SliderControl({
   defaultValue,
   startingValue,
   maxValue,
@@ -68,7 +68,7 @@ function Slider({
   rightIcon,
   onChange,
   formatValue,
-}: SliderProps) {
+}: SliderControlProps) {
   const [value, setValue] = useState(defaultValue);
   const sliderRef = useRef<HTMLDivElement>(null);
   const [region, setRegion] = useState<'left' | 'middle' | 'right'>('middle');

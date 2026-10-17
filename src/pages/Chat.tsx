@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/buttons/button";
+import { Textarea } from "@/components/ui/forms/textarea";
+import { ScrollArea } from "@/components/ui/layout/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 import ChatSidebar from "@/components/chat/ChatSidebar";
@@ -31,7 +31,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/overlays/alert-dialog";
 type Attachment = {
   path?: string;
   url?: string;

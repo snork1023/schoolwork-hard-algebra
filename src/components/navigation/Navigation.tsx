@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { Home, Settings, MessageSquare, User, Sparkles, Gamepad2, LogIn, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import Dock from "./Dock";
+import Dock from "@/components/navigation/Dock";
 import { SIGNUP_IN_PROGRESS_KEY, isSignupInProgress } from "@/lib/signup-flow";
 
 const Navigation = () => {

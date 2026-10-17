@@ -1,4 +1,4 @@
-import { Dropdown } from "@/components/ui/dropdown";
+import { Dropdown } from "@/components/ui/menus/dropdown";
 import { StatusIndicator, getStatusLabel, type Status } from "./StatusIndicator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";

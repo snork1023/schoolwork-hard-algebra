@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/overlays/dialog";
+import { Button } from "@/components/ui/buttons/button";
+import { Input } from "@/components/ui/forms/input";
+import { Label } from "@/components/ui/forms/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/navigation/tabs";
+import { Badge } from "@/components/ui/data-display/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { X, Search, MessageSquare, Users } from "lucide-react";

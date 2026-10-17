@@ -1,13 +1,13 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/feedback/toaster";
+import { Toaster as Sonner } from "@/components/ui/feedback/sonner";
+import { TooltipProvider } from "@/components/ui/overlays/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
-import { SettingsProvider, useSettingsContext } from "@/components/providers/SettingsProvider";
+import { SettingsProvider, useSettingsContext } from "@/providers/SettingsProvider";
 import Background from "@/components/background/Background";
-import Navigation from "@/components/layout/Navigation";
+import Navigation from "@/components/navigation/Navigation";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import Ai from "./pages/Ai";
@@ -20,8 +20,8 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import BrowserView from "./components/browser/BrowserView";
-import SiteDissolveEffect from "./components/easteregg/SiteDissolveEffect";
-import SplashCursor from "./components/easteregg/SplashCursor";
+import SiteDissolveEffect from "./components/effects/SiteDissolveEffect";
+import SplashCursor from "./components/effects/SplashCursor";
 import { isSignupInProgress } from "@/lib/signup-flow";
 import {
   AlertDialog,
@@ -31,7 +31,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/overlays/alert-dialog";
 
 const queryClient = new QueryClient();
 const SPLASH_CURSOR_ACTIVE_KEY = "kepler-splash-cursor-active";

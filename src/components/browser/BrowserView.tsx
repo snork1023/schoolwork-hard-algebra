@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, ArrowRight, RotateCw, Home, Lock, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/buttons/button";
 import type { Frame } from "@mercuryworkshop/scramjet-controller";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { getTabCloakMetadata } from "@/components/providers/SettingsProvider";
+import { getTabCloakMetadata } from "@/providers/SettingsProvider";
 import { decodeProxiedUrl } from "@/lib/searchProxy";
 import { initScramjet } from "@/lib/scramjet";
 

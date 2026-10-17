@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import GamePlayerDialog from "@/components/games/GamePlayerDialog";
 import { Search, Plus } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/forms/input";
 import { restoreGameStorage } from "@/lib/gameStorage";
+import { ScrollRevealCard } from "@/components/ui/data-display/scrollcard";
 
 interface GameEntry {
   folder: string;
@@ -52,52 +53,57 @@ const Games = () => {
               Array.from({ length: SKELETON_COUNT }).map((_, i) => (
                 <div
                   key={i}
-                  className="aspect-square rounded-lg bg-muted animate-pulse"
+                  className="aspect-square rounded-lg bg-muted/70 animate-pulse"
                 />
               ))
             ) : (
               <>
-                <button
-                  onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLSebhS_LawxlNeNbHgD6T7CFtv8-avMriEmNwMxONQFlKkHbmw/viewform", "_blank")}
-                  className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted animate-in fade-in duration-500"
-                  title="Suggest a Game"
-                >
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors">
-                    <Plus className="w-6 h-6" />
-                    <span className="text-xs font-semibold">Suggest a Game</span>
-                  </div>
-                </button>
-
-                {filteredGames.map((game) =>
-                  <button
-                    key={game.folder}
-                    onClick={() => {
-                      const url = `/games/${game.folder}/index.html`;
-                      try {
-                        restoreGameStorage(url);
-                      } catch (error) {
-                        console.error("[game-storage] Could not restore existing game progress:", error);
-                      }
-                      setSelectedGame({
-                        name: game.name,
-                        url
-                      });
-                    }}
-                    className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted animate-in fade-in duration-500"
-                    title={game.name}>
-                    <img
-                      src={`/games/${game.folder}/thumb.png`}
-                      alt={game.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }} />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{game.name}</span>
-                    </div>
-                  </button>
+                {!search.trim() && (
+                  <ScrollRevealCard>
+                    <button
+                      onClick={() => window.open("https://docs.google.com/forms/d/e/1FAIpQLSebhS_LawxlNeNbHgD6T7CFtv8-avMriEmNwMxONQFlKkHbmw/viewform", "_blank")}
+                      className="group relative aspect-square w-full rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted animate-in fade-in duration-500"
+                      title="Suggest a Game"
+                    >
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors">
+                        <Plus className="w-6 h-6" />
+                        <span className="text-xs font-semibold">Suggest a Game</span>
+                      </div>
+                    </button>
+                  </ScrollRevealCard>
                 )}
+
+                {filteredGames.map((game) => (
+                  <ScrollRevealCard key={game.folder}>
+                    <button
+                      onClick={() => {
+                        const url = `/games/${game.folder}/index.html`;
+                        try {
+                          restoreGameStorage(url);
+                        } catch (error) {
+                          console.error("[game-storage] Could not restore existing game progress:", error);
+                        }
+                        setSelectedGame({
+                          name: game.name,
+                          url
+                        });
+                      }}
+                      className="group relative aspect-square w-full rounded-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-105 hover:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-muted animate-in fade-in duration-500"
+                      title={game.name}>
+                      <img
+                        src={`/games/${game.folder}/thumb.png`}
+                        alt={game.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }} />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{game.name}</span>
+                      </div>
+                    </button>
+                  </ScrollRevealCard>
+                ))}
               </>
             )}
           </div>

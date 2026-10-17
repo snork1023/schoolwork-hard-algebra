@@ -2,16 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import { Link, useNavigate } from "react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import CodeSlots, { type CodeSlotsStatus } from "@/components/ui/codeslots";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, EyeOff, Check, X, Camera, User, LogIn, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/buttons/button";
+import { Input } from "@/components/ui/forms/input";
+import CodeSlots, { type CodeSlotsStatus } from "@/components/ui/forms/codeslots";
+import PasswordGuide from "@/components/ui/forms/PasswordGuide";
+import { getPasswordChecks } from "@/components/ui/forms/password-rules";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/layout/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/navigation/tabs";
+import { Eye, EyeOff, Camera, User, LogIn, UserPlus, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/forms/label";
+import { Checkbox } from "@/components/ui/buttons/checkbox";
+import { Textarea } from "@/components/ui/forms/textarea";
 import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { loadHCaptcha, waitForHCaptcha } from "@/lib/hcaptcha-loader";
@@ -26,7 +28,7 @@ if (!HCAPTCHA_SITEKEY) {
   );
 }
 
-// ─── Schemas ─────────────────────────────────────────────────────────────────
+// Schemas
 const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters")
@@ -35,12 +37,12 @@ const passwordSchema = z
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter");
 
-// Sign-up step 1: just the email, used to request the OTP
+// Signup email step
 const signUpEmailSchema = z.object({
   email: z.string().trim().email("Invalid email address"),
 });
 
-// Sign-up step 3: username + password, collected once the email is verified
+// Signup username and password
 const signUpProfileSchema = z.object({
   username: z
     .string()
@@ -53,22 +55,19 @@ const signUpProfileSchema = z.object({
 
 const signUpUsernameSchema = signUpProfileSchema.shape.username;
 
-// Sign-in: email + password
+// Sign in
 const signInSchema = z.object({
   email: z.string().trim().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
-// Password reset step 3: just the new password
+// Reset new password
 const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
-// ─── hCaptcha hook ───────────────────────────────────────────────────────────
-// Renders an hCaptcha widget into the given container ref and tracks its token.
-// Assumes the container stays mounted for the lifetime of the component
-// (visibility toggled with CSS, not conditional render) since hcaptcha.render()
-// injects DOM that React doesn't manage, and unmount/remount cycles break it.
+// hCaptcha hook
+// Container must stay mounted, so hide it with CSS instead of unmounting.
 function useHCaptchaWidget(
   containerRef: React.RefObject<HTMLDivElement>,
   theme: "light" | "dark",
@@ -117,49 +116,6 @@ function useHCaptchaWidget(
   return { token: captchaState.theme === theme ? captchaState.token : null, reset };
 }
 
-function PasswordRequirement({
-  valid,
-  text,
-}: {
-  valid: boolean;
-  text: string;
-}) {
-  return (
-    <div
-      className={`flex items-center gap-2 transition-all duration-300 ${
-        valid
-          ? "text-green-500"
-          : "text-muted-foreground"
-      }`}
-    >
-      <div
-        className={`transition-all duration-300 ${
-          valid
-            ? "rotate-0 scale-100"
-            : "-rotate-90 scale-75"
-        }`}
-      >
-        {valid ? (
-          <Check className="h-4 w-4" />
-        ) : (
-          <X className="h-4 w-4" />
-        )}
-      </div>
-
-      <span>{text}</span>
-    </div>
-  );
-}
-
-function getPasswordChecks(password: string) {
-  return {
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    number: /\d/.test(password),
-  };
-}
-
 const isSafeImagePreviewUrl = (value: string | null): value is string => {
   if (!value) return false;
 
@@ -176,7 +132,7 @@ const Auth = () => {
     ? "dark"
     : "light";
 
-  // Sign-up: which step of the request-otp -> verify-otp -> set-password flow we're on
+  // Signup state
   const [signUpStep, setSignUpStep] = useState<"request" | "otp" | "password" | "username">("request");
   const [signUpUsername, setSignUpUsername] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -192,16 +148,18 @@ const Auth = () => {
 
   const [loading, setLoading] = useState(false);
 
-  // Password reset: same three-step shape as sign-up (request -> otp -> new password)
+  // Reset state
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetStep, setResetStep] = useState<"request" | "otp" | "password">("request");
   const [resetEmail, setResetEmail] = useState("");
   const [resetOtp, setResetOtp] = useState("");
   const [resetOtpStatus, setResetOtpStatus] = useState<CodeSlotsStatus>("idle");
   const [resetPassword, setResetPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
   const [resetResendCooldown, setResetResendCooldown] = useState(0);
   const [showResetResendModal, setShowResetResendModal] = useState(false);
 
+  // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState<"bio" | "avatar">("bio");
   const [onboardingBio, setOnboardingBio] = useState("");
@@ -213,6 +171,7 @@ const Auth = () => {
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
   // Password checks
   const signUpPasswordChecks = getPasswordChecks(signUpPassword);
@@ -235,19 +194,17 @@ const Auth = () => {
     resetPasswordChecks.length &&
     resetPasswordChecks.uppercase &&
     resetPasswordChecks.lowercase &&
-    resetPasswordChecks.number;
+    resetPasswordChecks.number &&
+    resetPassword.length <= 64;
+  const resetPasswordsMatch =
+    resetConfirmPassword.length > 0 && resetPassword === resetConfirmPassword;
 
-  // Controlled so we can animate a sliding indicator behind the active tab
+  // Active tab drives the sliding indicator
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
   const isSignUpSetup = activeTab === "signup" && signUpStep !== "request";
-  const hideAuthHeader = showOnboarding || isSignUpSetup;
+  const hideAuthHeader = showOnboarding || isSignUpSetup || showResetForm;
 
-  // hCaptcha containers + state. Each "request an OTP" action (sign-up send,
-  // sign-up resend, reset send, reset resend) gets its own widget rather than
-  // one shared widget moved between steps — the container can't be relocated
-  // between conditionally-hidden forms without breaking the injected iframe,
-  // same reason forms stay permanently mounted below instead of conditionally
-  // rendered.
+  // One captcha widget per action, since containers can't move between forms
   const signInCaptchaRef = useRef<HTMLDivElement>(null);
   const signUpCaptchaRef = useRef<HTMLDivElement>(null);
   const signUpResendCaptchaRef = useRef<HTMLDivElement>(null);
@@ -263,10 +220,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // verifyOtp signs the user in (sign-up flow) or starts a recovery session
-  // (reset flow) before the password step is done. This ref stops the
-  // redirect-on-SIGNED_IN below from firing mid-flow, so we can send the user
-  // onward ourselves once the password step actually completes.
+  // Blocks the signed in redirect while a flow is mid way
   const skipAuthRedirectRef = useRef(isSignupInProgress());
 
   // Redirect if already signed in
@@ -283,7 +237,7 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Resend cooldown countdowns
+  // Resend cooldowns
   useEffect(() => {
     if (signUpResendCooldown <= 0) return;
     const timer = setTimeout(() => setSignUpResendCooldown((c) => c - 1), 1000);
@@ -296,7 +250,7 @@ const Auth = () => {
     return () => clearTimeout(timer);
   }, [resetResendCooldown]);
 
-  // ── Sign In ────────────────────────────────────────────────────────────────
+  // Sign in
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signInCaptcha.token) {
@@ -325,9 +279,8 @@ const Auth = () => {
     }
   };
 
-  // ── Sign Up: step 1 — request the OTP ────────────────────────────────────────
-  // Shared by both "Send Code" and "Resend Code" — each caller passes its own
-  // captcha token since hCaptcha tokens are single-use.
+  // Signup step 1: request the code
+  // Captcha tokens are single use, so each caller passes its own.
   const requestSignUpOtp = async (captchaToken: string, email: string) => {
     setLoading(true);
     try {
@@ -372,14 +325,12 @@ const Auth = () => {
     setShowSignUpResendModal(true);
   };
 
-  // Once the resend-modal's captcha is solved, fire the resend automatically
-  // and close the popup — the user shouldn't have to click anything else.
-  // Closing the modal synchronously (before the await) keeps this effect
-  // from firing a second time while the request is in flight.
+  // Auto resend once the popup captcha is solved
+  // Close the modal first so this effect doesn't fire twice.
   useEffect(() => {
     if (!showSignUpResendModal || !signUpResendCaptcha.token) return;
     const token = signUpResendCaptcha.token;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- close before starting the one-shot resend request
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowSignUpResendModal(false);
     (async () => {
       await requestSignUpOtp(token, signUpEmail);
@@ -397,7 +348,7 @@ const Auth = () => {
     signUpResendCaptcha.reset();
   };
 
-  // ── Sign Up: step 2 — verify the OTP ──────────────────────────────────────────
+  // Signup step 2: verify the code
   const handleVerifySignUpOtp = async (submittedCode = signUpOtp) => {
     const code = submittedCode.trim();
     if (code.length !== 6) {
@@ -414,10 +365,7 @@ const Auth = () => {
       });
       if (error) throw error;
 
-      // signInWithOtp doesn't distinguish new vs. returning users at request
-      // time — an existing user's OTP verifies here too. If a profile
-      // already exists for this id, they already have an account, so don't
-      // let this flow continue on to overwrite their password.
+      // Existing users also verify here, so stop them from overwriting a password
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
         const { data: existingProfile } = await supabase
@@ -456,7 +404,7 @@ const Auth = () => {
     }
   };
 
-  // ── Sign Up: step 3 — set the password ───────────────────────────────────────
+  // Signup step 3: set the password
   const handleSetSignUpPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!signUpAgreementChecked) {
@@ -481,7 +429,7 @@ const Auth = () => {
     setSignUpStep("username");
   };
 
-  // ── Sign Up: step 4 — continue with the username ─────────────────────────────
+  // Signup step 4: pick a username
   const handleContinueWithUsername = async (e: React.FormEvent) => {
     e.preventDefault();
     const usernameValidation = signUpUsernameSchema.safeParse(signUpUsername);
@@ -657,7 +605,7 @@ const Auth = () => {
     }
   };
 
-  // ── Password Reset: step 1 — request the OTP ──────────────────────────────────
+  // Reset step 1: request the code
   const requestPasswordResetOtp = async (captchaToken: string, email: string) => {
     setLoading(true);
     try {
@@ -698,13 +646,11 @@ const Auth = () => {
     setShowResetResendModal(true);
   };
 
-  // Same pattern as the sign-up resend modal: once the popup's captcha is
-  // solved, fire the resend automatically and close it. Closing synchronously
-  // (before the await) stops this effect from firing twice while in flight.
+  // Same auto resend pattern as signup
   useEffect(() => {
     if (!showResetResendModal || !resetResendCaptcha.token) return;
     const token = resetResendCaptcha.token;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- close before starting the one-shot resend request
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowResetResendModal(false);
     (async () => {
       await requestPasswordResetOtp(token, resetEmail);
@@ -722,35 +668,34 @@ const Auth = () => {
     resetResendCaptcha.reset();
   };
 
-  // ── Password Reset: step 2 — verify the OTP ───────────────────────────────────
-  const handleVerifyResetOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = resetOtp.trim();
-    if (code.length !== 6) {
-      toast({ title: "Enter the 6-digit code", variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-    skipAuthRedirectRef.current = true;
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: resetEmail,
-        token: code,
-        type: "recovery",
-      });
-      if (error) throw error;
-      setResetOtpStatus("success");
-      setResetStep("password");
-    } catch (error: unknown) {
-      skipAuthRedirectRef.current = false;
-      setResetOtpStatus("error");
-      toast({ title: "Invalid code", description: getUserFriendlyError(error), variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+ // Reset step 2: verify the code
+const handleVerifyResetOtp = async (submittedCode = resetOtp) => {
+  const code = submittedCode.trim();
+  if (code.length !== 6) {
+    toast({ title: "Enter the 6-digit code", variant: "destructive" });
+    return;
+  }
+  setLoading(true);
+  skipAuthRedirectRef.current = true;
+  try {
+    const { error } = await supabase.auth.verifyOtp({
+      email: resetEmail,
+      token: code,
+      type: "recovery",
+    });
+    if (error) throw error;
+    setResetOtpStatus("success");
+    setResetStep("password");
+  } catch (error: unknown) {
+    skipAuthRedirectRef.current = false;
+    setResetOtpStatus("error");
+    toast({ title: "Invalid code", description: getUserFriendlyError(error), variant: "destructive" });
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // ── Password Reset: step 3 — set the new password ─────────────────────────────
+  // Reset step 3: set the new password
   const handleCancelReset = () => {
     setShowResetForm(false);
     setResetStep("request");
@@ -758,6 +703,9 @@ const Auth = () => {
     setResetOtp("");
     setResetOtpStatus("idle");
     setResetPassword("");
+    setResetConfirmPassword("");
+    setShowResetPassword(false);
+    setShowResetConfirmPassword(false);
     setResetResendCooldown(0);
     setShowResetResendModal(false);
     resetCaptcha.reset();
@@ -766,6 +714,14 @@ const Auth = () => {
 
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (resetPassword !== resetConfirmPassword) {
+      toast({
+        title: "Passwords do not match",
+        description: "Enter the same new password in both fields.",
+        variant: "destructive",
+      });
+      return;
+    }
     const validation = resetPasswordSchema.safeParse({ password: resetPassword });
     if (!validation.success) {
       toast({ title: "Validation error", description: validation.error.errors[0].message, variant: "destructive" });
@@ -783,10 +739,24 @@ const Auth = () => {
       setResetOtp("");
       setResetOtpStatus("idle");
       setResetPassword("");
+      setResetConfirmPassword("");
+      setShowResetPassword(false);
+      setShowResetConfirmPassword(false);
       setShowResetResendModal(false);
       navigate("/chat");
     } catch (error: unknown) {
-      toast({ title: "Error", description: getUserFriendlyError(error), variant: "destructive" });
+      const rawMessage =
+        typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
+          ? error.message
+          : "";
+      const passwordReuseError = /same password|different from the old password|old password/i.test(rawMessage);
+      toast({
+        title: passwordReuseError ? "Choose a different password" : "Error",
+        description: passwordReuseError
+          ? "Your new password must be different from your current password."
+          : getUserFriendlyError(error),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -795,7 +765,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-4 pt-24 pb-12 flex items-center justify-center">
-        <Card className={`w-full ${showOnboarding ? "max-w-lg" : "max-w-md"} border-black/10 bg-card/85 shadow-xl backdrop-blur-md dark:border-white/15 dark:bg-card/75`}>
+        <Card className={`w-full max-w-md border-black/10 bg-card/85 shadow-xl backdrop-blur-md dark:border-white/15 dark:bg-card/75`}>
           {!hideAuthHeader && (
             <CardHeader>
               <CardTitle>Authentication</CardTitle>
@@ -887,32 +857,38 @@ const Auth = () => {
               </div>
             ) : (
             <>
-            {/* ── Password Reset ── */}
-            {/* This block and the Tabs block below stay mounted at all times.
-                Visibility is toggled with CSS rather than a conditional render,
-                because hcaptcha.render() injects DOM (an iframe) into the captcha
-                container that React doesn't manage — unmounting that container
-                breaks the widget and it can't cleanly come back. */}
-            <div className={`space-y-5 ${showResetForm ? "" : "hidden"}`}>
-              {/* Step 1: email + captcha, request the code */}
-              <form onSubmit={handleSendResetOtp} className={`space-y-4 ${resetStep === "request" ? "" : "hidden"}`}>
-                <div className="space-y-3">
-                  <Label htmlFor="reset-email" className="-translate-y-1">Email address</Label>
+            {/* Password reset */}
+            <div className={`space-y-5 mt-2 ${showResetForm ? "" : "hidden"}`}>
+              {/* Header only on the request step */}
+              <div className={`space-y-2 text-center ${resetStep === "request" ? "" : "hidden"}`}>
+                <h2 className="text-2xl font-semibold tracking-tight">Verify your identity</h2>
+                <p className="text-sm text-muted-foreground">
+                  Enter your account email and complete the CAPTCHA.
+                </p>
+              </div>
+
+              {/* Step 1: email and captcha */}
+              <form onSubmit={handleSendResetOtp} className={`space-y-5 ${resetStep === "request" ? "" : "hidden"}`}>
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email address</Label>
                   <Input
                     id="reset-email"
                     type="email"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="Enter your email"
+                    placeholder="your@email.com"
+                    autoComplete="email"
                     required
                   />
                 </div>
 
-                <div className="flex justify-center" ref={resetCaptchaRef} />
+                <div className="space-y-3">
+                  <div className="flex min-h-[78px] justify-center" ref={resetCaptchaRef} />
+                </div>
 
                 <div className="flex gap-2">
                   <Button type="submit" disabled={loading || !resetCaptcha.token} className="flex-1">
-                    {loading ? "Sending…" : "Send Code"}
+                    {loading ? "Sending…" : "Send code"}
                   </Button>
                   <Button type="button" variant="outline" onClick={handleCancelReset}>
                     Cancel
@@ -920,18 +896,27 @@ const Auth = () => {
                 </div>
               </form>
 
-              {/* Step 2: enter the 6-digit code */}
-              <form onSubmit={handleVerifyResetOtp} className={`space-y-4 ${resetStep === "otp" ? "" : "hidden"}`}>
-                <p className="text-sm text-muted-foreground">
-                  Enter the 6-digit code sent to{" "}
-                  <span className="font-medium text-foreground">{resetEmail}</span>.
-                </p>
+              {/* Step 2: enter the code */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleVerifyResetOtp();
+                }}
+                className={`space-y-5 ${resetStep === "otp" ? "" : "hidden"}`}
+              >
+                <div className="space-y-2 text-center">
+                  <h2 className="text-2xl font-semibold tracking-tight">Check your email</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Enter the 6-digit code sent to{" "}
+                    <span className="font-medium text-foreground">{resetEmail}</span>.
+                  </p>
+                </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="reset-otp" className="-translate-y-1">Verification code</Label>
+                <div className="space-y-1">
                   <CodeSlots
                     id="reset-otp"
                     name="reset-otp"
+                    aria-label="6-digit recovery code"
                     length={6}
                     autoComplete="one-time-code"
                     value={resetOtp}
@@ -940,23 +925,15 @@ const Auth = () => {
                       setResetOtp(code);
                       setResetOtpStatus("idle");
                     }}
+                    onComplete={(code) => handleVerifyResetOtp(code)}
                     disabled={loading}
                     required
                   />
                 </div>
 
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1" disabled={loading || resetOtp.length !== 6}>
-                    {loading ? "Verifying…" : "Verify Code"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCancelReset}>
-                    Cancel
-                  </Button>
-                </div>
-
                 <div className="flex items-center justify-between text-sm">
                   <Button type="button" variant="link" className="px-0" onClick={handleChangeResetEmail}>
-                    Use a different email
+                    Change email
                   </Button>
                   <Button
                     type="button"
@@ -970,9 +947,7 @@ const Auth = () => {
                 </div>
               </form>
 
-              {/* Resend captcha popup — always laid out at full size (never
-                  display:none), just faded/disabled when closed, so hCaptcha
-                  never measures a 0x0 container when it renders the iframe. */}
+              {/* Resend captcha popup, always full size so hCaptcha can measure it */}
               <div
                 className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity duration-150 ${
                   showResetResendModal ? "opacity-100" : "opacity-0 invisible pointer-events-none"
@@ -996,8 +971,15 @@ const Auth = () => {
                 </div>
               </div>
 
-              {/* Step 3: set the new password */}
-              <form onSubmit={handleSetNewPassword} className={`space-y-4 ${resetStep === "password" ? "" : "hidden"}`}>
+              {/* Step 3: new password */}
+              <form onSubmit={handleSetNewPassword} className={`space-y-5 ${resetStep === "password" ? "" : "hidden"}`}>
+                <div className="space-y-2 text-center">
+                  <h2 className="text-2xl font-semibold tracking-tight">Choose a new password</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Set a strong password you haven’t used before.
+                  </p>
+                </div>
+
                 <div className="space-y-3">
                   <Label htmlFor="reset-password" className="-translate-y-1">New password</Label>
                   <div className="relative">
@@ -1010,6 +992,8 @@ const Auth = () => {
                       onBlur={() => setResetPasswordFocused(false)}
                       placeholder="Enter a new password"
                       required
+                      maxLength={64}
+                      autoComplete="new-password"
                       className="pr-10"
                     />
                     <button
@@ -1027,18 +1011,62 @@ const Auth = () => {
                       showResetPasswordRequirements ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
                     }`}
                   >
-                    <div className="space-y-2 rounded-lg border bg-muted/30 p-3 mt-2">
-                      <PasswordRequirement valid={resetPasswordChecks.length} text="At least 8 characters" />
-                      <PasswordRequirement valid={resetPasswordChecks.uppercase} text="One uppercase letter" />
-                      <PasswordRequirement valid={resetPasswordChecks.lowercase} text="One lowercase letter" />
-                      <PasswordRequirement valid={resetPasswordChecks.number} text="One number" />
+                    <div className="mt-2">
+                      <PasswordGuide password={resetPassword} />
                     </div>
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading || !resetPasswordValid}>
-                  {loading ? "Updating…" : "Update Password"}
-                </Button>
+                <div className="space-y-3">
+                  <Label htmlFor="reset-confirm-password" className="-translate-y-1">Confirm new password</Label>
+                  <div className="relative">
+                    <Input
+                      id="reset-confirm-password"
+                      type={showResetConfirmPassword ? "text" : "password"}
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      placeholder="Enter the new password again"
+                      required
+                      maxLength={64}
+                      autoComplete="new-password"
+                      className={`pr-10 ${
+                        resetConfirmPassword && !resetPasswordsMatch
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : resetPasswordsMatch
+                            ? "border-emerald-500 focus-visible:ring-emerald-500"
+                            : ""
+                      }`}
+                      aria-invalid={resetConfirmPassword.length > 0 && !resetPasswordsMatch}
+                      aria-describedby={resetConfirmPassword ? "reset-password-match" : undefined}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showResetConfirmPassword ? "Hide confirmation password" : "Show confirmation password"}
+                    >
+                      {showResetConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {resetConfirmPassword && (
+                    <p
+                      id="reset-password-match"
+                      className={`text-xs ${resetPasswordsMatch ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
+                      aria-live="polite"
+                    >
+                      {resetPasswordsMatch ? "Passwords match" : "Passwords do not match"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={handleCancelReset} disabled={loading}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={loading || !resetPasswordValid || !resetPasswordsMatch}>
+                    {loading ? "Updating…" : "Update Password"}
+                  </Button>
+                </div>
               </form>
             </div>
 
@@ -1066,7 +1094,7 @@ const Auth = () => {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* ── Sign In ── */}
+                {/* Sign in */}
                 <TabsContent value="signin" forceMount className="data-[state=inactive]:hidden">
                   <form onSubmit={handleSignIn} className="space-y-5">
                     <div className="space-y-3">
@@ -1132,10 +1160,10 @@ const Auth = () => {
                   </form>
                 </TabsContent>
 
-                {/* ── Sign Up ── */}
+                {/* Sign up */}
                 <TabsContent value="signup" forceMount className="data-[state=inactive]:hidden">
                   <div className="space-y-5">
-                    {/* Step 1: email + captcha, request the code */}
+                    {/* Step 1: email and captcha */}
                     <form onSubmit={handleSendSignUpOtp} className={`space-y-5 ${signUpStep === "request" ? "" : "hidden"}`}>
                       <div className="space-y-3">
                         <Label htmlFor="signup-email" className="-translate-y-1">Email</Label>
@@ -1156,7 +1184,7 @@ const Auth = () => {
                       </Button>
                     </form>
 
-                    {/* Step 2: enter the 6-digit code */}
+                    {/* Step 2: enter the code */}
                     <div className={`space-y-5 ${signUpStep === "otp" ? "" : "hidden"}`}>
                       <div className="space-y-2 text-center">
                         <h2 className="text-2xl font-semibold tracking-tight">Check your email</h2>
@@ -1201,9 +1229,7 @@ const Auth = () => {
                       </div>
                     </div>
 
-                    {/* Resend captcha popup — always laid out at full size (never
-                        display:none), just faded/disabled when closed, so hCaptcha
-                        never measures a 0x0 container when it renders the iframe. */}
+                    {/* Resend captcha popup, always full size so hCaptcha can measure it */}
                     <div
                       className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity duration-150 ${
                         showSignUpResendModal ? "opacity-100" : "opacity-0 invisible pointer-events-none"
@@ -1278,28 +1304,8 @@ const Auth = () => {
                               : "max-h-0 opacity-0"
                           }`}
                         >
-                          <div className="space-y-2 rounded-lg border bg-muted/30 p-3 mt-2">
-
-                            <PasswordRequirement
-                              valid={signUpPasswordChecks.length}
-                              text="At least 8 characters"
-                            />
-
-                            <PasswordRequirement
-                              valid={signUpPasswordChecks.uppercase}
-                              text="One uppercase letter"
-                            />
-
-                            <PasswordRequirement
-                              valid={signUpPasswordChecks.lowercase}
-                              text="One lowercase letter"
-                            />
-
-                            <PasswordRequirement
-                              valid={signUpPasswordChecks.number}
-                              text="One number"
-                            />
-
+                          <div className="mt-2">
+                            <PasswordGuide password={signUpPassword} />
                           </div>
                         </div>
                       </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/forms/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlays/popover";
 import { Plus } from "lucide-react";
 
 interface ColorPickerProps {

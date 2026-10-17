@@ -2,7 +2,7 @@ import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, useSc
 import { Children, cloneElement, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import keplerLogo from "@/assets/kepler-logo.svg";
-import "./Dock.css";
+import "@/components/navigation/Dock.css";
 
 type DockItemData = {
   icon: React.ReactNode;

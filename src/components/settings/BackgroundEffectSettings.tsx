@@ -1,7 +1,7 @@
-import ElasticSlider from "./ElasticSlider";
+import Slider from "@/components/ui/buttons/slider";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/buttons/button";
+import { Label } from "@/components/ui/forms/label";
 import { RotateCcw, Minus, Plus } from "lucide-react";
 
 const DARKVEIL_PRESETS = {
@@ -38,7 +38,7 @@ const BackgroundEffectSettings = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-6">
         <div className="flex flex-col items-center gap-1">
           <p className="text-sm font-medium relative -top-1">Speed</p>
-          <ElasticSlider
+          <Slider
             className="!w-full"
             startingValue={0}
             maxValue={4}
@@ -54,7 +54,7 @@ const BackgroundEffectSettings = () => {
 
         <div className="flex flex-col items-center gap-1">
           <p className="text-sm font-medium relative -top-1">Hue</p>
-          <ElasticSlider
+          <Slider
             className="!w-full"
             startingValue={0}
             maxValue={360}
@@ -70,7 +70,7 @@ const BackgroundEffectSettings = () => {
 
         <div className="flex flex-col items-center gap-1">
           <p className="text-sm font-medium relative -top-1">Warp</p>
-          <ElasticSlider
+          <Slider
             className="!w-full"
             startingValue={0}
             maxValue={5}

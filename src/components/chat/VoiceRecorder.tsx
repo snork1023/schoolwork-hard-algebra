@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/buttons/button";
 import { Mic, Square, ArrowUp, X, Pause, Play } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "@/components/ui/sonner";
+import { toast as sonnerToast } from "@/components/ui/feedback/sonner";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 
