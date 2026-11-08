@@ -14,15 +14,17 @@ import ReadReceipts from "@/components/chat/ReadReceipts";
 import MessageActions from "@/components/chat/MessageActions";
 import { MessageReactions } from "@/components/chat/MessageReactions";
 import { FileUpload } from "@/components/chat/FileUpload";
-import { VoiceRecorderInline } from "@/components/chat/VoiceRecorder";
+import { VoiceRecord } from "@/components/chat/VoiceRecord";
 import { ImagePreviewDialog } from "@/components/chat/ImagePreviewDialog";
 import { AttachmentRenderer } from "@/components/chat/AttachmentRenderer";
 import { CreatePollDialog } from "@/components/chat/CreatePollDialog";
 import { PollCard } from "@/components/chat/PollCard";
 import { ProfileViewDialog } from "@/components/chat/ProfileViewDialog";
 import { useAutoIdle } from "@/hooks/useAutoIdle";
-import { Send, FileText, Loader2, MessageSquare, Users } from "lucide-react";
+import { Camera, Send, FileText, Loader2, MessageSquare, Users, Mic, Image as ImageIcon, Video, Sparkles, Paperclip } from "lucide-react";
+import { motion } from "motion/react";
 import { getUserFriendlyError } from "@/lib/error-utils";
+import { removeChatAttachmentObjects } from "@/lib/chat-attachments";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +39,29 @@ type Attachment = {
   url?: string;
   type: string;
   name: string;
+  duration?: number;
+};
+
+const getAttachmentPresentation = (attachment: Attachment) => {
+  const type = attachment.type.toLowerCase();
+  const name = attachment.name.toLowerCase();
+
+  if (type.startsWith("audio/") || name.startsWith("voice_")) {
+    return { label: "Voice recording", Icon: Mic };
+  }
+  if (type === "image/gif" || name.endsWith(".gif")) {
+    return { label: "GIF", Icon: Sparkles };
+  }
+  if (type.startsWith("image/")) {
+    return { label: "Image", Icon: ImageIcon };
+  }
+  if (type.startsWith("video/")) {
+    return { label: "Video", Icon: Video };
+  }
+  if (type === "application/pdf" || name.endsWith(".pdf")) {
+    return { label: "PDF", Icon: FileText };
+  }
+  return { label: "File", Icon: Paperclip };
 };
 type Message = {
   id: string;
@@ -100,6 +125,8 @@ const Chat = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const draftAttachmentsRef = useRef<Attachment[]>([]);
+  const currentUserIdRef = useRef<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [username, setUsername] = useState<string>("");
   const [userStatus, setUserStatus] = useState<'online' | 'idle' | 'dnd' | 'offline'>('offline');
@@ -115,7 +142,6 @@ const Chat = () => {
     url: string;
     name: string;
   } | null>(null);
-  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   const [createPollOpen, setCreatePollOpen] = useState(false);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [pollVotes, setPollVotes] = useState<PollVote[]>([]);
@@ -127,6 +153,61 @@ const Chat = () => {
   const {
     toast
   } = useToast();
+  draftAttachmentsRef.current = attachments;
+  currentUserIdRef.current = user?.id ?? null;
+
+  const updateDraftAttachments = (next: Attachment[]) => {
+    draftAttachmentsRef.current = next;
+    setAttachments(next);
+  };
+
+  const removeUnsentAttachments = async (items: Attachment[], userId: string | null) => {
+    if (!userId) return;
+    await removeChatAttachmentObjects(
+      items.flatMap(item => typeof item.path === "string" ? [item.path] : []),
+      userId,
+    );
+  };
+
+  const discardDraftAttachments = async () => {
+    await removeUnsentAttachments(draftAttachmentsRef.current, currentUserIdRef.current);
+    updateDraftAttachments([]);
+  };
+
+  const handleSelectConversation = async (conversationId: string) => {
+    if (conversationId === selectedConversationId) return;
+    try {
+      await discardDraftAttachments();
+      setNewMessage("");
+      setSelectedConversationId(conversationId);
+    } catch (error: unknown) {
+      toast({
+        title: "Couldn't discard unsent attachments",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveDraftAttachment = async (index: number) => {
+    const attachment = draftAttachmentsRef.current[index];
+    if (!attachment) return;
+    try {
+      await removeUnsentAttachments([attachment], currentUserIdRef.current);
+      updateDraftAttachments(draftAttachmentsRef.current.filter(item => item !== attachment));
+    } catch (error: unknown) {
+      toast({
+        title: "Couldn't remove attachment",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => () => {
+    void removeUnsentAttachments(draftAttachmentsRef.current, currentUserIdRef.current)
+      .catch(error => console.error("Failed to remove unsent chat attachments:", error));
+  }, []);
 
   // Auto-idle detection
   const handleStatusChange = useCallback((status: 'online' | 'idle' | 'dnd' | 'offline') => {
@@ -373,32 +454,47 @@ const Chat = () => {
   async function fetchPolls() {
     if (!selectedConversationId) return;
     
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("polls")
       .select("*")
       .eq("conversation_id", selectedConversationId)
       .order("created_at", { ascending: true });
-    
-    if (data) {
-      const formattedPolls = data.map(p => ({
-        ...p,
-        options: Array.isArray(p.options) ? p.options : []
-      })) as Poll[];
-      setPolls(formattedPolls);
-      
-      // Fetch votes for these polls immediately
-      if (formattedPolls.length > 0) {
-        const pollIds = formattedPolls.map(p => p.id);
-        const { data: votesData } = await supabase
-          .from("poll_votes")
-          .select("*, profiles(username)")
-          .in("poll_id", pollIds);
-        
-        if (votesData) {
-          setPollVotes(votesData as PollVote[]);
-        }
-      }
+
+    if (error) {
+      toast({
+        title: "Couldn't refresh polls",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+      return;
     }
+    
+    const formattedPolls = (data || []).map(p => ({
+      ...p,
+      options: Array.isArray(p.options) ? p.options : []
+    })) as Poll[];
+    setPolls(formattedPolls);
+    
+    if (formattedPolls.length === 0) {
+      setPollVotes([]);
+      return;
+    }
+
+    const pollIds = formattedPolls.map(p => p.id);
+    const { data: votesData, error: votesError } = await supabase
+      .from("poll_votes")
+      .select("*, profiles(username)")
+      .in("poll_id", pollIds);
+    
+    if (votesError) {
+      toast({
+        title: "Couldn't refresh poll votes",
+        description: getUserFriendlyError(votesError),
+        variant: "destructive",
+      });
+      return;
+    }
+    setPollVotes((votesData || []) as PollVote[]);
   }
   async function fetchPollVotesForConversation() {
     if (!selectedConversationId) return;
@@ -409,7 +505,10 @@ const Chat = () => {
       .select("id")
       .eq("conversation_id", selectedConversationId);
     
-    if (!pollsData || pollsData.length === 0) return;
+    if (!pollsData || pollsData.length === 0) {
+      setPollVotes([]);
+      return;
+    }
     
     const pollIds = pollsData.map(p => p.id);
     const { data } = await supabase
@@ -595,7 +694,7 @@ const Chat = () => {
       });
       if (error) throw error;
       setNewMessage("");
-      setAttachments([]);
+      updateDraftAttachments([]);
 
       // Stop typing indicator
       const channel = supabase.channel(`presence_${selectedConversationId}`);
@@ -620,6 +719,7 @@ const Chat = () => {
       return;
     }
     try {
+      if (selectedConversationId === conversationId) await discardDraftAttachments();
       const {
         error
       } = await supabase.from("conversations").delete().eq("id", conversationId);
@@ -646,6 +746,7 @@ const Chat = () => {
       return;
     }
     try {
+      if (selectedConversationId === conversationId) await discardDraftAttachments();
       const {
         error
       } = await supabase.from("conversation_participants").delete().eq("conversation_id", conversationId).eq("user_id", user?.id);
@@ -696,6 +797,52 @@ const Chat = () => {
   };
   const handleDeleteMessage = async (messageId: string) => {
     try {
+      const { data: message, error: fetchError } = await supabase
+        .from("chat_messages")
+        .select("attachments, conversation_id")
+        .eq("id", messageId)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      if (!message) throw new Error("Message not found or you do not have permission to delete it.");
+
+      let attachments: unknown = message.attachments;
+      if (typeof attachments === "string") {
+        try {
+          attachments = JSON.parse(attachments);
+        } catch {
+          attachments = [];
+        }
+      }
+
+      const paths = new Set<string>();
+      if (Array.isArray(attachments)) {
+        for (const attachment of attachments) {
+          if (!attachment || typeof attachment !== "object" || Array.isArray(attachment)) continue;
+          const path = (attachment as { path?: unknown }).path;
+          if (typeof path !== "string") continue;
+
+          const segments = path.split("/");
+          if (
+            segments.length !== 3 ||
+            segments.some(segment => !segment || segment === "." || segment === "..") ||
+            segments[0] !== message.conversation_id
+          ) {
+            continue;
+          }
+          if (!user?.id || segments[1] !== user.id) {
+            throw new Error("You do not have permission to delete one or more message attachments.");
+          }
+          paths.add(path);
+        }
+      }
+
+      if (paths.size > 0) {
+        const { error: storageError } = await supabase.storage
+          .from("chat-attachments")
+          .remove([...paths]);
+        if (storageError) throw storageError;
+      }
+
       const {
         error
       } = await supabase.from("chat_messages").delete().eq("id", messageId);
@@ -714,6 +861,7 @@ const Chat = () => {
       });
     }
   };
+  const hasDraft = Boolean(newMessage.trim() || attachments.length > 0);
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setNeedsAuth(true);
@@ -745,7 +893,7 @@ const Chat = () => {
   return <div className="h-screen flex flex-col">
       <div className="flex min-h-0 flex-1 overflow-hidden bg-background/20 pt-20">
         <div className="shrink-0 pb-3 pl-4 pt-3">
-        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
+        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={handleSelectConversation} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
         </div>
         <div className="min-w-0 flex-1 flex min-h-0 flex-col">
           {selectedConversationId ? <>
@@ -946,78 +1094,39 @@ const Chat = () => {
               <TypingIndicator typingUsers={typingUsers} />
 
               <div className="mx-auto w-full max-w-4xl px-4 pb-4 pt-2">
-                  <form onSubmit={handleSendMessage} className="relative rounded-2xl border border-border/40 bg-background/35 shadow-sm backdrop-blur-sm">
-                    {attachments.length > 0 && <div className="p-3 pb-0 flex flex-wrap gap-2 border-b border-border/30">
-                        {attachments.map((attachment, idx) => <div key={idx} className="relative inline-block">
-                            <div className="h-16 w-16 bg-background/50 rounded-xl flex items-center justify-center border border-border/20">
-                              {attachment.type.startsWith("image/") ? <span className="text-xs text-center p-1 truncate">{attachment.name}</span> : <FileText className="h-6 w-6 text-muted-foreground" />}
+                  <form onSubmit={handleSendMessage} className={`relative ${attachments.length > 0 ? "rounded-2xl" : "rounded-full"} border border-border/50 bg-background/90 shadow-lg shadow-black/5 backdrop-blur-xl transition-colors focus-within:border-primary/40`}>
+                    {attachments.length > 0 && <div className="flex flex-wrap gap-2 border-b border-border/30 p-3 pb-2">
+                                        {attachments.map((attachment, idx) => {
+                          const { label, Icon } = getAttachmentPresentation(attachment);
+                          return <div key={`${attachment.path ?? attachment.url ?? attachment.name}-${idx}`} className="relative">
+                            <div className="flex min-w-[136px] max-w-[190px] items-center gap-2 rounded-xl border border-border/40 bg-secondary/60 px-3 py-2 pr-8">
+                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/80 text-muted-foreground">
+                                <Icon className="h-4 w-4" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block text-xs font-medium leading-4">{label}</span>
+                                <span className="block max-w-[110px] truncate text-[11px] leading-4 text-muted-foreground">{attachment.name}</span>
+                              </span>
                             </div>
-                            <button type="button" onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))} className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90 shadow-sm">
+                            <button type="button" aria-label={`Remove ${attachment.name}`} onClick={() => void handleRemoveDraftAttachment(idx)} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground shadow-sm hover:bg-destructive/90">
                               ×
                             </button>
-                          </div>)}
+                          </div>;
+                        })}
                       </div>}
                     
-                    {/* Voice recorder overlay */}
-                    {voiceRecorderOpen && <div className="absolute inset-0 z-10">
-                        <VoiceRecorderInline conversationId={selectedConversationId || ""} onClose={() => setVoiceRecorderOpen(false)} onSend={async file => {
-                      if (!user?.id || !selectedConversationId) {
-                        toast({
-                          title: "Can't send voice message",
-                          description: "Please select a conversation and make sure you're signed in.",
-                          variant: "destructive"
-                        });
-                        throw new Error("Missing user or conversation");
-                      }
-
-                      const {
-                        error
-                      } = await supabase.from("chat_messages").insert({
-                        user_id: user.id,
-                        content: "",
-                        conversation_id: selectedConversationId,
-                        attachments: [file]
-                      });
-
-                      if (error) throw error;
-                    }} />
-                      </div>}
-                     
-                    <div className="flex items-end gap-2 p-2 sm:p-3">
-                      <FileUpload conversationId={selectedConversationId || ""} onFilesSelected={async files => {
-                    // Auto-send voice messages immediately
-                    if (files.length === 1 && files[0].type?.startsWith("audio/")) {
-                      if (!user?.id || !selectedConversationId) {
-                        toast({
-                          title: "Can't send voice message",
-                          description: "Please select a conversation and make sure you're signed in.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      try {
-                        const {
-                          error
-                        } = await supabase.from("chat_messages").insert({
-                          user_id: user.id,
-                          content: "",
-                          conversation_id: selectedConversationId,
-                          attachments: files
-                        });
-                        if (error) throw error;
-                      } catch (error: unknown) {
-                        toast({
-                          title: "Error sending voice message",
-                          description: getUserFriendlyError(error),
-                          variant: "destructive"
-                        });
-                      }
-                    } else {
-                      setAttachments([...attachments, ...files]);
-                    }
-                  }} voiceRecorderOpen={voiceRecorderOpen} setVoiceRecorderOpen={setVoiceRecorderOpen} onCreatePoll={() => setCreatePollOpen(true)} />
-                      
-                      <div className="flex min-h-[46px] flex-1 items-center rounded-2xl border border-border/30 bg-background/55 px-3 py-2 transition-colors focus-within:border-primary/50 focus-within:bg-background/70">
+                    <div className="flex min-h-[52px] items-center gap-1.5 px-2 py-1 sm:gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Add a photo or file"
+                        onClick={() => document.getElementById("camera-capture")?.click()}
+                        className="h-9 w-9 shrink-0 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                      >
+                        <Camera className="h-[18px] w-[18px]" />
+                      </Button>
+                      <div className="order-2 flex min-h-[44px] flex-1 items-center px-1 py-2">
                         <Textarea value={newMessage} onChange={e => {
                     setNewMessage(e.target.value);
                     handleTyping();
@@ -1026,17 +1135,49 @@ const Chat = () => {
                       e.preventDefault();
                       handleSendMessage(e);
                     }
-                  }} className="flex-1 min-h-[24px] max-h-[120px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 p-0 text-sm" rows={1} placeholder="Message..." />
+                  }} className="min-h-[24px] max-h-[120px] flex-1 resize-none border-0 bg-transparent p-0 text-[15px] leading-6 placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0" rows={1} placeholder="Message..." />
                       </div>
                       
-                      <Button 
-                        type="submit" 
-                        disabled={!newMessage.trim() && attachments.length === 0} 
-                        size="icon" 
-                        className="h-10 w-10 self-center rounded-xl shrink-0 bg-background/40 hover:bg-background/70 border border-white/10 text-foreground shadow-md transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 flex items-center justify-center group"
-                      >
-                        <Send className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                      </Button>
+                      <div className="relative order-3 flex h-10 w-[76px] shrink-0 items-center justify-center">
+                        <motion.div
+                          aria-hidden={hasDraft}
+                          inert={hasDraft}
+                          className={`flex w-[76px] items-center justify-end gap-0 ${hasDraft ? "pointer-events-none" : ""}`}
+                          animate={{ opacity: hasDraft ? 0 : 1, scale: hasDraft ? 0.85 : 1 }}
+                          style={{ transformOrigin: "right center" }}
+                          transition={{ duration: 0.14, ease: "easeOut" }}
+                        >
+                          <VoiceRecord
+                            conversationId={selectedConversationId || ""}
+                            disabled={hasDraft}
+                            onRecordingComplete={file => updateDraftAttachments([...draftAttachmentsRef.current, file])}
+                          />
+                          <FileUpload
+                            conversationId={selectedConversationId || ""}
+                            disabled={hasDraft}
+                            onFilesSelected={files => updateDraftAttachments([...draftAttachmentsRef.current, ...files])}
+                            onCreatePoll={() => setCreatePollOpen(true)}
+                          />
+                        </motion.div>
+                        <motion.div
+                          aria-hidden={!hasDraft}
+                          inert={!hasDraft}
+                          className={`absolute right-0 flex w-[76px] justify-end ${hasDraft ? "" : "pointer-events-none"}`}
+                          animate={{ opacity: hasDraft ? 1 : 0, scale: hasDraft ? 1 : 0.8 }}
+                          style={{ transformOrigin: "right center" }}
+                          transition={{ duration: 0.14, ease: "easeOut" }}
+                        >
+                          <Button
+                            type="submit"
+                            size="icon"
+                            disabled={!hasDraft}
+                            aria-label="Send message"
+                            className="h-9 w-12 rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform hover:scale-105 hover:bg-primary/90 active:scale-95"
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </motion.div>
+                      </div>
                     </div>
                   </form>
               </div>

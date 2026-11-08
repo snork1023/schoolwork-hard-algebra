@@ -86,8 +86,21 @@
   }
 }
 
+html:not(.dark) .bg-card:not([class*="bg-card/"]),
+html:not(.dark) .bg-popover:not([class*="bg-popover/"]),
+html:not(.dark) .bg-background:not([class*="bg-background/"]) {
+  background-color: hsl(var(--background) / 0.82);
+  backdrop-filter: blur(12px);
+}
+
 html.dark iframe[src*="hcaptcha.com"] {
   filter: brightness(0.82);
+}
+
+html[data-theme-changing] *,
+html[data-theme-changing] *::before,
+html[data-theme-changing] *::after {
+  transition: none !important;
 }
 
 @layer base {

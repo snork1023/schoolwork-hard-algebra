@@ -5,47 +5,35 @@ import {
   Send,
   Loader2,
   AlertCircle,
-  Sparkles,
   Square,
   Copy,
   Check,
   Pencil,
   X,
   RotateCcw,
+  History,
+  Plus,
+  Search,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserSettings } from "@/hooks/useUserSettings";
+import { Input } from "@/components/ui/forms/input";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import {
+  AiChat,
+  AiChatMessage,
+  deleteAiChatHistory,
+  loadAiChatHistory,
+  saveAiChatHistory,
+} from "@/lib/aiChatStorage";
 
-type Message = {
-  role: "user" | "assistant";
-  content: string;
-};
+type Message = AiChatMessage;
 
 const AI_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai`;
 const RATE_LIMIT = 30;
 const SOFT_CHAR_LIMIT = 4000;
-
-const SUGGESTION_POOL = [
-  "Explain how black holes bend light",
-  "Help me plan out a weekend project",
-  "Give me a short creative writing prompt",
-  "Summarize the plot of a classic sci-fi novel",
-  "Help me debug a tricky piece of code",
-  "Suggest a name for a new project",
-  "Explain a concept like I'm five",
-  "Help me write a birthday message",
-];
-
-function pickSuggestions(pool: string[], count: number) {
-  const copy = [...pool];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy.slice(0, count);
-}
 
 function formatCountdown(ms: number): string {
   const totalSec = Math.ceil(ms / 1000);
@@ -162,6 +150,11 @@ function renderMarkdown(text: string, keyPrefix: string) {
 
 const Ai = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chatHistory, setChatHistory] = useState<AiChat[]>([]);
+  const [historyUserId, setHistoryUserId] = useState<string | null>(null);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -177,8 +170,6 @@ const Ai = () => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isNearBottom, setIsNearBottom] = useState(true);
-  const [suggestions] = useState(() => pickSuggestions(SUGGESTION_POOL, 3));
-
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -227,6 +218,10 @@ const Ai = () => {
         setUser(null);
         setAuthReady(true);
         setNeedsAuth(true);
+        setHistoryUserId(null);
+        setChatHistory([]);
+        setActiveChatId(null);
+        setMessages([]);
         return;
       }
       setUser(session.user);
@@ -245,6 +240,68 @@ const Ai = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize remote quota after authentication
     syncQuotaFromServer();
   }, [authReady, user, syncQuotaFromServer]);
+
+  useEffect(() => {
+    if (!authReady || !user) return;
+
+    try {
+      const history = loadAiChatHistory(user.id);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate browser history once the authenticated user is known
+      setChatHistory(history);
+      setActiveChatId(null);
+      setMessages([]);
+      setHistoryUserId(user.id);
+    } catch (error) {
+      console.error("Failed to load local AI chat history:", error);
+      toast({
+        title: "Couldn't load chat history",
+        description: "Your local AI chat history could not be read.",
+        variant: "destructive",
+      });
+      setChatHistory([]);
+      setActiveChatId(null);
+      setMessages([]);
+    }
+  }, [authReady, user, toast]);
+
+  useEffect(() => {
+    if (!user || historyUserId !== user.id || !activeChatId || messages.length === 0) return;
+
+    const now = Date.now();
+    const firstUserMessage = messages.find((message) => message.role === "user")?.content;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize the local history entry with the active transcript
+    setChatHistory((history) => {
+      const existing = history.find((chat) => chat.id === activeChatId);
+      const updatedChat: AiChat = {
+        id: activeChatId,
+        title: existing?.title || firstUserMessage?.trim().slice(0, 60) || "New chat",
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+        messages,
+      };
+      return [updatedChat, ...history.filter((chat) => chat.id !== activeChatId)];
+    });
+  }, [messages, activeChatId, user, historyUserId]);
+
+  useEffect(() => {
+    if (!user || historyUserId !== user.id) return;
+
+    const timeout = setTimeout(() => {
+      try {
+        const savedHistory = saveAiChatHistory(user.id, chatHistory);
+        if (savedHistory.length !== chatHistory.length) setChatHistory(savedHistory);
+      } catch (error) {
+        console.error("Failed to save local AI chat history:", error);
+        toast({
+          title: "Couldn't save chat history",
+          description: "Your browser may be out of storage space.",
+          variant: "destructive",
+        });
+      }
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [chatHistory, user, historyUserId, toast]);
 
   useEffect(() => {
     if (!resetsAt) {
@@ -437,9 +494,10 @@ const Ai = () => {
   const handleSend = useCallback(() => {
     if (!input.trim() || isLoading || rateLimited) return;
     const history: Message[] = [...messages, { role: "user", content: input }];
+    if (!activeChatId) setActiveChatId(crypto.randomUUID());
     setInput("");
     sendToApi(history);
-  }, [input, isLoading, rateLimited, messages, sendToApi]);
+  }, [input, isLoading, rateLimited, messages, activeChatId, sendToApi]);
 
   const stopGenerating = () => {
     abortControllerRef.current?.abort();
@@ -497,10 +555,71 @@ const Ai = () => {
     }
   };
 
-  const handleSuggestionClick = (text: string) => {
-    setInput(text);
-    textareaRef.current?.focus();
+  const startNewChat = () => {
+    if (isLoading) return;
+    setActiveChatId(null);
+    setMessages([]);
+    setLastFailed(false);
+    setHistoryOpen(false);
+    setHistorySearch("");
   };
+
+  const openSavedChat = (chat: AiChat) => {
+    if (isLoading) return;
+    setActiveChatId(chat.id);
+    setMessages(chat.messages);
+    setLastFailed(false);
+    setHistoryOpen(false);
+  };
+
+  const removeSavedChat = (chatId: string) => {
+    const updatedHistory = chatHistory.filter((chat) => chat.id !== chatId);
+    setChatHistory(updatedHistory);
+    if (activeChatId === chatId) {
+      setActiveChatId(null);
+      setMessages([]);
+      setLastFailed(false);
+    }
+    if (user && historyUserId === user.id) {
+      try {
+        saveAiChatHistory(user.id, updatedHistory);
+      } catch (error) {
+        console.error("Failed to delete local AI chat:", error);
+        toast({
+          title: "Couldn't delete chat",
+          description: "Your local AI chat history could not be updated.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const clearSavedChats = () => {
+    if (!user || historyUserId !== user.id) return;
+    try {
+      deleteAiChatHistory(user.id);
+      setChatHistory([]);
+      setActiveChatId(null);
+      setMessages([]);
+      setLastFailed(false);
+    } catch (error) {
+      console.error("Failed to clear local AI chat history:", error);
+      toast({
+        title: "Couldn't clear chat history",
+        description: "Your local AI chat history could not be deleted.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredChats = chatHistory.filter((chat) => {
+    const query = historySearch.trim().toLowerCase();
+    return (
+      !query ||
+      chat.title.toLowerCase().includes(query) ||
+      chat.messages.some((message) => message.content.toLowerCase().includes(query))
+    );
+  });
 
   const remainingMessages = Math.max(0, limitMessages - usedMessages);
   const isUserWaitingForResponse = isLoading && messages[messages.length - 1]?.role === "user";
@@ -585,46 +704,111 @@ const Ai = () => {
 
       <div className="relative z-10 flex min-h-screen flex-1 items-center justify-center px-4 py-24">
         <div className="flex h-[min(760px,calc(100vh-8rem))] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-black/5 bg-white/20 shadow-2xl shadow-black/20 backdrop-blur-[24px] dark:border-white/10 dark:bg-black/20">
-          {!hasMessages ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-10">
-              <div className="flex flex-col items-center text-center">
-                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                </div>
-                <h1 className="text-2xl font-semibold text-foreground">Kepler AI</h1>
-                <p
-                  className={`mt-1 text-xs ${
-                    rateLimited ? "font-medium text-destructive" : "text-muted-foreground/70"
-                  }`}
+          <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3 text-xs dark:border-white/10 sm:px-5">
+            <div className="min-w-0">
+              <span className="font-medium text-muted-foreground">Kepler AI</span>
+              <span className={`ml-3 ${rateLimited ? "font-medium text-destructive" : "text-muted-foreground"}`}>
+                {historyOpen
+                  ? "Chat History"
+                  : rateLimited
+                    ? `Resets in ${countdown}`
+                    : `${remainingMessages}/${limitMessages} messages`}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((open) => !open)}
+                aria-expanded={historyOpen}
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
+              >
+                {historyOpen ? <X className="h-4 w-4" /> : <History className="h-4 w-4" />}
+                <span>{historyOpen ? "Back to chat" : "History"}</span>
+              </button>
+              {hasMessages && !historyOpen && (
+                <button
+                  type="button"
+                  onClick={startNewChat}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1.5 font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
                 >
+                  <Plus className="h-4 w-4" />
+                  <span>New chat</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {historyOpen ? (
+            <section className="flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-5">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    value={historySearch}
+                    onChange={(event) => setHistorySearch(event.target.value)}
+                    placeholder="Search chats"
+                    aria-label="Search chats"
+                    className="h-9 rounded-full pl-10"
+                  />
+                </div>
+                {chatHistory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearSavedChats}
+                    disabled={isLoading}
+                    className="shrink-0 rounded px-2 py-1.5 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+                {filteredChats.length === 0 ? (
+                  <p className="px-2 py-12 text-center text-sm text-muted-foreground">
+                    {chatHistory.length === 0 ? "No saved chats on this device." : "No chats match your search."}
+                  </p>
+                ) : (
+                  filteredChats.map((chat) => (
+                    <div key={chat.id} className="flex items-center gap-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5">
+                      <button
+                        type="button"
+                        onClick={() => openSavedChat(chat)}
+                        disabled={isLoading}
+                        className="min-w-0 flex-1 px-2 py-2 text-left disabled:opacity-50"
+                      >
+                        <span className="block truncate text-sm font-medium text-foreground">{chat.title}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {chat.messages[chat.messages.length - 1]?.content || "No messages"} · {new Date(chat.updatedAt).toLocaleDateString()}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeSavedChat(chat.id)}
+                        disabled={isLoading}
+                        aria-label={`Delete ${chat.title}`}
+                        className="mr-2 rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          ) : !hasMessages ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
+              <div className="mb-3 text-center">
+                <h1 className="text-2xl font-semibold text-foreground">Kepler AI</h1>
+                <p className={`mt-1 text-xs ${rateLimited ? "font-medium text-destructive" : "text-muted-foreground/70"}`}>
                   {rateLimited ? `Resets in ${countdown}` : `${remainingMessages}/${limitMessages} messages remaining`}
                 </p>
               </div>
-
               <div className="w-full max-w-lg">{composerBlock}</div>
-
-              <div className="flex flex-wrap justify-center gap-2">
-                {suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="rounded-full border border-black/10 bg-white/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground dark:border-white/10 dark:bg-black/30"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between border-b border-black/5 px-5 py-3 text-xs dark:border-white/10">
-                <span className="font-medium text-muted-foreground">Kepler AI</span>
-                <span className={rateLimited ? "font-medium text-destructive" : "text-muted-foreground"}>
-                  {rateLimited ? `Resets in ${countdown}` : `${remainingMessages}/${limitMessages} messages`}
-                </span>
-              </div>
-
               <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
                 <div className="flex flex-col gap-5">
                   {messages.map((message, index) => (

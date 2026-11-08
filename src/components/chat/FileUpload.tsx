@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/buttons/button";
-import { Plus, X, Image as ImageIcon, FileText, Video, Mic, BarChart3, Clock, Paperclip, Sparkles } from "lucide-react";
+import { Plus, X, Image as ImageIcon, FileText, Video, BarChart3, Paperclip, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/overlays/popover";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { compressImageFile } from "@/lib/image-utils";
-import { VoiceRecorder } from "./VoiceRecorder";
+import { removeChatAttachmentObjects } from "@/lib/chat-attachments";
 import { GifPickerDialog } from "./GifPickerDialog";
 
 const MAX_CHAT_ATTACHMENT_SIZE = 20 * 1024 * 1024;
@@ -35,12 +35,11 @@ const ALLOWED_CHAT_ATTACHMENT_EXTENSIONS = new Set([
 interface FileUploadProps {
   conversationId: string;
   onFilesSelected: (files: Array<{ path?: string; url?: string; type: string; name: string; duration?: number }>) => void;
-  voiceRecorderOpen: boolean;
-  setVoiceRecorderOpen: (open: boolean) => void;
   onCreatePoll: () => void;
+  disabled?: boolean;
 }
 
-export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen, setVoiceRecorderOpen, onCreatePoll }: FileUploadProps) => {
+export const FileUpload = ({ conversationId, onFilesSelected, onCreatePoll, disabled = false }: FileUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Array<{ file: File; preview: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -48,6 +47,7 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
   const { toast } = useToast();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const files = Array.from(event.target.files || []);
 
     const validFiles = files.filter((file) => {
@@ -61,8 +61,8 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
 
     if (validFiles.length !== files.length) {
       toast({
-        title: "Some files were not added",
-        description: "Use JPG, PNG, GIF, WEBP, PDF, MP4, MOV, or WEBM files under 20MB.",
+        title: "Unsupported file format",
+        description: "Some files could not be uploaded due to an unsupported format or file size limit.",
         variant: "destructive",
       });
     }
@@ -72,7 +72,8 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
       preview: URL.createObjectURL(file),
     }));
 
-    setSelectedFiles([...selectedFiles, ...newFiles]);
+    setSelectedFiles(current => [...current, ...newFiles]);
+    if (validFiles.length > 0) setIsOpen(true);
     event.target.value = "";
   };
 
@@ -88,11 +89,13 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
 
     setUploading(true);
     const uploadedFiles: Array<{ path: string; type: string; name: string }> = [];
+    let uploadUserId: string | null = null;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
       if (!userId) throw new Error("Not authenticated");
+      uploadUserId = userId;
 
       for (const { file } of selectedFiles) {
         if (
@@ -132,9 +135,22 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
       selectedFiles.forEach(({ preview }) => URL.revokeObjectURL(preview));
       setIsOpen(false);
     } catch (error: unknown) {
+      let cleanupError: unknown;
+      if (uploadedFiles.length > 0 && uploadUserId) {
+        try {
+          await removeChatAttachmentObjects(
+            uploadedFiles.map(file => file.path),
+            uploadUserId,
+          );
+        } catch (removeError: unknown) {
+          cleanupError = removeError;
+        }
+      }
       toast({
         title: "Upload failed",
-        description: getUserFriendlyError(error),
+        description: cleanupError
+          ? `${getUserFriendlyError(error)} Some uploaded files could not be removed: ${getUserFriendlyError(cleanupError)}`
+          : getUserFriendlyError(error),
         variant: "destructive",
       });
     } finally {
@@ -148,16 +164,6 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
     return <FileText className="h-4 w-4" />;
   };
 
-  const handleVoiceMessage = () => {
-    setIsOpen(false);
-    setVoiceRecorderOpen(true);
-  };
-
-  const handleVoiceRecordingComplete = async (file: { path: string; type: string; name: string; duration?: number }) => {
-    // Auto-send voice message immediately
-    onFilesSelected([file]);
-  };
-
   const handlePollCreation = () => {
     setIsOpen(false);
     onCreatePoll();
@@ -169,7 +175,9 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
   };
 
   const handleGifSelect = (gifUrl: string, gifName: string) => {
+    if (disabled) return;
     // Send GIF as a URL-based attachment
+    setGifPickerOpen(false);
     onFilesSelected([{
       url: gifUrl,
       type: "image/gif",
@@ -177,129 +185,131 @@ export const FileUpload = ({ conversationId, onFilesSelected, voiceRecorderOpen,
     }]);
   };
 
-  const handleScheduleMessage = () => {
-    toast({
-      title: "Schedule Message",
-      description: "Message scheduling coming soon!",
-    });
-    setIsOpen(false);
+  const handleActionSelect = (value: string) => {
+    if (disabled) return;
+    switch (value) {
+      case "photos":
+        document.getElementById("file-upload")?.click();
+        break;
+      case "gifs":
+        handleGifPicker();
+        break;
+      case "polls":
+        handlePollCreation();
+        break;
+    }
   };
-
-  const menuItems = [
-    {
-      icon: Paperclip,
-      label: "Attach Files",
-      onClick: () => document.getElementById("file-upload")?.click(),
-      color: "text-blue-500",
-    },
-    {
-      icon: Sparkles,
-      label: "GIFs",
-      onClick: handleGifPicker,
-      color: "text-pink-500",
-    },
-    {
-      icon: Mic,
-      label: "Voice Message",
-      onClick: handleVoiceMessage,
-      color: "text-green-500",
-    },
-    {
-      icon: BarChart3,
-      label: "Create Poll",
-      onClick: handlePollCreation,
-      color: "text-purple-500",
-    },
-    {
-      icon: Clock,
-      label: "Schedule Message",
-      onClick: handleScheduleMessage,
-      color: "text-orange-500",
-    },
-  ];
 
   return (
     <>
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <Popover
+        open={isOpen && !disabled}
+        onOpenChange={open => {
+          if (!disabled) setIsOpen(open);
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
+            type="button"
+            disabled={disabled}
             variant="ghost"
             size="icon"
-            className="h-10 w-10 shrink-0 self-center rounded-full flex items-center justify-center"
+            aria-label="Open attachment menu"
+            className="order-2 h-9 w-9 shrink-0 self-center rounded-full bg-transparent text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground"
           >
             <Plus className="h-5 w-5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 rounded-2xl border border-border/60 bg-popover/85 p-2 shadow-2xl backdrop-blur-xl" align="start" side="top" sideOffset={8}>
-          <div className="space-y-1">
-            {menuItems.map((item) => (
+        <PopoverContent
+          align="end"
+          side="top"
+          sideOffset={12}
+          className="w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border-border/60 bg-popover/95 p-4 shadow-2xl backdrop-blur-xl data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-3 data-[state=open]:duration-200"
+        >
+          <div className="mb-3">
+            <p className="text-sm font-semibold">Add to message</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Choose what you want to share</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: "photos", label: "Photos", Icon: ImageIcon, color: "text-sky-600 dark:text-sky-400", tint: "bg-sky-500/10" },
+              { value: "gifs", label: "GIFs", Icon: Sparkles, color: "text-violet-600 dark:text-violet-400", tint: "bg-violet-500/10" },
+              { value: "polls", label: "Poll", Icon: BarChart3, color: "text-emerald-600 dark:text-emerald-400", tint: "bg-emerald-500/10" },
+            ].map(({ value, label, Icon, color, tint }) => (
               <button
-                key={item.label}
-                onClick={item.onClick}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left"
+                key={value}
+                type="button"
+                onClick={() => handleActionSelect(value)}
+                className="group flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-border/50 bg-background/60 p-3 text-sm font-medium transition-all hover:-translate-y-0.5 hover:border-border hover:bg-accent active:translate-y-0"
               >
-                <item.icon className={`h-5 w-5 ${item.color}`} />
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tint} ${color} transition-transform group-hover:scale-105`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span>{label}</span>
               </button>
             ))}
           </div>
 
-          <input
-            id="file-upload"
-            type="file"
-            multiple
-            accept="image/*,video/*,.pdf"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+          {selectedFiles.length > 0 && (
+            <div className="mt-4 grid max-h-40 grid-cols-4 gap-2 overflow-y-auto border-t border-border/50 pt-4">
+              {selectedFiles.map((item, index) => (
+                <div key={`${item.file.name}-${index}`} className="group relative aspect-square overflow-hidden rounded-xl bg-secondary">
+                  {item.file.type.startsWith("image/") ? (
+                    <img src={item.preview} alt={item.file.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-1 p-1 text-muted-foreground">
+                      {getFileIcon(item.file.type)}
+                      <span className="w-full truncate text-center text-[10px]">{item.file.name}</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${item.file.name}`}
+                    onClick={() => removeFile(index)}
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {selectedFiles.length > 0 && (
-            <div className="mt-3 pt-3 border-t space-y-2">
-              <p className="text-xs text-muted-foreground px-1">
-                {selectedFiles.length} file(s) selected
-              </p>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {selectedFiles.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 p-2 bg-secondary rounded-lg"
-                  >
-                    {getFileIcon(item.file.type)}
-                    <span className="text-xs flex-1 truncate">{item.file.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => removeFile(index)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button
-                className="w-full"
-                size="sm"
-                onClick={uploadFiles}
-                disabled={uploading}
-              >
-                {uploading ? "Uploading..." : "Upload & Attach"}
-              </Button>
-            </div>
+            <Button
+              type="button"
+              className="mt-3 w-full"
+              size="sm"
+              onClick={uploadFiles}
+              disabled={disabled || uploading}
+            >
+              {uploading ? "Uploading..." : "Upload & Attach"}
+            </Button>
           )}
         </PopoverContent>
       </Popover>
-
-      <VoiceRecorder
-        open={voiceRecorderOpen}
-        onOpenChange={setVoiceRecorderOpen}
-        conversationId={conversationId}
-        onRecordingComplete={handleVoiceRecordingComplete}
+      <input
+        id="file-upload"
+        type="file"
+        multiple
+        accept="image/*,video/*,.pdf"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+      <input
+        id="camera-capture"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileSelect}
+        className="hidden"
       />
 
       <GifPickerDialog
-        open={gifPickerOpen}
-        onOpenChange={setGifPickerOpen}
+        open={gifPickerOpen && !disabled}
+        onOpenChange={open => {
+          if (!disabled) setGifPickerOpen(open);
+        }}
         onGifSelect={handleGifSelect}
       />
     </>

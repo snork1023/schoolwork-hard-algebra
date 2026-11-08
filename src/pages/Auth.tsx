@@ -259,7 +259,7 @@ const Auth = () => {
     }
     const validation = signInSchema.safeParse({ email: signInEmail, password: signInPassword });
     if (!validation.success) {
-      toast({ title: "Validation error", description: validation.error.errors[0].message, variant: "destructive" });
+      toast({ title: "Validation error", description: validation.error.issues[0].message, variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -312,7 +312,7 @@ const Auth = () => {
     }
     const validation = signUpEmailSchema.safeParse({ email: signUpEmail });
     if (!validation.success) {
-      toast({ title: "Validation error", description: validation.error.errors[0].message, variant: "destructive" });
+      toast({ title: "Validation error", description: validation.error.issues[0].message, variant: "destructive" });
       return;
     }
     setSignUpEmail(validation.data.email);
@@ -420,7 +420,7 @@ const Auth = () => {
     if (!validation.success) {
       toast({
         title: "Validation error",
-        description: validation.error.errors[0].message,
+        description: validation.error.issues[0].message,
         variant: "destructive",
       });
       return;
@@ -436,7 +436,7 @@ const Auth = () => {
     if (!usernameValidation.success) {
       toast({
         title: "Validation error",
-        description: usernameValidation.error.errors[0].message,
+        description: usernameValidation.error.issues[0].message,
         variant: "destructive",
       });
       return;
@@ -479,7 +479,7 @@ const Auth = () => {
     if (!usernameValidation.success) {
       toast({
         title: "Validation error",
-        description: usernameValidation.error.errors[0].message,
+        description: usernameValidation.error.issues[0].message,
         variant: "destructive",
       });
       return;
@@ -633,7 +633,7 @@ const Auth = () => {
     }
     const validation = z.string().trim().email("Invalid email address").safeParse(resetEmail);
     if (!validation.success) {
-      toast({ title: "Invalid email", description: validation.error.errors[0].message, variant: "destructive" });
+      toast({ title: "Invalid email", description: validation.error.issues[0].message, variant: "destructive" });
       return;
     }
     setResetEmail(validation.data);
@@ -724,7 +724,7 @@ const handleVerifyResetOtp = async (submittedCode = resetOtp) => {
     }
     const validation = resetPasswordSchema.safeParse({ password: resetPassword });
     if (!validation.success) {
-      toast({ title: "Validation error", description: validation.error.errors[0].message, variant: "destructive" });
+      toast({ title: "Validation error", description: validation.error.issues[0].message, variant: "destructive" });
       return;
     }
     setLoading(true);

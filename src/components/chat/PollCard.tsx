@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/buttons/button";
 import { BarChart3, Check, Users, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { getUserFriendlyError } from "@/lib/error-utils";
 
 interface Poll {
   id: string;
@@ -32,13 +34,14 @@ interface PollCardProps {
   poll: Poll;
   currentUserId: string;
   votes: PollVote[];
-  onVotesChange: () => void;
+  onVotesChange: () => void | Promise<void>;
   creatorUsername?: string;
 }
 
 export const PollCard = ({ poll, currentUserId, votes, onVotesChange, creatorUsername }: PollCardProps) => {
   const [loading, setLoading] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<number[]>([]);
+  const { toast } = useToast();
 
   const userVotes = useMemo(
     () => votes.filter(v => v.user_id === currentUserId),
@@ -78,46 +81,61 @@ export const PollCard = ({ poll, currentUserId, votes, onVotesChange, creatorUse
       
       if (alreadyVoted) {
         // Remove vote
-        await supabase
+        const { error } = await supabase
           .from("poll_votes")
           .delete()
           .eq("poll_id", poll.id)
           .eq("user_id", currentUserId)
           .eq("option_index", optionIndex);
+        if (error) throw error;
       } else {
         // For single choice, remove existing votes first
         if (!poll.multiple_choice && hasVoted) {
-          await supabase
+          const { error } = await supabase
             .from("poll_votes")
             .delete()
             .eq("poll_id", poll.id)
             .eq("user_id", currentUserId);
+          if (error) throw error;
         }
         
         // Add new vote
-        await supabase.from("poll_votes").insert({
+        const { error } = await supabase.from("poll_votes").insert({
           poll_id: poll.id,
           user_id: currentUserId,
           option_index: optionIndex,
         });
+        if (error) throw error;
       }
       
-      onVotesChange();
+      await onVotesChange();
     } catch (error) {
-      console.error("Vote error:", error);
+      toast({
+        title: "Couldn't update vote",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this poll?")) return;
+    if (loading || !window.confirm("Delete this poll?")) return;
     
+    setLoading(true);
     try {
-      await supabase.from("polls").delete().eq("id", poll.id);
-      onVotesChange();
+      const { error } = await supabase.from("polls").delete().eq("id", poll.id);
+      if (error) throw error;
+      await onVotesChange();
     } catch (error) {
-      console.error("Delete error:", error);
+      toast({
+        title: "Couldn't delete poll",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -137,6 +155,7 @@ export const PollCard = ({ poll, currentUserId, votes, onVotesChange, creatorUse
           <Button
             variant="ghost"
             size="icon"
+            disabled={loading}
             className="h-6 w-6 shrink-0"
             onClick={handleDelete}
           >

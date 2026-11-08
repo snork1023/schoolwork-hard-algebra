@@ -33,7 +33,8 @@ interface RadioProps
   value?: string;
   defaultValue?: string;
   onChange?: (value: string, index: number) => void;
-  size?: "sm" | "md" | "lg";
+  onSelect?: (value: string, index: number) => void;
+  size?: "sm" | "md" | "lg" | "xl";
   shape?: "circle" | "pill";
   gap?: number;
   swell?: number;
@@ -52,6 +53,7 @@ const SIZES = {
   sm: 28,
   md: 32,
   lg: 40,
+  xl: 48,
 };
 
 const spring = (
@@ -113,6 +115,7 @@ const Radio = ({
   value,
   defaultValue,
   onChange,
+  onSelect,
   size = "md",
   shape = "circle",
   gap = 8,
@@ -260,14 +263,9 @@ const Radio = ({
   const commit = (index: number) => {
     const item = list[index];
 
-    if (
-      disabled ||
-      !item ||
-      item.disabled ||
-      index === selectedIndex
-    ) {
-      return;
-    }
+    if (disabled || !item || item.disabled) return;
+    onSelect?.(item.value, index);
+    if (index === selectedIndex) return;
 
     applied.current = index;
 

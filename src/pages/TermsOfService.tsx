@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
+import { useTheme } from "next-themes";
 
 const TermsOfService = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const navigate = useNavigate();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== "light";
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -99,16 +102,51 @@ const TermsOfService = () => {
   }, []);
 
   return (
-    <div style={s.root}>
+    <div className={`policy-page ${isDark ? "dark" : "light"}`} style={s.root}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        .policy-page {
+          --policy-background: #05060f;
+          --policy-card: rgba(5,6,15,0.92);
+          --policy-border: rgba(255,255,255,0.12);
+          --policy-heading: #fff;
+          --policy-subheading: rgba(255,255,255,0.87);
+          --policy-subtle: rgba(255,255,255,0.55);
+          --policy-text: rgba(255,255,255,0.8);
+          --policy-button-text: rgba(255,255,255,0.85);
+          --policy-button-bg: rgba(255,255,255,0.06);
+          --policy-button-border: rgba(255,255,255,0.2);
+          --policy-button-hover-bg: rgba(255,255,255,0.12);
+          --policy-button-hover-text: #fff;
+          --policy-canvas-filter: none;
+          --policy-link: #8ab4ff;
+        }
+        .policy-page.light {
+          --policy-background: #f3f5fb;
+          --policy-card: rgba(255,255,255,0.88);
+          --policy-border: rgba(25,35,60,0.14);
+          --policy-heading: #171a2b;
+          --policy-subheading: rgba(23,26,43,0.87);
+          --policy-subtle: rgba(23,26,43,0.55);
+          --policy-text: rgba(23,26,43,0.82);
+          --policy-button-text: rgba(23,26,43,0.85);
+          --policy-button-bg: rgba(25,35,60,0.05);
+          --policy-button-border: rgba(25,35,60,0.2);
+          --policy-button-hover-bg: rgba(25,35,60,0.12);
+          --policy-button-hover-text: #171a2b;
+          --policy-canvas-filter: invert(1);
+          --policy-link: #315eb5;
+        }
+        .policy-page a {
+          color: var(--policy-link);
+        }
         .home-btn:hover {
-          background: rgba(255,255,255,0.12) !important;
-          color: #fff !important;
+          background: var(--policy-button-hover-bg) !important;
+          color: var(--policy-button-hover-text) !important;
         }
       `}</style>
 
@@ -143,6 +181,7 @@ const TermsOfService = () => {
             </p>
             <ul style={s.list}>
               <li style={s.listItem}><strong>Upload Malicious Material:</strong> Transmit any software viruses, malware, trojan horses, or corrupt files designed to disrupt server infrastructure or compromise client devices.</li>
+              <li style={s.listItem}><strong>Copyrighted or Illegal Uploads:</strong> You may not upload copyrighted or illegal content to the platform.</li>
               <li style={s.listItem}><strong>Harass or Abuse:</strong> Engage in stalking, bullying, harassment, hate speech, or the defamation of other platform participants.</li>
               <li style={s.listItem}><strong>Infringe Intellectual Property:</strong> Upload files, media, images, or audio assets that infringe upon third-party copyrights, trademarks, or patents.</li>
               <li style={s.listItem}><strong>Abuse System Infrastructure:</strong> Attempt to bypass our application rate limiters, flood database endpoints, spam presence tracking networks, reverse-engineer server-side Edge Functions, or deploy automated bots to scrape public profile data.</li>
@@ -204,7 +243,7 @@ const s: Record<string, React.CSSProperties> = {
   root: {
     position: "relative",
     minHeight: "100vh",
-    backgroundColor: "#05060f",
+    backgroundColor: "var(--policy-background)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -215,6 +254,7 @@ const s: Record<string, React.CSSProperties> = {
     position: "absolute",
     inset: 0,
     zIndex: 0,
+    filter: "var(--policy-canvas-filter)",
   },
   content: {
     position: "relative",
@@ -227,8 +267,8 @@ const s: Record<string, React.CSSProperties> = {
   card: {
     width: "100%",
     maxWidth: "980px",
-    background: "rgba(5,6,15,0.92)",
-    border: "1px solid rgba(255,255,255,0.12)",
+    background: "var(--policy-card)",
+    border: "1px solid var(--policy-border)",
     borderRadius: "1.25rem",
     padding: "2rem",
     boxShadow: "0 32px 80px rgba(0,0,0,0.2)",
@@ -239,14 +279,14 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'Orbitron', sans-serif",
     fontSize: "clamp(2.8rem, 6vw, 4.5rem)",
     fontWeight: 700,
-    color: "#fff",
+    color: "var(--policy-heading)",
     margin: "0 0 0.5rem",
     letterSpacing: "0.08em",
   },
   sub: {
     fontFamily: "'Orbitron', sans-serif",
     fontSize: "clamp(0.9rem, 1.2vw, 1rem)",
-    color: "rgba(255,255,255,0.55)",
+    color: "var(--policy-subtle)",
     letterSpacing: "0.16em",
     margin: "0 0 1.75rem",
     textTransform: "uppercase",
@@ -260,14 +300,14 @@ const s: Record<string, React.CSSProperties> = {
   sectionHeading: {
     fontFamily: "'Orbitron', sans-serif",
     fontSize: "clamp(1.35rem, 2vw, 1.75rem)",
-    color: "#fff",
+    color: "var(--policy-heading)",
     margin: "0",
     letterSpacing: "0.12em",
   },
   paragraph: {
     maxWidth: "860px",
     margin: "0 auto",
-    color: "rgba(255,255,255,0.8)",
+    color: "var(--policy-text)",
     fontSize: "clamp(0.95rem, 1.1vw, 1rem)",
     lineHeight: 1.8,
     textAlign: "center",
@@ -283,7 +323,7 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: "left",
   },
   listItem: {
-    color: "rgba(255,255,255,0.8)",
+    color: "var(--policy-text)",
     fontSize: "clamp(0.95rem, 1.1vw, 1rem)",
     lineHeight: 1.8,
   },
@@ -292,9 +332,9 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily: "'Orbitron', sans-serif",
     fontSize: "0.9rem",
     letterSpacing: "0.15em",
-    color: "rgba(255,255,255,0.85)",
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.2)",
+    color: "var(--policy-button-text)",
+    background: "var(--policy-button-bg)",
+    border: "1px solid var(--policy-button-border)",
     padding: "0.95rem 2rem",
     cursor: "pointer",
     transition: "background 0.25s, color 0.25s",

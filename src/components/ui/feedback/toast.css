@@ -20,6 +20,7 @@
 
   display: grid;
   grid-template-rows: 1fr;
+  pointer-events: none;
 
   width: min(
     var(--toast-w),
@@ -43,6 +44,7 @@
         0px
       )
   );
+  top: auto;
 
   z-index: var(--toast-z);
 
@@ -161,6 +163,10 @@
   transform: translateY(100%);
 }
 
+.toast[data-phase='gone'] .toast__card {
+  pointer-events: none;
+}
+
 .toast[data-instant]
   .toast__lift {
   transition-duration: 0s;
@@ -169,6 +175,7 @@
 .toast__card {
   position: relative;
   display: flex;
+  pointer-events: auto;
   align-items: center;
   gap: 8px;
   padding: 16px;

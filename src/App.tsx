@@ -36,6 +36,35 @@ import {
 const queryClient = new QueryClient();
 const SPLASH_CURSOR_ACTIVE_KEY = "kepler-splash-cursor-active";
 
+const ThemeTransitionGuard = () => {
+  useEffect(() => {
+    const root = document.documentElement;
+    let isDark = root.classList.contains("dark");
+    let timeout: ReturnType<typeof window.setTimeout> | undefined;
+
+    const observer = new MutationObserver(() => {
+      const nextIsDark = root.classList.contains("dark");
+      if (nextIsDark === isDark) return;
+
+      isDark = nextIsDark;
+      root.setAttribute("data-theme-changing", "");
+      window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        root.removeAttribute("data-theme-changing");
+      }, 100);
+    });
+
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timeout);
+      root.removeAttribute("data-theme-changing");
+    };
+  }, []);
+
+  return null;
+};
+
 const SplashCursorGate = () => {
   const [isActive, setIsActive] = useState(
     () => window.localStorage.getItem(SPLASH_CURSOR_ACTIVE_KEY) === "true",
@@ -117,7 +146,13 @@ const SignupRouteGuard = ({ children }: { children: ReactNode }) => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <ThemeTransitionGuard />
       <SettingsProvider>
         <TooltipProvider>
           <Toaster />

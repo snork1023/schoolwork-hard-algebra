@@ -214,7 +214,7 @@ const CreateConversationDialog = ({
     if (!groupNameValidation.success) {
       toast({
         title: "Invalid group name",
-        description: groupNameValidation.error.errors[0].message,
+        description: groupNameValidation.error.issues[0].message,
         variant: "destructive"
       });
       return;

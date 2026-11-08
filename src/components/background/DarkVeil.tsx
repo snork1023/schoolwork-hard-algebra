@@ -122,7 +122,8 @@ void main(){
     col.rgb*=1.-(scanline_val*scanline_val)*uScan;
     col.rgb+=(rand(gl_FragCoord.xy+uTime)-0.5)*uNoise;
     if (uThemeMode < 0.5) {
-        col.rgb=mix(vec3(1.0), col.rgb, 0.2);
+        float detail=dot(col.rgb,vec3(0.299,0.587,0.114));
+        col.rgb=mix(vec3(0.97,0.975,1.0),vec3(0.76,0.82,0.96),detail);
     }
     gl_FragColor=vec4(clamp(col.rgb,0.0,1.0),1.0);
 }
