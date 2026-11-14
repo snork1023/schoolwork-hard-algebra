@@ -39,6 +39,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_user_quota: {
+        Row: {
+          daily_requests_reserved: number
+          daily_requests_used: number
+          daily_tokens_reserved: number
+          daily_tokens_used: number
+          daily_window_date: string
+          requests_reserved: number
+          requests_used: number
+          tokens_reserved: number
+          tokens_used: number
+          updated_at: string
+          user_id: string
+          window_reset_at: string
+        }
+        Insert: {
+          daily_requests_reserved?: number
+          daily_requests_used?: number
+          daily_tokens_reserved?: number
+          daily_tokens_used?: number
+          daily_window_date?: string
+          requests_reserved?: number
+          requests_used?: number
+          tokens_reserved?: number
+          tokens_used?: number
+          updated_at?: string
+          user_id: string
+          window_reset_at?: string
+        }
+        Update: {
+          daily_requests_reserved?: number
+          daily_requests_used?: number
+          daily_tokens_reserved?: number
+          daily_tokens_used?: number
+          daily_window_date?: string
+          requests_reserved?: number
+          requests_used?: number
+          tokens_reserved?: number
+          tokens_used?: number
+          updated_at?: string
+          user_id?: string
+          window_reset_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           attachments: Json | null

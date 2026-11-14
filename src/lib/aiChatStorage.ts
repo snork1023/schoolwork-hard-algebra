@@ -11,11 +11,17 @@ export type AiChat = {
   createdAt: number;
   updatedAt: number;
   messages: AiChatMessage[];
+  pinned?: boolean;
 };
 
 const CHAT_STORAGE_PREFIX = "aiChatHistory:";
 
 const chatStorageKey = (userId: string) => `${CHAT_STORAGE_PREFIX}${userId}`;
+
+export const sortAiChatHistory = (chats: AiChat[]) =>
+  [...chats].sort(
+    (a, b) => Number(b.pinned === true) - Number(a.pinned === true) || b.updatedAt - a.updatedAt
+  );
 
 const isStoredChat = (value: unknown): value is AiChat => {
   if (!value || typeof value !== "object") return false;
@@ -27,6 +33,7 @@ const isStoredChat = (value: unknown): value is AiChat => {
     Number.isFinite(chat.createdAt) &&
     typeof chat.updatedAt === "number" &&
     Number.isFinite(chat.updatedAt) &&
+    (chat.pinned === undefined || typeof chat.pinned === "boolean") &&
     Array.isArray(chat.messages) &&
     chat.messages.every(
       (message: unknown) =>
@@ -48,12 +55,13 @@ export const loadAiChatHistory = (userId: string): AiChat[] => {
     throw new Error("Saved AI chat history has an invalid format.");
   }
 
-  return parsed.sort((a, b) => b.updatedAt - a.updatedAt);
+  return sortAiChatHistory(parsed);
 };
 
 export const saveAiChatHistory = (userId: string, chats: AiChat[]) => {
-  localStorage.setItem(chatStorageKey(userId), JSON.stringify(chats));
-  return [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+  const sortedChats = sortAiChatHistory(chats);
+  localStorage.setItem(chatStorageKey(userId), JSON.stringify(sortedChats));
+  return sortedChats;
 };
 
 export const deleteAiChatHistory = (userId: string) => {
