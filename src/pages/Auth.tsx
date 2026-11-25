@@ -508,10 +508,9 @@ const Auth = () => {
       }
 
       const { error: updateError } = await supabase.auth.updateUser({
-        password: signUpPassword,
         data: { username: usernameValidation.data },
       });
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
 
       const profileData: { id: string; username: string; bio: string; avatar_url?: string } = {
         id: user.id,
