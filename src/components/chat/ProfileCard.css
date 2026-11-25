@@ -1,0 +1,16 @@
+.profile-card {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid hsl(var(--border) / 0.9);
+  border-radius: 1rem;
+  --profile-card-surface: hsl(var(--card) / 0.9);
+  --profile-card-border: hsl(var(--border) / 0.9);
+  --profile-card-foreground: hsl(var(--card-foreground));
+  --profile-card-muted: hsl(var(--muted-foreground));
+  --profile-card-subtle: hsl(var(--muted));
+  color: hsl(var(--card-foreground));
+  background-color: var(--profile-card-surface);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+}

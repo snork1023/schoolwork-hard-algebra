@@ -86,11 +86,23 @@
   }
 }
 
-html:not(.dark) .bg-card:not([class*="bg-card/"]),
 html:not(.dark) .bg-popover:not([class*="bg-popover/"]),
 html:not(.dark) .bg-background:not([class*="bg-background/"]) {
   background-color: hsl(var(--background) / 0.82);
   backdrop-filter: blur(12px);
+}
+
+div.bg-card,
+div[class*="bg-card/"] {
+  background-color: hsl(var(--card) / 0.9);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+}
+
+[class*="border-black/"],
+[class*="dark:border-white/"] {
+  border-color: hsl(var(--border) / 0.9);
 }
 
 html.dark iframe[src*="hcaptcha.com"] {

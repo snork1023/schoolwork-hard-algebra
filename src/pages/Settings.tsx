@@ -280,7 +280,7 @@ const Settings = () => {
 
             {/* Appearance */}
             <ScrollRevealCard>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card>
                 <CardHeader>
                   <CardTitle>Appearance</CardTitle>
                   <CardDescription>
@@ -422,7 +422,7 @@ const Settings = () => {
 
             {/* Tab Cloak */}
             <ScrollRevealCard>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card>
                 <CardHeader>
                   <CardTitle>Tab Cloak</CardTitle>
                   <CardDescription>
@@ -586,7 +586,7 @@ const Settings = () => {
 
             {/* About:Blank Cloaking */}
             <ScrollRevealCard>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card>
                 <CardHeader>
                   <CardTitle>About:Blank Cloaking</CardTitle>
                   <CardDescription>
@@ -651,7 +651,7 @@ const Settings = () => {
 
             {/* Panic Key */}
             <ScrollRevealCard>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card>
                 <CardHeader>
                   <CardTitle>Panic Key</CardTitle>
                   <CardDescription>
@@ -743,7 +743,7 @@ const Settings = () => {
 
             {/* Developer Options */}
             <ScrollRevealCard>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card>
                 <CardHeader>
                   <CardTitle>Developer Options</CardTitle>
                   <CardDescription>
@@ -777,7 +777,7 @@ const Settings = () => {
 
             {/* App Info */}
             <ScrollRevealCard>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card>
                 <CardHeader>
                   <CardTitle>App Info</CardTitle>
                   <CardDescription>

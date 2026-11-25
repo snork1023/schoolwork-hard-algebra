@@ -378,8 +378,10 @@ export type Database = {
           bio: string | null
           created_at: string
           discoverable: boolean
+          follower_count: number
           id: string
           last_seen: string | null
+          pronouns: string
           settings: Json | null
           status: string | null
           status_message: string | null
@@ -390,8 +392,10 @@ export type Database = {
           bio?: string | null
           created_at?: string
           discoverable?: boolean
+          follower_count?: number
           id: string
           last_seen?: string | null
+          pronouns?: string
           settings?: Json | null
           status?: string | null
           status_message?: string | null
@@ -402,14 +406,82 @@ export type Database = {
           bio?: string | null
           created_at?: string
           discoverable?: boolean
+          follower_count?: number
           id?: string
           last_seen?: string | null
+          pronouns?: string
           settings?: Json | null
           status?: string | null
           status_message?: string | null
           username?: string
         }
         Relationships: []
+      }
+      profile_follows: {
+        Row: {
+          created_at: string
+          followed_id: string
+          follower_id: string
+        }
+        Insert: {
+          created_at?: string
+          followed_id: string
+          follower_id: string
+        }
+        Update: {
+          created_at?: string
+          followed_id?: string
+          follower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_follows_followed_id_fkey"
+            columns: ["followed_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

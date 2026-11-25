@@ -1269,7 +1269,7 @@ const Ai = () => {
       `}</style>
 
       <div className="relative z-10 flex h-full min-h-0 w-full px-3 pb-3 pt-24 sm:px-5 sm:pb-5">
-        <div className="relative flex h-full min-h-0 w-full overflow-hidden rounded-3xl border border-border/50 bg-card/35 shadow-2xl shadow-black/15 backdrop-blur-2xl">
+        <div className="relative flex h-full min-h-0 w-full overflow-hidden rounded-xl border border-border bg-card/90 shadow-sm backdrop-blur-md">
           <AnimatePresence initial={false}>
           {sidebarOpen && (
             <motion.aside
@@ -1610,7 +1610,7 @@ const Ai = () => {
                         )
                       ) : (
                         <div className="flex max-w-[85%] flex-col gap-1">
-                          <div className="msg-text rounded-2xl border border-black/10 bg-slate-200/60 px-4 py-3 text-sm leading-relaxed text-foreground shadow-sm dark:border-white/10 dark:bg-black/60">
+                          <div className="msg-text rounded-xl border border-border bg-card/90 px-4 py-3 text-sm leading-relaxed text-card-foreground shadow-sm">
                             {renderMarkdown(message.content, `m-${index}`)}
                           </div>
                           {message.content && (
@@ -1667,7 +1667,7 @@ const Ai = () => {
                     onClick={() =>
                       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
                     }
-                    className="sticky bottom-2 left-1/2 z-20 mt-3 block -translate-x-1/2 rounded-full border border-black/10 bg-white/80 px-3 py-1.5 text-xs text-foreground shadow-md transition hover:bg-white dark:border-white/10 dark:bg-black/70 dark:hover:bg-black/90"
+                    className="sticky bottom-2 left-1/2 z-20 mt-3 block -translate-x-1/2 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs text-foreground shadow-sm transition hover:bg-muted"
                   >
                     ↓ New messages
                   </button>

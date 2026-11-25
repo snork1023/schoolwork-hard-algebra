@@ -1,5 +1,5 @@
 import { Dropdown } from "@/components/ui/menus/dropdown";
-import { StatusIndicator, getStatusLabel, type Status } from "./StatusIndicator";
+import { StatusIndicator, type Status } from "./StatusIndicator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Circle, Moon, MinusCircle, CircleOff } from "lucide-react";
@@ -44,14 +44,9 @@ export const StatusSelector = ({
       ariaLabel="Set your status"
       align="left"
       menuWidth={200}
-      triggerClassName="glide-dropdown__trigger--plain w-auto min-w-0 border-0 bg-transparent p-1"
+      triggerClassName="glide-dropdown__trigger--plain h-9 w-9 min-w-0 justify-center border-0 bg-transparent p-0 text-muted-foreground hover:bg-accent hover:text-foreground"
       triggerContent={
-        <span className="flex items-center gap-2">
-          <StatusIndicator status={currentStatus} size="md" />
-          <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-            {statusMessage || getStatusLabel(currentStatus)}
-          </span>
-        </span>
+        <StatusIndicator status={currentStatus} size="md" />
       }
       options={statusOptions.map(({ status, icon, label }) => ({
         value: status,

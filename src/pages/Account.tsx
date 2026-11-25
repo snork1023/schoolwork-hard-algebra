@@ -1,10 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/layout/card";
 import { Input } from "@/components/ui/forms/input";
 import { Button, buttonVariants } from "@/components/ui/buttons/button";
-import { Button as StatefulButton } from "@/components/ui/buttons/stateful-button";
 import { Label } from "@/components/ui/forms/label";
 import Switch from "@/components/ui/buttons/switch";
 import { Textarea } from "@/components/ui/forms/textarea";
+import { Dropdown } from "@/components/ui/menus/dropdown";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/data-display/avatar";
 import CodeSlots, { type CodeSlotsStatus } from "@/components/ui/forms/codeslots";
 import PasswordGuide from "@/components/ui/forms/PasswordGuide";
@@ -23,11 +23,14 @@ import { z } from "zod";
 import { getUserFriendlyError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 import { compressImageFile } from "@/lib/image-utils";
+import ProfileCard from "@/components/chat/ProfileCard";
 
 const usernameSchema = z.string().trim().min(1, "Username is required").max(20, "Username must be 20 characters or less");
 
 const DELETE_HOLD_DURATION_MS = 3000;
 const DISCOVERABLE_SAVE_DELAY_MS = 15000;
+const PROFILE_SAVE_DELAY_MS = 15000;
+const PROFILE_EDIT_IDLE_MS = 1000;
 const discoverableStorageKey = (userId: string) => `pending-discoverable:${userId}`;
 
 interface PendingDiscoverable {
@@ -43,9 +46,6 @@ const isPendingDiscoverable = (value: unknown): value is PendingDiscoverable =>
   "saveAt" in value &&
   typeof value.saveAt === "number" &&
   Number.isFinite(value.saveAt);
-
-const SAVED_FLASH_VISIBLE_MS = 1400;
-const SAVED_FLASH_FADE_MS = 300;
 
 // A single settings row: label/description on the left, control on the right
 const SettingsRow = ({
@@ -92,8 +92,14 @@ const Account = () => {
   const pendingDiscoverableRef = useRef(true);
   const savedDiscoverableRef = useRef(true);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveFailed, setProfileSaveFailed] = useState(false);
   const profileSaveRef = useRef(false);
+  const [profileSaveAt, setProfileSaveAt] = useState<number | null>(null);
+  const profileSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const profileEditDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const profileLastEditAtRef = useRef<number | null>(null);
   const [bio, setBio] = useState("");
+  const [pronouns, setPronouns] = useState("N/A");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarHovering, setAvatarHovering] = useState(false);
@@ -106,17 +112,8 @@ const Account = () => {
   const deleteHoldStartRef = useRef<number | null>(null);
   const deleteStartedRef = useRef(false);
 
-  // Last-saved values. The profile form is "dirty" (and shows the single
-  // Save bar) when either of these differs from current state.
-  const [savedProfile, setSavedProfile] = useState({ username: "", bio: "" });
-
-  // Keeps the save bar mounted after a save completes, so the button has time
-  // to play its checkmark. "visible" holds it in place, "fading" runs the
-  // exit transition. Without this the bar would unmount the instant
-  // savedProfile updates, killing the animation before it starts.
-  const [savedFlash, setSavedFlash] = useState<"none" | "visible" | "fading">("none");
-  const flashHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flashUnmountTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Last-saved values, used to determine which profile fields need updating.
+  const [savedProfile, setSavedProfile] = useState({ username: "", bio: "", pronouns: "N/A" });
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -132,28 +129,18 @@ const Account = () => {
   const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
   const showNewPasswordRequirements = newPasswordFocused || newPassword.length > 0;
 
-  const clearFlashTimers = useCallback(() => {
-    if (flashHideTimeoutRef.current) {
-      clearTimeout(flashHideTimeoutRef.current);
-      flashHideTimeoutRef.current = null;
-    }
-    if (flashUnmountTimeoutRef.current) {
-      clearTimeout(flashUnmountTimeoutRef.current);
-      flashUnmountTimeoutRef.current = null;
-    }
-  }, []);
-
   const fetchProfile = useCallback(async (uid: string) => {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, discoverable, bio, avatar_url")
+      .select("username, discoverable, bio, pronouns, avatar_url")
       .eq("id", uid)
       .single();
     if (profile) {
       const savedUsername = profile.username || "";
       const savedBio = profile.bio || "";
+      const savedPronouns = profile.pronouns || "N/A";
       setUsername(savedUsername);
-      setSavedProfile({ username: savedUsername, bio: savedBio });
+      setSavedProfile({ username: savedUsername, bio: savedBio, pronouns: savedPronouns });
       const savedDiscoverable = profile.discoverable ?? true;
       savedDiscoverableRef.current = savedDiscoverable;
       let pendingDiscoverable: PendingDiscoverable | null = null;
@@ -183,6 +170,7 @@ const Account = () => {
         pendingDiscoverableRef.current = savedDiscoverable;
       }
       setBio(savedBio);
+      setPronouns(savedPronouns);
       setAvatarUrl(profile.avatar_url);
     }
   }, [toast]);
@@ -314,19 +302,40 @@ const Account = () => {
     }
   };
 
-  // Single save action for the whole profile form (username + bio).
-  const handleSaveProfile = async () => {
+  const scheduleProfileSave = () => {
+    profileLastEditAtRef.current = Date.now();
+    setProfileSaveFailed(false);
+    if (profileSaveTimerRef.current) {
+      clearTimeout(profileSaveTimerRef.current);
+      profileSaveTimerRef.current = null;
+    }
+    setProfileSaveAt(null);
+
+    if (profileEditDebounceTimerRef.current) {
+      clearTimeout(profileEditDebounceTimerRef.current);
+    }
+    profileEditDebounceTimerRef.current = setTimeout(() => {
+      profileEditDebounceTimerRef.current = null;
+      const lastEditAt = profileLastEditAtRef.current;
+      if (lastEditAt !== null) {
+        setProfileSaveAt(lastEditAt + PROFILE_SAVE_DELAY_MS);
+      }
+    }, PROFILE_EDIT_IDLE_MS);
+  };
+
+  const handleSaveProfile = useCallback(async () => {
     if (!userId || profileSaveRef.current) return;
 
     profileSaveRef.current = true;
     setProfileSaving(true);
     try {
-      const updates: { username?: string; bio?: string } = {};
+      const updates: { username?: string; bio?: string; pronouns?: string } = {};
 
       const trimmedUsername = username.trim();
       if (trimmedUsername !== savedProfile.username) {
         const result = usernameSchema.safeParse(trimmedUsername);
         if (!result.success) {
+          setProfileSaveFailed(true);
           toast({
             title: "Validation Error",
             description: result.error.issues[0].message,
@@ -340,6 +349,7 @@ const Account = () => {
       const trimmedBio = bio.trim();
       if (trimmedBio !== savedProfile.bio) {
         if (bio.length > 500) {
+          setProfileSaveFailed(true);
           toast({
             title: "Error",
             description: "Bio must be 500 characters or less",
@@ -350,6 +360,19 @@ const Account = () => {
         updates.bio = trimmedBio;
       }
 
+      const trimmedPronouns = pronouns.trim();
+      if (trimmedPronouns !== savedProfile.pronouns) {
+        if (trimmedPronouns.length > 50) {
+          toast({
+            title: "Error",
+            description: "Pronouns must be 50 characters or less",
+            variant: "destructive",
+          });
+          return;
+        }
+        updates.pronouns = trimmedPronouns || "N/A";
+      }
+
       if (Object.keys(updates).length === 0) return;
 
       const { error } = await supabase
@@ -358,6 +381,7 @@ const Account = () => {
         .eq("id", userId);
 
       if (error) {
+        setProfileSaveFailed(true);
         toast({
           title: "Error",
           description: getUserFriendlyError(error),
@@ -366,28 +390,26 @@ const Account = () => {
         return;
       }
 
-      if (updates.username !== undefined) {
-        setUsername(updates.username);
+      setProfileSaveFailed(false);
+      const savedUsername = updates.username;
+      const savedBio = updates.bio;
+      const savedPronouns = updates.pronouns;
+      if (savedUsername !== undefined) {
+        setUsername((current) => current.trim() === trimmedUsername ? savedUsername : current);
       }
-      if (updates.bio !== undefined) {
-        setBio(updates.bio);
+      if (savedBio !== undefined) {
+        setBio((current) => current.trim() === trimmedBio ? savedBio || "" : current);
+      }
+      if (savedPronouns !== undefined) {
+        setPronouns((current) => current.trim() === trimmedPronouns ? savedPronouns : current);
       }
       setSavedProfile((profile) => ({
         username: updates.username ?? profile.username,
         bio: updates.bio ?? profile.bio,
+        pronouns: updates.pronouns ?? profile.pronouns,
       }));
-
-      // The form is clean now, so profileDirty is about to go false. Hold the
-      // bar on screen anyway until the checkmark has had its moment, then fade.
-      clearFlashTimers();
-      setSavedFlash("visible");
-      flashHideTimeoutRef.current = setTimeout(() => {
-        setSavedFlash("fading");
-        flashUnmountTimeoutRef.current = setTimeout(() => {
-          setSavedFlash("none");
-        }, SAVED_FLASH_FADE_MS);
-      }, SAVED_FLASH_VISIBLE_MS);
     } catch (error: unknown) {
+      setProfileSaveFailed(true);
       toast({
         title: "Error",
         description: getUserFriendlyError(error),
@@ -397,7 +419,22 @@ const Account = () => {
       profileSaveRef.current = false;
       setProfileSaving(false);
     }
-  };
+  }, [bio, pronouns, savedProfile, toast, userId, username]);
+
+  useEffect(() => {
+    if (!userId || profileSaveAt === null) return;
+
+    const remainingDelay = Math.max(0, profileSaveAt - Date.now());
+    profileSaveTimerRef.current = setTimeout(() => {
+      profileSaveTimerRef.current = null;
+      setProfileSaveAt(null);
+      void handleSaveProfile();
+    }, remainingDelay);
+    return () => {
+      if (profileSaveTimerRef.current) clearTimeout(profileSaveTimerRef.current);
+      profileSaveTimerRef.current = null;
+    };
+  }, [handleSaveProfile, profileSaveAt, userId]);
 
   const handleSendPasswordOtp = async () => {
     if (!userEmail) {
@@ -752,15 +789,16 @@ const Account = () => {
     }
   };
 
-  // Ensure any in-flight hold animation frame + flash timers are cancelled on unmount
+  // Ensure in-flight animation and profile autosave timers are cancelled on unmount
   useEffect(() => {
     return () => {
       if (deleteHoldFrameRef.current !== null) {
         cancelAnimationFrame(deleteHoldFrameRef.current);
       }
-      clearFlashTimers();
+      if (profileSaveTimerRef.current) clearTimeout(profileSaveTimerRef.current);
+      if (profileEditDebounceTimerRef.current) clearTimeout(profileEditDebounceTimerRef.current);
     };
-  }, [clearFlashTimers]);
+  }, []);
 
   if (pageLoading) {
     return (
@@ -789,12 +827,8 @@ const Account = () => {
 
   const usernameDirty = username.trim() !== savedProfile.username;
   const bioDirty = bio.trim() !== savedProfile.bio;
-  const profileDirty = usernameDirty || bioDirty;
-
-  // Dirty state always wins: if the user starts editing again during the
-  // post-save flash, the bar snaps back to full opacity as a live Save bar.
-  const showSaveBar = profileDirty || savedFlash !== "none";
-  const saveBarFading = !profileDirty && savedFlash === "fading";
+  const pronounsDirty = pronouns.trim() !== savedProfile.pronouns;
+  const profileDirty = usernameDirty || bioDirty || pronounsDirty;
 
   return (
     <div className="min-h-screen">
@@ -806,130 +840,133 @@ const Account = () => {
           </p>
 
           <div className="space-y-6">
-            {/* Profile: identity fields share one form and one Save action */}
+            {/* Profile fields are saved automatically after editing pauses */}
             <ScrollRevealCard delay={0}>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
-                <CardHeader>
-                  <CardTitle>Profile</CardTitle>
-                  <CardDescription>
-                    Your public identity and account information
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="divide-y divide-border">
-                <div className="flex items-center gap-4 pb-4">
-                  <div
-                    className="relative group shrink-0"
-                    onMouseEnter={() => setAvatarHovering(true)}
-                    onMouseLeave={() => setAvatarHovering(false)}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={avatarLoading}
-                      className="relative block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      aria-label="Change profile picture"
-                    >
-                      <Avatar className="h-20 w-20">
-                        {avatarUrl ? (
-                          <AvatarImage src={avatarUrl} alt={username} />
-                        ) : (
-                          <AvatarFallback>
-                            <User className="h-10 w-10" />
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div
-                        className={cn(
-                          "absolute inset-0 flex items-center justify-center rounded-full bg-black/50 transition-opacity",
-                          avatarLoading || avatarHovering ? "opacity-100" : "opacity-0"
-                        )}
-                      >
-                        {avatarLoading ? (
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        ) : (
-                          <Camera className="h-6 w-6 text-white" />
-                        )}
-                      </div>
-                    </button>
+              <ProfileCard className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold">Edit profile</h2>
+                  <p className="mt-1 text-sm text-[var(--profile-card-muted)]">
+                    Manage how other people see you
+                  </p>
+                </div>
 
-                    {avatarUrl && !avatarLoading && (
+                <div className="flex flex-col gap-6 sm:flex-row">
+                  <div className="flex shrink-0 flex-col items-center gap-2 sm:items-start">
+                    <div
+                      className="group relative"
+                      onMouseEnter={() => setAvatarHovering(true)}
+                      onMouseLeave={() => setAvatarHovering(false)}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
                       <button
                         type="button"
-                        onClick={handleRemoveAvatar}
-                        className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label="Remove profile picture"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarLoading}
+                        className="relative block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="Change profile picture"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <Avatar className="h-24 w-24 ring-2 ring-[var(--profile-card-subtle)] ring-offset-2 ring-offset-[var(--profile-card-surface)]">
+                          {avatarUrl ? (
+                            <AvatarImage src={avatarUrl} alt={username} />
+                          ) : (
+                            <AvatarFallback>
+                              <User className="h-10 w-10" />
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div
+                          className={cn(
+                            "absolute inset-0 flex items-center justify-center rounded-full bg-primary/55 text-primary-foreground transition-opacity",
+                            avatarLoading || avatarHovering ? "opacity-100" : "opacity-0"
+                          )}
+                        >
+                          {avatarLoading ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          ) : (
+                            <Camera className="h-6 w-6" />
+                          )}
+                        </div>
                       </button>
-                    )}
+
+                      {avatarUrl && !avatarLoading && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveAvatar}
+                          className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label="Remove profile picture"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-[var(--profile-card-muted)]">Click photo to change</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">Profile Picture</p>
-                    <p className="text-xs text-muted-foreground">
-                      Click to change
-                    </p>
+
+                  <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="username" className="text-sm font-medium">Username</Label>
+                      <Input
+                        id="username"
+                        value={username}
+                        onChange={(e) => {
+                          setUsername(e.target.value);
+                          scheduleProfileSave();
+                        }}
+                        placeholder="Enter your username"
+                      />
+                    </div>
+
+                    <div className="flex flex-col items-center space-y-1.5">
+                      <Label htmlFor="pronouns" className="text-center text-sm font-medium">Pronouns</Label>
+                      <Dropdown
+                        ariaLabel="Pronouns"
+                        className="mx-auto w-36 max-w-full"
+                        triggerClassName="w-full"
+                        options={["N/A", "he/him", "she/her", "they/them"]}
+                        value={pronouns}
+                        onChange={(value) => {
+                          setPronouns(value);
+                          scheduleProfileSave();
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label htmlFor="account-email" className="text-sm font-medium">Email</Label>
+                      <Input id="account-email" value={userEmail} disabled />
+                    </div>
                   </div>
                 </div>
 
-                <div className="py-4 space-y-1.5">
-                  <Label htmlFor="username" className="text-sm font-medium">Username</Label>
-                  <Input
-                    id="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username"
-                  />
-                </div>
-
-                <div className="py-4 space-y-1.5">
-                  <Label className="text-sm font-medium">Email</Label>
-                  <Input value={userEmail} disabled />
-                </div>
-
-                <div className="py-4 space-y-1.5">
+                <div className="space-y-1.5">
                   <Label htmlFor="bio" className="text-sm font-medium">Bio</Label>
                   <Textarea
                     id="bio"
                     value={bio}
-                    onChange={(e) => setBio(e.target.value)}
+                    onChange={(e) => {
+                      setBio(e.target.value);
+                      scheduleProfileSave();
+                    }}
                     placeholder="Tell us about yourself..."
-                    className="resize-none min-h-[100px]"
+                    className="min-h-[100px] resize-none"
                     maxLength={150}
                   />
-                  <p className="text-xs text-muted-foreground text-right">
+                  <p className="text-right text-xs text-[var(--profile-card-muted)]">
                     {bio.length}/150 characters
                   </p>
                 </div>
-
-                {showSaveBar && (
-                  <div
-                    className={cn(
-                      "pt-4 flex items-center justify-between transition-all duration-300 ease-out",
-                      saveBarFading ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
-                    )}
-                  >
-                    <p className="text-xs text-muted-foreground">
-                      {profileDirty ? "You have unsaved changes" : "All changes saved"}
-                    </p>
-                    <StatefulButton onClick={handleSaveProfile} disabled={profileSaving} className="min-w-[110px] px-4 py-1.5 text-sm">
-                      Save changes
-                    </StatefulButton>
-                  </div>
-                )}
-                </CardContent>
-              </Card>
+              </ProfileCard>
             </ScrollRevealCard>
 
             {/* Privacy & Security: settings that take effect immediately, no Save needed */}
             <ScrollRevealCard delay={80}>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card className="border-border bg-card shadow-sm">
                 <CardHeader>
                   <CardTitle>Privacy & Security</CardTitle>
                   <CardDescription>
@@ -1181,7 +1218,7 @@ const Account = () => {
                 off in destructive styling so it visually reads as the one
                 irreversible action on the page. */}
             <ScrollRevealCard delay={160}>
-              <Card className="border-black/10 bg-card/85 shadow-lg backdrop-blur-sm hover-glow dark:border-white/15">
+              <Card className="border-border bg-card shadow-sm">
                 <CardHeader>
                   <CardTitle>Account Actions</CardTitle>
                   <CardDescription>
@@ -1240,7 +1277,7 @@ const Account = () => {
                             )}
                           >
                             <span
-                              className="absolute inset-y-0 left-0 bg-white/25"
+                              className="absolute inset-y-0 left-0 bg-destructive-foreground/25"
                               style={{
                                 width: `${deleteHoldProgress}%`,
                                 transition: deleteHoldProgress === 0 ? "width 150ms ease-out" : "none",

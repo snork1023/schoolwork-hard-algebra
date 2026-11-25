@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/buttons/button";
 import { ScrollArea } from "@/components/ui/layout/scroll-area";
-import { Plus, MessageSquare, Users, Edit2, Trash2, LogOut } from "lucide-react";
+import { MessageSquare, MessageSquarePlus, Users, Edit2, Trash2, LogOut, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/data-display/avatar";
 import { StatusIndicator, getStatusLabel, type Status } from "./StatusIndicator";
 import { StatusSelector } from "./StatusSelector";
@@ -29,7 +29,9 @@ type ChatSidebarProps = {
   conversations: Conversation[];
   selectedConversationId: string | null;
   onSelectConversation: (id: string) => void;
-  onCreateNew: () => void;
+  onContacts: () => void;
+  onCreateGroup: () => void;
+  contactsOpen: boolean;
   onRename: (conversation: Conversation) => void;
   onDelete: (conversationId: string) => void;
   onLeave: (conversationId: string) => void;
@@ -45,7 +47,9 @@ const ChatSidebar = ({
   conversations,
   selectedConversationId,
   onSelectConversation,
-  onCreateNew,
+  onContacts,
+  onCreateGroup,
+  contactsOpen,
   onRename,
   onDelete,
   onLeave,
@@ -92,50 +96,96 @@ const ChatSidebar = ({
   };
 
   return (
-    <div className="flex h-full w-[min(20rem,30vw)] min-w-[17rem] flex-col">
-      <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-black/10 bg-card/75 shadow-xl backdrop-blur-sm dark:border-white/10 dark:bg-card/70">
-        <div className="border-b border-border/50 p-5">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-lg font-semibold">{username || 'User'}</p>
-              <button
-                onClick={() => setShowEmail(!showEmail)}
-                className="block w-full truncate text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {userEmail ? (showEmail ? userEmail : maskEmail(userEmail)) : '••••••••'}
-              </button>
+    <div className="flex h-full w-[min(19rem,32vw)] min-w-[16rem] flex-col">
+      <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+        <div className="border-b border-border/60 px-3 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Avatar className="h-9 w-9 shrink-0">
+                <AvatarFallback>
+                  <User className="h-4 w-4 text-muted-foreground" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{username || "User"}</p>
+                <button
+                  type="button"
+                  onClick={() => setShowEmail(!showEmail)}
+                  className="block w-full truncate text-left text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {userEmail ? (showEmail ? userEmail : maskEmail(userEmail)) : "••••••••"}
+                </button>
+              </div>
             </div>
-            <Button
-              onClick={onCreateNew}
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-xl border border-primary/30 bg-card/75 text-primary shadow-sm backdrop-blur-md hover:bg-card/90"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  onClick={onContacts}
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Contacts"
+                  aria-pressed={contactsOpen}
+                  className={`h-9 w-9 shrink-0 rounded-lg ${contactsOpen ? "bg-primary/10 text-primary hover:bg-primary/15" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Contacts</TooltipContent>
+            </Tooltip>
+            {onUserStatusChange && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+                    <StatusSelector
+                      currentStatus={userStatus}
+                      statusMessage={userStatusMessage ?? null}
+                      userId={currentUserId}
+                      onStatusChange={onUserStatusChange}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Set your status</TooltipContent>
+              </Tooltip>
+            )}
           </div>
-          {onUserStatusChange && (
-            <StatusSelector
-              currentStatus={userStatus}
-              statusMessage={userStatusMessage}
-              userId={currentUserId}
-              onStatusChange={onUserStatusChange}
-            />
-          )}
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="space-y-1 p-3">
+          <div className="flex items-center justify-between px-3 pb-2 pt-4">
+            <p className="text-xs font-semibold text-muted-foreground">Messages</p>
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    onClick={onCreateGroup}
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Create group chat"
+                    className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Create group chat</TooltipContent>
+              </Tooltip>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {conversations.length}
+              </span>
+            </div>
+          </div>
+          <div className="space-y-0.5 px-2 pb-3">
             {conversations.map(conv => (
               <div
                 key={conv.id}
-                className={`group flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-all ${selectedConversationId === conv.id ? 'border-primary/30 bg-primary/10 shadow-sm' : 'border-transparent hover:border-border/50 hover:bg-accent/50'}`}
+                className={`group flex cursor-pointer items-center gap-3 rounded-lg border border-transparent px-2.5 py-2 transition-colors ${selectedConversationId === conv.id ? 'bg-primary/10 text-foreground' : 'hover:bg-accent/60'}`}
                 onClick={() => onSelectConversation(conv.id)}
               >
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="relative cursor-pointer">
-                      <Avatar className="h-10 w-10">
+                      <Avatar className="h-9 w-9">
                         <AvatarFallback className="bg-primary/10 text-primary">
                           {conv.type === 'group' ? <Users className="h-4 w-4 text-primary" /> : <MessageSquare className="h-4 w-4 text-primary" />}
                         </AvatarFallback>
@@ -171,7 +221,7 @@ const ChatSidebar = ({
                     {conv.type === 'dm' ? 'Direct Message' : 'Group Chat'}
                   </p>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                <div className="flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
                   {conv.type === 'group' && (
                     <Button
                       variant="ghost"

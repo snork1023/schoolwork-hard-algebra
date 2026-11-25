@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/layout/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 import ChatSidebar from "@/components/chat/ChatSidebar";
+import ContactsPanel, { type ContactProfile } from "@/components/chat/ContactsPanel";
 import CreateConversationDialog from "@/components/chat/CreateConversationDialog";
 import RenameConversationDialog from "@/components/chat/RenameConversationDialog";
 import TypingIndicator from "@/components/chat/TypingIndicator";
@@ -134,6 +135,7 @@ const Chat = () => {
   const [loading, setLoading] = useState(true);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [contactsOpen, setContactsOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
@@ -175,17 +177,111 @@ const Chat = () => {
   };
 
   const handleSelectConversation = async (conversationId: string) => {
-    if (conversationId === selectedConversationId) return;
+    if (conversationId === selectedConversationId) {
+      setContactsOpen(false);
+      return;
+    }
     try {
       await discardDraftAttachments();
       setNewMessage("");
       setSelectedConversationId(conversationId);
+      setContactsOpen(false);
     } catch (error: unknown) {
       toast({
         title: "Couldn't discard unsent attachments",
         description: getUserFriendlyError(error),
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSelectContact = async (contact: ContactProfile) => {
+    if (!user || contact.id === user.id) return;
+
+    const existingDm = conversations.find(
+      conversation =>
+        conversation.type === "dm" &&
+        conversation.participants?.some(participant => participant.user_id === contact.id)
+    );
+    if (existingDm) {
+      await handleSelectConversation(existingDm.id);
+      setContactsOpen(false);
+      return;
+    }
+
+    try {
+      const { data: conversation, error: conversationError } = await supabase
+        .from("conversations")
+        .insert({ type: "dm", created_by: user.id })
+        .select()
+        .single();
+      if (conversationError) throw conversationError;
+
+      const { error: participantsError } = await supabase
+        .from("conversation_participants")
+        .insert([
+          { conversation_id: conversation.id, user_id: user.id },
+          { conversation_id: conversation.id, user_id: contact.id },
+        ]);
+      if (participantsError) {
+        const { error: cleanupError } = await supabase
+          .from("conversations")
+          .delete()
+          .eq("id", conversation.id)
+          .eq("created_by", user.id);
+        if (cleanupError) {
+          console.error("Failed to remove an incomplete direct message:", cleanupError);
+        }
+        throw participantsError;
+      }
+
+      await fetchConversations();
+      await handleSelectConversation(conversation.id);
+      setContactsOpen(false);
+    } catch (error: unknown) {
+      toast({
+        title: "Error starting conversation",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBlockContact = async (contact: ContactProfile): Promise<boolean> => {
+    if (!user) return false;
+    const directMessages = conversations.filter(
+      conversation =>
+        conversation.type === "dm" &&
+        conversation.participants?.some(participant => participant.user_id === contact.id)
+    );
+
+    try {
+      if (directMessages.some(conversation => conversation.id === selectedConversationId)) {
+        await discardDraftAttachments();
+      }
+
+      const { error } = await supabase
+        .from("profile_blocks")
+        .insert({ blocker_id: user.id, blocked_id: contact.id });
+      if (error) throw error;
+
+      if (directMessages.some(conversation => conversation.id === selectedConversationId)) {
+        setSelectedConversationId(null);
+        setMessages([]);
+      }
+      await fetchConversations();
+      toast({
+        title: "User blocked",
+        description: "Your follows were removed and all DMs between you were deleted.",
+      });
+      return true;
+    } catch (error: unknown) {
+      toast({
+        title: "Error blocking user",
+        description: getUserFriendlyError(error),
+        variant: "destructive",
+      });
+      return false;
     }
   };
 
@@ -893,11 +989,21 @@ const Chat = () => {
   return <div className="h-screen flex flex-col">
       <div className="flex min-h-0 flex-1 overflow-hidden bg-background/20 pt-20">
         <div className="shrink-0 pb-3 pl-4 pt-3">
-        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={handleSelectConversation} onCreateNew={() => setCreateDialogOpen(true)} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
+        <ChatSidebar conversations={conversations} selectedConversationId={selectedConversationId} onSelectConversation={handleSelectConversation} onContacts={() => setContactsOpen(open => !open)} onCreateGroup={() => setCreateDialogOpen(true)} contactsOpen={contactsOpen} onRename={handleRenameClick} onDelete={handleDeleteConversation} onLeave={handleLeaveConversation} currentUserId={user?.id || ""} userEmail={user?.email} username={username} userStatus={userStatus} userStatusMessage={userStatusMessage} onUserStatusChange={(status, message) => { setManualStatus(status); setUserStatus(status); setUserStatusMessage(message); }} />
         </div>
         <div className="min-w-0 flex-1 flex min-h-0 flex-col">
-          {selectedConversationId ? <>
-              <div className="mx-3 mb-3 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-black/10 bg-card/65 shadow-xl backdrop-blur-sm dark:border-white/10 dark:bg-card/60">
+          {contactsOpen ? (
+            <ContactsPanel
+              currentUserId={user?.id || ""}
+              onSelectContact={handleSelectContact}
+              onViewContact={(contact) => {
+                setSelectedUserId(contact.id);
+                setProfileDialogOpen(true);
+              }}
+              onBlockContact={handleBlockContact}
+            />
+          ) : selectedConversationId ? <>
+              <div className="mx-3 mb-3 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card/90 shadow-sm backdrop-blur-md">
               <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -1183,7 +1289,7 @@ const Chat = () => {
               </div>
               </div>
             </> : <div className="flex flex-1 items-center justify-center p-6">
-              <div className="max-w-sm rounded-3xl border border-black/10 bg-card/65 p-8 text-center shadow-lg backdrop-blur-sm dark:border-white/10 dark:bg-card/60">
+              <div className="max-w-sm rounded-xl border border-border bg-card/90 p-8 text-center shadow-sm backdrop-blur-md">
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
                   <MessageSquare className="h-7 w-7" />
                 </div>
@@ -1192,7 +1298,7 @@ const Chat = () => {
                 </h1>
 
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Select a conversation from the sidebar or create a new chat to get started.
+                  Select a conversation from the sidebar or use Contacts to find someone to message.
                 </p>
 
                 <Button
@@ -1221,7 +1327,6 @@ const Chat = () => {
         onOpenChange={setProfileDialogOpen} 
         userId={selectedUserId}
         currentUserId={user?.id}
-        onConversationCreated={fetchConversations}
       />
 
       <AlertDialog
